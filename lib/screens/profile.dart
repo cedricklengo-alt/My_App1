@@ -15,7 +15,10 @@ import '../prefs.dart';
 
 /// Profil : infos compte, grille des tarifs, sécurité PIN, déconnexion.
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  /// Ouvre directement la feuille « Paramètres » (langue, thème, police).
+  final bool startWithSettings;
+
+  const ProfileScreen({super.key, this.startWithSettings = false});
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
@@ -29,6 +32,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Pin.isSet().then((v) {
       if (mounted) setState(() => pinSet = v);
     });
+    if (widget.startWithSettings) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openSettings(context);
+      });
+    }
   }
 
   @override

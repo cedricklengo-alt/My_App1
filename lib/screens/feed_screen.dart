@@ -18,6 +18,7 @@ import 'package:video_player/video_player.dart';
 import '../api.dart';
 import '../models/post.dart';
 import '../state.dart';
+import '../tabs.dart';
 import '../theme.dart';
 import '../widgets/feed/media_view.dart';
 import '../widgets/feed/post_card.dart';
@@ -56,14 +57,26 @@ class _FeedScreenState extends State<FeedScreen> {
     super.initState();
     _api = widget.api ?? context.read<AppState>().api;
     _scroll.addListener(_onScroll);
+    Tabs.listen(Tabs.feed, _onTabRefresh);
     _load();
   }
 
   @override
   void dispose() {
+    Tabs.stopListening(Tabs.feed, _onTabRefresh);
     _scroll.dispose();
     _search.dispose();
     super.dispose();
+  }
+
+  /// Re-tap sur l'onglet Accueil → on remonte en haut et on recharge.
+  void _onTabRefresh() {
+    if (!mounted) return;
+    if (_scroll.hasClients && _scroll.offset > 0) {
+      _scroll.animateTo(0,
+          duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+    }
+    _refresh();
   }
 
   // ── Chargement ─────────────────────────────────────────
@@ -610,13 +623,8 @@ class _FeedScreenState extends State<FeedScreen> {
 
             // Contenu
             if (_loading)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: CircularProgressIndicator(
-                      color: MC.soleil, strokeWidth: 2),
-                ),
-              )
+              const SliverToBoxAdapter(
+                  child: _FeedSkeleton(key: Key('feed-skeleton')))
             else if (_error != null)
               SliverFillRemaining(
                 hasScrollBody: false,
@@ -850,6 +858,59 @@ class _EmptyState extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Squelette du fil : trois cartes grises pendant le premier chargement.
+/// Plus rassurant qu'une roue qui tourne, et zéro saut de mise en page.
+class _FeedSkeleton extends StatelessWidget {
+  const _FeedSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: List<Widget>.generate(
+        3,
+        (i) => Container(
+          margin: const EdgeInsets.fromLTRB(12, 10, 12, 2),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+              color: MC.nuit2, borderRadius: BorderRadius.circular(18)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _bar(40, 40, radius: 20),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _bar(110, 10),
+                      const SizedBox(height: 7),
+                      _bar(70, 8),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _bar(double.infinity, 9),
+              const SizedBox(height: 7),
+              _bar(double.infinity, 9),
+              const SizedBox(height: 7),
+              _bar(160, 9),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _bar(double w, double h, {double radius = 6}) => Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+            color: MC.nuit3, borderRadius: BorderRadius.circular(radius)),
+      );
 }
 
 class _ErrorState extends StatelessWidget {
