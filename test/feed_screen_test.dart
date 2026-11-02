@@ -164,7 +164,8 @@ void main() {
 
     await tester.pumpWidget(wrap(FeedScreen(api: api), AppState()));
     await tester.pump(); // déclenche initState → futur
-    expect(find.byType(CircularProgressIndicator), findsWidgets); // chargement
+    // Pendant le premier chargement : squelette de cartes, pas de roue qui tourne.
+    expect(find.byKey(const Key('feed-skeleton')), findsOneWidget);
 
     await tester.pumpAndSettle();
 
