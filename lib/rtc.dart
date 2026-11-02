@@ -44,6 +44,18 @@ class Rtc {
     _groupListeners.remove(f);
   }
 
+  /// 💬 Auditeurs des messages de discussion (`msg` : nouveau message, lu,
+  /// écouté, supprimé) et de l'indicateur « écrit… » (`typing`).
+  static final List<void Function(Map msg)> _messageListeners = [];
+
+  static void addMessageListener(void Function(Map msg) f) {
+    if (!_messageListeners.contains(f)) _messageListeners.add(f);
+  }
+
+  static void removeMessageListener(void Function(Map msg) f) {
+    _messageListeners.remove(f);
+  }
+
   static String get _url {
     // https://…/api  →  wss://…/ws   (et http → ws en local)
     return Config.apiBase
@@ -77,6 +89,13 @@ class Rtc {
           final type = '${msg['type']}';
           if (type == 'offer') {
             onOffer?.call(msg);
+          } else if (type == 'msg' || type == 'typing') {
+            // 💬 Discussions : l'écran ouvert et la liste écoutent en parallèle.
+            for (final f in List.of(_messageListeners)) {
+              try {
+                f(msg);
+              } catch (_) {}
+            }
           } else if (type.startsWith('group_')) {
             // 👥 Signalisation d'appel de groupe : à tous les auditeurs.
             for (final f in List.of(_groupListeners)) {

@@ -37,6 +37,11 @@ class Api {
         if (token != null) 'Authorization': 'Bearer $token',
       };
 
+  /// En-têtes pour les widgets qui vont chercher un fichier privé
+  /// (`Image.network`, lecteur audio) : mêmes droits que l'API.
+  Map<String, String> get authHeaders =>
+      {if (token != null) 'Authorization': 'Bearer $token'};
+
   static const _timeout = Duration(seconds: 20);
 
   Future<dynamic> _send(String method, String path, [Map? body]) async {
@@ -208,6 +213,126 @@ class Api {
       await _send('GET', '/lokota/with/${Uri.encodeComponent(phone)}');
   Future<void> lokotaMarkRead(String phone) async =>
       await _send('POST', '/lokota/with/${Uri.encodeComponent(phone)}/read');
+
+  // ---- 💬 DISCUSSIONS : messages texte, photos et notes vocales ----
+  //
+  // Tout passe par les mêmes tables côté serveur (`messages`) : un fil unique
+  // par personne, que l'on écrive, qu'on envoie une photo ou qu'on parle.
+  // Les notes vocales utilisent `/konversations` (même stockage que le texte).
+
+  /// Fils de discussion (dernier message + compteurs non lus).
+  Future<List> messageThreads() async => await _send('GET', '/messages/threads');
+
+  /// Messages échangés avec [phone] (50 plus récents, `before` pour remonter).
+  Future<Map> conversation(String phone, {int? before}) async {
+    final q = StringBuffer('/messages/with/${Uri.encodeComponent(phone)}');
+    if (before != null) q.write('?before=$before');
+    return await _send('GET', q.toString());
+  }
+
+  /// Envoie un message texte. [clientId] rend l'envoi idempotent (renvoi après
+  /// coupure réseau : pas de doublon).
+  Future<Map> sendMessage(
+    String to,
+    String text, {
+    String? clientId,
+    String langFrom = 'fr',
+    String langTo = 'fr',
+  }) async =>
+      await _send('POST', '/messages/send', {
+        'to': to,
+        'text': text,
+        'lang_from': langFrom,
+        'lang_to': langTo,
+        if (clientId != null) 'client_id': clientId,
+      });
+
+  /// 🗣️ Envoie une note vocale (stockée comme un message, donc dans le fil).
+  Future<Map> sendVoiceNote(
+    String to, {
+    required List<int> bytes,
+    required int durationSec,
+    String langFrom = 'fr',
+    String langTo = 'ln',
+    List<int>? wave,
+    String? clientId,
+  }) async =>
+      await _send('POST', '/konversations/send', {
+        'to': to,
+        'audio': 'data:audio/m4a;base64,${base64Encode(bytes)}',
+        'duration_sec': durationSec,
+        'lang_from': langFrom,
+        'lang_to': langTo,
+        if (wave != null) 'wave': wave,
+        if (clientId != null) 'client_id': clientId,
+      });
+
+  /// 🖼️ Envoie une photo (ou un fichier) — corps binaire brut.
+  Future<Map> sendMessageMedia(
+    String to, {
+    required List<int> bytes,
+    required String kind, // 'image' | 'file'
+    required String mime,
+    required String name,
+    String? clientId,
+    String text = '',
+  }) async {
+    final q = <String>[
+      'to=${Uri.encodeComponent(to)}',
+      'kind=$kind',
+      'mime=${Uri.encodeComponent(mime)}',
+      'name=${Uri.encodeComponent(name)}',
+      if (text.isNotEmpty) 'text=${Uri.encodeComponent(text)}',
+      if (clientId != null) 'client_id=$clientId',
+    ].join('&');
+    late http.Response r;
+    try {
+      r = await http
+          .post(
+            Uri.parse('${Config.apiBase}/messages/send-media?$q'),
+            headers: {
+              'Content-Type': 'application/octet-stream',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
+            body: bytes,
+          )
+          .timeout(const Duration(seconds: 60));
+    } on SocketException {
+      throw ApiException('Pas d\'Internet — vérifie ta connexion 📶', 'offline');
+    } on TimeoutException {
+      throw ApiException('Envoi trop lent — réessaie', 'timeout');
+    }
+    dynamic data;
+    try {
+      data = r.body.isEmpty ? {} : jsonDecode(r.body);
+    } catch (_) {
+      data = {};
+    }
+    if (r.statusCode >= 400) {
+      throw ApiException(
+          data is Map ? (data['error'] ?? 'Envoi impossible — réessaie') : 'Envoi impossible — réessaie');
+    }
+    return data is Map ? data : {};
+  }
+
+  /// ✓✓ Marque comme lus les messages reçus de [phone].
+  Future<void> markConversationRead(String phone) async =>
+      await _send('POST', '/messages/with/${Uri.encodeComponent(phone)}/read');
+
+  /// 🗑️ Supprime un message **pour tout le monde** (expéditeur seulement).
+  Future<void> deleteMessageForAll(String id) async =>
+      await _send('DELETE', '/messages/$id');
+
+  /// 🗑️ Supprime des messages **pour moi** (masqués de mon fil uniquement).
+  Future<void> deleteMessagesForMe(List<String> ids) async =>
+      await _send('POST', '/messages/delete', {'ids': ids, 'scope': 'me'});
+
+  /// 👂 Signale qu'une note vocale reçue a été écoutée.
+  Future<void> markMessagePlayed(String id) async =>
+      await _send('POST', '/messages/$id/played');
+
+  /// URL de téléchargement d'une pièce jointe privée (protégée par le jeton).
+  String messageMediaUrl(String id) => '${Config.apiBase}/messages/media/$id';
 
   Future<Map> hangup(String id) async =>
       await _send('POST', '/calls/$id/hangup');
