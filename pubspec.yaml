@@ -1,0 +1,42 @@
+name: mbote
+description: MboteCall — Appelle le pays, comme si tu y etais.
+publish_to: 'none'
+version: 1.8.1+10
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.2
+  http: ^1.2.0
+  shared_preferences: ^2.2.3
+  flutter_contacts: ^1.1.9+2
+  share_plus: ^10.1.2
+  image_picker: ^1.1.2
+  flutter_webrtc: ^1.6.2 # vraie voix MboteCall
+  flutter_ringtone_player: ^4.0.0
+  firebase_core: ^5.0.0
+  firebase_messaging: ^17.0.0
+  record: ^7.1.2 # 🗣️ Lokota : enregistrement des notes vocales
+  audioplayers: ^6.8.1 # 🗣️ Lokota : écoute des notes vocales
+  path_provider: ^2.1.5 # fichier temporaire d'enregistrement
+  intl: ^0.19.0 # 📅 Feed : formatage des dates d'événements
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon/
+
+# 🌅 Icône de l'app — générée avec : dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: assets/icon/icon.png
+  adaptive_icon_background: "#14100E"
+  adaptive_icon_foreground: assets/icon/icon.png

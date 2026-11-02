@@ -1,0 +1,244 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
+import 'package:provider/provider.dart';
+import '../state.dart';
+import '../theme.dart';
+import '../rtc.dart';
+import '../prefs.dart';
+import 'call.dart';
+
+/// 📲 Appel MboteCall ENTRANT — sonnerie système + vibration,
+/// même langage visuel que l'écran d'appel : anneau dégradé + halo,
+/// nom, icône officielle, puis décrocher (vert) ou refuser (rouge).
+class IncomingCallScreen extends StatefulWidget {
+  final Map offer; // {from, from_name, from_avatar, call_id, sdp}
+  const IncomingCallScreen({super.key, required this.offer});
+
+  @override
+  State<IncomingCallScreen> createState() => _IncomingCallScreenState();
+}
+
+class _IncomingCallScreenState extends State<IncomingCallScreen> {
+  Timer? vibre;
+  bool done = false; // évite double pop / double journal
+  final List<Map> earlyIce = []; // 🧊 candidats réseau arrivés pendant la sonnerie
+
+  @override
+  void initState() {
+    super.initState();
+    // 🔔 Sonnerie + vibration selon les préférences (Profil → Paramètres)
+    _startRingAndVibe();
+    // 👂 Si l'appelant raccroche pendant la sonnerie → appel manqué
+    // 🧊 Et on mémorise les candidats réseau (ICE) reçus pendant qu'on sonne :
+    //    ils seront rejoués au décrochage (indispensable quand on répond
+    //    tard, par ex. après avoir touché la notification 📲)
+    Rtc.onSignal = (msg) {
+      if (msg['call_id'] != widget.offer['call_id']) return;
+      if (msg['type'] == 'hangup') {
+        _finish(missed: true);
+      } else if (msg['type'] == 'ice' && msg['candidate'] != null) {
+        earlyIce.add(Map.from(msg['candidate']));
+      }
+    };
+  }
+
+  /// 🔔 Démarre la sonnerie choisie par l'utilisateur + la vibration
+  void _startRingAndVibe() {
+    final player = FlutterRingtonePlayer();
+    switch (CallPrefs.ringtone) {
+      case 'douce':
+        player.play(
+            android: AndroidSounds.notification,
+            ios: IosSounds.triTone,
+            looping: true,
+            volume: 0.9);
+      case 'forte':
+        player.playAlarm(looping: true, volume: 1.0);
+      case 'silencieux':
+        break; // pas de son — vibration seule si activée
+      default: // 'classique'
+        player.playRingtone(looping: true, volume: 1.0);
+    }
+    if (CallPrefs.vibration) {
+      HapticFeedback.vibrate();
+      vibre = Timer.periodic(
+          const Duration(milliseconds: 1200), (_) => HapticFeedback.vibrate());
+    }
+  }
+
+  void _stopRing() {
+    vibre?.cancel();
+    FlutterRingtonePlayer().stop();
+  }
+
+  /// Fin sans décrocher (refus ou appelant parti) → journal « manqué »
+  void _finish({required bool missed}) {
+    if (done) return;
+    done = true;
+    _stopRing();
+    Rtc.onSignal = null;
+    if (missed) {
+      // 📥 Journalise l'appel manqué (sans bloquer l'interface)
+      try {
+        context
+            .read<AppState>()
+            .api
+            .logIncoming(widget.offer['from'].toString(), 0);
+      } catch (_) {}
+    }
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  void dispose() {
+    _stopRing();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final offer = widget.offer;
+    final name = (offer['from_name'] ?? '').toString().isNotEmpty
+        ? offer['from_name'].toString()
+        : offer['from'].toString();
+    final avatar = offer['from_avatar']?.toString();
+    final hasPhoto = avatar != null && avatar.isNotEmpty;
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: const Alignment(0, -.6),
+            radius: 1.2,
+            colors: [MC.halo, MC.nuit],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              const Spacer(flex: 2),
+              Text('🔔 APPEL ENTRANT',
+                  style: TextStyle(
+                      color: MC.sable, fontSize: 13, letterSpacing: 2)),
+              const SizedBox(height: 26),
+              // 📷 Même anneau doré que l'écran d'appel
+              Container(
+                width: 128,
+                height: 128,
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: SweepGradient(
+                      colors: [MC.soleil, MC.braise, MC.terre, MC.soleil]),
+                  boxShadow: [
+                    BoxShadow(
+                        color: MC.soleil.withOpacity(.22),
+                        blurRadius: 36,
+                        spreadRadius: 6),
+                  ],
+                ),
+                child: Container(
+                  clipBehavior: Clip.antiAlias,
+                  decoration:
+                      BoxDecoration(shape: BoxShape.circle, color: MC.nuit2),
+                  child: hasPhoto
+                      ? Image.memory(
+                          base64Decode(avatar.split(',').last),
+                          fit: BoxFit.cover,
+                          gaplessPlayback: true,
+                        )
+                      : Center(
+                          child: Text(initial,
+                              style: TextStyle(
+                                  fontSize: 44,
+                                  fontWeight: FontWeight.w800,
+                                  color: MC.soleil)),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(name,
+                  style: TextStyle(
+                      fontSize: 23,
+                      fontWeight: FontWeight.w800,
+                      color: MC.ivoire)),
+              const SizedBox(height: 14),
+              // 💚 Icône officielle : c'est un appel MboteCall gratuit
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                        color: MC.soleil.withOpacity(.3),
+                        blurRadius: 22,
+                        spreadRadius: 2),
+                  ],
+                ),
+                child: ClipOval(
+                  child: Image.asset('assets/icon/icon_small.png',
+                      width: 52, height: 52, fit: BoxFit.cover),
+                ),
+              ),
+              const Spacer(flex: 2),
+              // Refuser (rouge) · Décrocher (vert)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _big(Icons.call_end_rounded, MC.rouge, () {
+                    Rtc.send({
+                      'type': 'reject',
+                      'to': offer['from'],
+                      'call_id': offer['call_id'],
+                    });
+                    _finish(missed: true);
+                  }),
+                  const SizedBox(width: 70),
+                  _big(Icons.call_rounded, MC.savane, () {
+                    if (done) return;
+                    done = true;
+                    _stopRing();
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CallScreen(
+                          to: offer['from'],
+                          displayName: offer['from_name']?.toString(),
+                          incomingOffer: {...offer, 'early_ice': earlyIce},
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+              const SizedBox(height: 46),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _big(IconData icon, Color color, VoidCallback onTap) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 74,
+          height: 74,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color,
+            boxShadow: [
+              BoxShadow(
+                  color: color.withOpacity(.4),
+                  blurRadius: 26,
+                  offset: const Offset(0, 8)),
+            ],
+          ),
+          child: Icon(icon, color: Colors.white, size: 32),
+        ),
+      );
+}

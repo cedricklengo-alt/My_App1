@@ -1,0 +1,317 @@
+============================================================
+ v1.8.1 — PHASE A : TURN FIABLE + ROTATION DES SECRETS 🛡️
+============================================================
+⚠️ L'ancien TURN public « openrelay » a ete RETIRE par Metered :
+sans cette mise a jour, beaucoup d'appels 4G<->4G echoueraient.
+
+CE QUI CHANGE :
+ - L'app recupere la liste STUN/TURN aupres du serveur
+   (GET /api/rtc/ice, protegee par jeton) au lieu d'identifiants
+   ecrits en dur -> rotation TURN sans recompiler l'app.
+ - Repli STUN integre si le serveur est injoignable.
+ - Rotation de cle JWT SANS deconnecter les utilisateurs :
+   JWT_SECRET (nouvelle) + JWT_SECRET_OLD (ancienne, 30 jours).
+ - SMS reels Africa's Talking (OTP + reset PIN) si AT_USERNAME
+   et AT_API_KEY sont definies sur Render.
+
+A FAIRE SUR RENDER (voir GUIDE-SECURITE-PHASE-A.md) :
+ TURN_URLS / TURN_USERNAME / TURN_CREDENTIAL  (compte Metered gratuit)
+ AT_USERNAME / AT_API_KEY                     (SMS reels)
+ DATABASE_URL (nouveau mot de passe Neon), JWT_SECRET (+_OLD),
+ ADMIN_PASSWORD
+Teste 8/8 (rotation 3 phases) + 4/4 (SMS/OTP) en local.
+
+============================================================
+ v1.8.0 — 🗣️ LOKOTA 1 : NOTES VOCALES TRADUITES (PILOTE)
+============================================================
+« Parle ta langue. Ils entendront la leur. »
+
+NOUVEAU dans l'app :
+ - Carte « 🗣️ Lokota (PILOTE) » sur l'ecran d'accueil
+ - Enregistre une note vocale (60 s max) en francais,
+   lingala ou swahili -> ton proche MboteCall la recoit
+   avec la TRADUCTION ECRITE dans sa langue
+ - Fils de discussion type messagerie : bulles, lecture ▶️,
+   transcription + traduction, pastille non-lus, langues
+   interchangeables 🎙️fr -> 👂ln (bouton d'echange)
+ - Notification push 🎙️ a la reception d'une note
+
+BONUS v1.8 — QUALITE VOIX DES APPELS 🎧 :
+ - Annulation d'echo, reduction de bruit et gain automatique
+   actives sur le micro pendant les appels MboteCall.
+
+NOUVELLES DEPENDANCES (flutter pub get obligatoire) :
+ - record ^7.1.2       (enregistrement ; necessite Flutter
+   recent — si « pub get » refuse, remplacer par ^6.2.0)
+ - audioplayers ^6.8.1 (ecoute des notes)
+ - path_provider ^2.1.5
+La permission micro (RECORD_AUDIO) est deja dans le manifest.
+
+COTE SERVEUR (⚠️ REDEPLOYER mbote-backend-deploy.zip) :
+ - Table voice_notes creee automatiquement au demarrage
+ - Routes /api/lokota/* (envoi 20 notes/h max, audio <= 450 ko)
+ - MODE DEMO : traductions SIMULEES marquees 🧪
+ - VRAIE IA : ajouter la variable d'environnement
+   LOKOTA_OPENAI_KEY sur Render (cle OpenAI) -> transcription
+   Whisper + traduction GPT (~0,006 $ la minute de note).
+Backend teste 13/13 (envoi, garde-fous, traduction, non-lus).
+
+============================================================
+ v1.7.2 — RESET PIN : PROTOCOLE DE SECURITE STRICT 🔐
+============================================================
+Le PIN ne peut etre reinitialise QUE par la personne habilitee :
+ 1. etre connecte sur l'appareil (jeton du compte exige), ET
+ 2. recevoir un code SMS dedie sur la SIM du compte ;
+ 3. code valable 5 min, usage unique, 3 essais maximum ;
+ 4. 3 codes faux -> reinitialisation BLOQUEE 30 minutes ;
+ 5. le code n'apparait JAMAIS dans l'app ni dans la reponse API
+    (en mode demo : visible uniquement dans les logs du serveur,
+     Render -> Logs, ligne « 🔐 [SECURITE] Code reinitialisation ») ;
+ 6. apres un reset, le titulaire recoit une notification d'alerte.
+Protocole teste 13/13 (faux codes, blocage, rejeu, sans jeton).
+⚠️ REDEPLOYER LE BACKEND (mbote-backend-deploy.zip) : les routes
+   /auth/pin-reset/* sont cote serveur !
+
+============================================================
+ v1.7.1 — CODE PIN OUBLIE ? PAS DE PANIQUE 🆘🔐
+============================================================
+Sur l'ecran de verrouillage : lien « Code PIN oublie ? »
+-> un code est envoye par SMS au numero du compte
+-> on le saisit -> le PIN est efface, l'app s'ouvre
+-> on en choisit un nouveau dans Profil.
+(Le numero de telephone EST l'identite du compte : celui qui
+recoit le SMS est le proprietaire legitime — standard bancaire.)
+Traduit en francais, lingala, swahili. Protege par l'anti
+force-brute du serveur (8 essais max / 10 min).
+
+============================================================
+ NOUVEAUTES v1.7 — « PRO & SECURITE » 🛡️✨
+============================================================
+
+1. 🔔 SONNERIE & VIBRATION au choix :
+   Profil > ⋮ Parametres > Sonnerie & vibration
+   - Classique (sonnerie du telephone) / Douce / Forte / Silencieuse
+   - Interrupteur Vibration
+   - Toucher une option la fait ecouter 2 secondes
+2. 📱 ICONE MBOTECALL sur l'ecran d'accueil apres installation
+   (icones classiques + adaptatives incluses dans android/.../res)
+3. 💚 Carte doree « Inviter tes proches » bien visible dans Profil
+   (partage WhatsApp du code parrain, deja traduit fr/ln/sw)
+4. 💫 Ecran d'appel plus fluide : anneau qui pulse pendant la
+   sonnerie, transitions douces, fermeture auto apres 2 s
+5. 🤝 Plus AUCUN message d'erreur technique : « Pas d'Internet —
+   verifie ta connexion 📶 », « Le serveur met trop de temps… », etc.
+6. 🛡️ SECURITE SERVEUR : anti force-brute OTP (4 demandes / 8 essais
+   par 10 min), limite globale 300 req/min, en-tetes de protection,
+   garde-fou WebSocket. -> REDEPLOYER RENDER (zip backend) !
+
+Installation : extraire ce zip dans C:\dev\mbote\mbote_app
+(ecraser), puis  flutter clean  +  flutter pub get  +  flutter run
+⚠️ NE PAS toucher aux fichiers gradle deja repares (le zip ne les
+   contient pas, ils restent tels quels).
+⚠️ L'icone apparait apres une VRAIE reinstallation :
+   flutter run suffit ; si l'ancienne icone persiste, desinstalle
+   l'app du telephone puis flutter run a nouveau.
+
+============================================================
+ NOUVEAUTE v1.6 — LE TELEPHONE SONNE MEME APP FERMEE 📲
+============================================================
+
+Comme WhatsApp : si l'app MboteCall est fermée, une notification
+« 📞 Appel MboteCall — X t'appelle » s'affiche. On la touche,
+l'app s'ouvre, ça sonne, on décroche.
+
+⚠️ 3 PETITES MODIFICATIONS GRADLE A FAIRE UNE FOIS (voir plus bas
+   la section « BRANCHEMENT FIREBASE ») + redeployer Render avec
+   la variable FIREBASE_SERVICE_ACCOUNT.
+
+Ce paquet contient déjà :
+  - android/app/google-services.json  (ta clé Firebase app — incluse !)
+  - la permission notifications dans AndroidManifest.xml
+  - lib/push.dart + tout le code app (v1.6.0+5)
+
+------------------------------------------------------------
+ BRANCHEMENT FIREBASE (3 modifications, 5 minutes)
+------------------------------------------------------------
+
+1) Ouvre  C:\dev\mbote\mbote_app\android\settings.gradle.kts
+   Dans le bloc  plugins { ... }  (celui qui contient deja
+   "com.android.application"), AJOUTE cette ligne :
+
+   id("com.google.gms.google-services") version "4.5.0" apply false
+
+2) Ouvre  C:\dev\mbote\mbote_app\android\app\build.gradle.kts
+   Dans le bloc  plugins { ... }  en haut, AJOUTE :
+
+   id("com.google.gms.google-services")
+
+3) Verifie que le fichier
+   C:\dev\mbote\mbote_app\android\app\google-services.json
+   existe apres extraction du zip (il est fourni dedans).
+
+Puis :  flutter clean  puis  flutter pub get  puis  flutter run
+
+------------------------------------------------------------
+ COTE SERVEUR (OBLIGATOIRE pour que ca marche)
+------------------------------------------------------------
+1) Pousser le nouveau backend sur GitHub + Manual Deploy Render
+2) Render > Environment > Add variable :
+     Nom    : FIREBASE_SERVICE_ACCOUNT
+     Valeur : TOUT le contenu du fichier clé privée
+              mbotecall-xxxxx.json (le fichier n°2 SECRET)
+3) Au redemarrage, le log Render doit afficher :
+     🔔 Notifications push Firebase prêtes (appels app fermée)
+
+------------------------------------------------------------
+ PLAN DE TEST v1.6 (2 telephones)
+------------------------------------------------------------
+1. Telephone B : ouvre l'app une fois (popup « Autoriser les
+   notifications ? » -> AUTORISER), puis FERME completement l'app.
+2. Telephone A : appelle B -> A affiche « 📲 Notification envoyée… »
+3. Telephone B : la notification « 📞 Appel MboteCall » apparait
+   -> touche-la -> l'app s'ouvre -> ca sonne -> decroche -> parlez !
+4. L'appelant a ~60 s de patience, le temps que B ouvre l'app.
+5. Si B n'ouvre pas : A voit « Pas de réponse » et B garde la
+   notification + un appel manque au prochain lancement… a venir.
+
+═══════════════════════════════════════════════════════════════
+  MboteCall v1.5 — 🔔 SONNERIE + HISTORIQUE DES APPELS REÇUS
+═══════════════════════════════════════════════════════════════
+
+🆕 NOUVEAUTÉS v1.5
+──────────────────
+1. 🔔 L'appel entrant SONNE (sonnerie système du téléphone) et VIBRE.
+2. 🚫 Si l'appelant raccroche pendant la sonnerie, l'écran se ferme
+   tout seul et l'appel est noté « manqué ».
+3. 📥 Historique : les appels REÇUS apparaissent enfin !
+   Nouvelles catégories : Tous · Entrants · Sortants · Manqués.
+4. 🟢 (v1.4.1) Voyant vert sur le Clavier = prêt à appeler/recevoir.
+
+⚠️ NOUVELLE DÉPENDANCE : flutter_ringtone_player (sonnerie).
+   → déjà dans ce pubspec.yaml ; « flutter pub get » la télécharge.
+
+📱 MISE À JOUR (simple)
+───────────────────────
+1. Remplace les dossiers lib\ et le fichier pubspec.yaml
+   dans C:\dev\mbote\mbote_app\ par ceux de ce paquet.
+2. flutter pub get
+3. flutter build apk --release  (ou flutter run pour tester direct)
+4. Redéploie AUSSI le backend sur Render (nouvelle colonne direction
+   + route /calls/log-incoming) AVANT de tester.
+
+🧪 TEST RAPIDE
+──────────────
+□ Appel A→B : B sonne et vibre 🔔
+□ B ne décroche pas, A raccroche → l'écran de B se ferme seul
+□ Historique de B : l'appel apparaît dans « Manqués »
+□ B décroche, parlez 10 s, raccrochez → Historique de B :
+  l'appel apparaît dans « Entrants » avec la durée
+□ Historique de A : l'appel est dans « Sortants »
+
+🔭 PROCHAINE ÉTAPE : notifications app fermée (Firebase)
+   → suis le fichier GUIDE-NOTIFICATIONS-FIREBASE.md (15 min)
+   puis reviens avec le google-services.json.
+
+═══════════════════════════════════════════════════════════════
+  MboteCall v1.4 — 🎙️ VRAIS APPELS VOIX MboteCall → MboteCall
+═══════════════════════════════════════════════════════════════
+
+🆕 NOUVEAUTÉS v1.4 (Vague 3)
+────────────────────────────
+1. 🎙️ VRAIE VOIX entre deux applications MboteCall (WebRTC) :
+   la voix circule en direct de téléphone à téléphone, gratuitement.
+2. 📲 ÉCRAN D'APPEL ENTRANT (nouveau) : quand on t'appelle, l'écran
+   s'affiche avec la photo de l'appelant — décrocher ou refuser.
+3. 🎤 Micro et 🔊 haut-parleur désormais RÉELS pendant ces appels.
+4. Si l'appelé n'a pas l'app ouverte → l'appel bascule en mode
+   simulation comme avant (et appel GSM = toujours simulation).
+
+⚠️ DEUX CHOSES À FAIRE EN PLUS CETTE FOIS
+─────────────────────────────────────────
+A. NOUVELLE DÉPENDANCE : flutter_webrtc est ajoutée au pubspec.
+   → flutter pub get la télécharge automatiquement.
+B. OBLIGATOIRE : minSdk = 24 dans android\app\build.gradle.kts
+   (remplace flutter.minSdkVersion par 24 — NE touche à rien d'autre).
+   Le script repare-et-compile.ps1 fait tout automatiquement.
+   NB : flutter_webrtc doit être en ^1.6.2 (déjà dans ce pubspec).
+C. Copie bien le dossier android\ du paquet : il contient les
+   nouvelles permissions (micro, bluetooth, réseau).
+
+🧪 LE GRAND TEST RÉEL (2 téléphones)
+────────────────────────────────────
+0. Redéploie D'ABORD le backend sur Render (nouveau module /ws).
+1. Installe l'APK sur les 2 téléphones.
+2. Téléphone 1 : connecte-toi avec le compte A (ex. +243811112222).
+   Téléphone 2 : compte B (ex. +243866667777). Les DEUX apps OUVERTES.
+3. Depuis le tél. 2 : Clavier → numéro du compte A → 📞.
+4. Sur le tél. 1 : l'écran « APPEL ENTRANT » apparaît → décroche.
+   ⚠️ Au tout premier appel, Android demande la permission micro
+   sur chaque téléphone → ACCEPTER.
+5. Parlez ! 🎉 Teste aussi : couper le micro, haut-parleur,
+   raccrocher de chaque côté, refuser un appel.
+6. Limite connue (prochaine étape) : l'app de l'appelé doit être
+   OUVERTE (au premier plan) pour recevoir — les notifications
+   d'appel app fermée arriveront avec Firebase.
+
+═══════════════════════════════════════════════════════════════
+  MboteCall v1.3 — PAQUET DE COMPILATION (Windows)
+═══════════════════════════════════════════════════════════════
+
+🆕 NOUVEAUTÉS v1.3
+──────────────────
+1. 🏷️  L'application s'appelle désormais MboteCall — partout :
+    nom sous l'icône Android, splash, écrans, messages serveur.
+2. 🏠 Accueil épuré : plus de message « Mbote ! », plus de section
+    Favoris — il reste ton nom, le solde, les actions et les promos.
+3. ⭐ Favoris déplacés : en haut à droite du Clavier (icône étoile),
+    à côté de l'icône Contacts. Ajout, appel, suppression (appui long).
+4. 📊 Historique réorganisé : plus de totaux minutes/dépenses ;
+    trois catégories — Tous · Sortants · Manqués.
+5. ⚙️  Profil → menu ⋮ (trois points) = Paramètres :
+    · Langue (+ TÉLÉCHARGER de nouvelles langues, ex. English 🇬🇧)
+    · Thème : Soleil de Kin (défaut), Émeraude (esprit WhatsApp),
+      Océan (esprit LinkedIn), Bleu Nuit (esprit Facebook)
+    · Police : Standard, Serif, Condensée, Mono
+    · À propos de l'application
+    Thème, police et langue sont mémorisés après redémarrage.
+6. 🧹 Mention « MBOTE! v1.x · diaspora » supprimée du Profil.
+
+📱 COMPILATION (comme d'habitude)
+─────────────────────────────────
+1. Supprime l'ancien dossier lib :
+   Remove-Item -Recurse -Force C:\dev\mbote\mbote_app\lib
+2. Copie lib, assets, pubspec.yaml et android\ de ce paquet
+   vers C:\dev\mbote\mbote_app\ (remplace tout).
+3. Dans C:\dev\mbote\mbote_app :
+   flutter clean
+   flutter pub get
+   dart run flutter_launcher_icons
+   flutter build apk --release
+4. Installe :
+   C:\Users\PC\AppData\Local\Android\Sdk\platform-tools\adb.exe install -r build\app\outputs\flutter-apk\app-release.apk
+
+⚠️ IMPORTANT : le backend doit être redéployé sur Render AVANT de
+tester le téléchargement de langues (nouvelle route /api/i18n) et
+le nouveau nom « MboteCall » dans l'historique des appels.
+→ Render : Upload files (zip backend) puis Manual Deploy.
+
+🧪 PLAN DE TEST RAPIDE (3 minutes)
+──────────────────────────────────
+□ Le nom sous l'icône Android est « MboteCall ».
+□ Accueil : pas de « Mbote ! », pas de Favoris.
+□ Clavier : étoile ⭐ (Favoris) et 📒 (Contacts) en haut à droite.
+□ Favoris : ajouter « Maman », l'appeler, appui long → supprimer.
+□ Historique : chips Tous / Sortants / Manqués ; les anciens appels
+  « MBOTE → MBOTE » s'affichent « MboteCall 💚 ».
+□ Profil → ⋮ → Thème → Émeraude : toute l'app passe au vert ;
+  redémarre l'app → le thème est conservé.
+□ Profil → ⋮ → Police → Serif : les textes changent.
+□ Profil → ⋮ → Langue → Télécharger de nouvelles langues →
+  English 🇬🇧 → l'app passe en anglais (backend redéployé requis).
+□ Profil : plus de mention « diaspora » en bas.
+□ Appel MboteCall → MboteCall : design épuré conservé (photo,
+  anneau doré, chrono, icône).
+
+NB : le nom technique du paquet reste « mbote » (interne, invisible
+pour l'utilisateur) — ne pas le changer, sinon la compilation casse.
+═══════════════════════════════════════════════════════════════
