@@ -17,6 +17,7 @@ class Rtc {
   static WebSocket? _ws;
   static String? _token;
   static bool _wanted = false;
+  static bool _fg = true; // l'app démarre au premier plan
 
   /// 🟢 Voyant : sommes-nous connectés au standardiste ?
   /// (affiché sur l'écran Clavier — vert = prêt à appeler/recevoir)
@@ -49,6 +50,7 @@ class Rtc {
       try {
         _ws = await WebSocket.connect('$_url?token=$_token');
         connected.value = true; // 🟢 prêt à appeler/recevoir
+        setForeground(_fg); // 📡 état initial annoncé au serveur
         await for (final data in _ws!) {
           Map msg;
           try {
@@ -72,6 +74,18 @@ class Rtc {
   static void send(Map msg) {
     try {
       _ws?.add(jsonEncode(msg));
+    } catch (_) {}
+  }
+
+  /// 👁️ Annonce au serveur si l'app est au premier plan ou non.
+  /// Le serveur part de « arrière-plan » : sans ce message il croit l'app
+  /// fermée et double chaque appel d'un push de réveil inutile.
+  /// À appeler juste après la connexion et à chaque changement d'état.
+  static void setForeground(bool fg) {
+    _fg = fg;
+    if (_ws == null) return;
+    try {
+      _ws!.add(jsonEncode({'type': 'presence', 'state': fg ? 'fg' : 'bg'}));
     } catch (_) {}
   }
 

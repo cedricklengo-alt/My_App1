@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
+import 'push.dart';
+import 'rtc.dart';
 
 /// État global de l'application (session, solde, contacts).
 class AppState extends ChangeNotifier {
@@ -23,6 +25,7 @@ class AppState extends ChangeNotifier {
     if (token != null) {
       try {
         await refresh();
+        _connectRealtime();
       } catch (_) {
         await logout(); // token expiré
       }
@@ -41,7 +44,19 @@ class AppState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', tk);
     await loadContacts();
+    _connectRealtime();
     notifyListeners();
+  }
+
+  /// 🔌 Ouvre le canal temps réel (appels entrants) et enregistre le jeton
+  /// push. Sans ces deux appels l'app ne PEUT PAS recevoir d'appel :
+  /// le serveur n'a personne à qui annoncer l'appel, et ne peut pas réveiller
+  /// le téléphone quand l'app est fermée.
+  void _connectRealtime() {
+    final tk = token;
+    if (tk == null) return;
+    Rtc.connect(tk);
+    Push.register(api); // en arrière-plan : ne bloque jamais l'ouverture
   }
 
   Future<void> refresh() async {
@@ -64,6 +79,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    Rtc.disconnect(); // ferme le canal temps réel
     token = null;
     api.token = null;
     final prefs = await SharedPreferences.getInstance();

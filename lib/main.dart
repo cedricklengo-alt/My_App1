@@ -8,6 +8,12 @@ import 'pin.dart';
 import 'prefs.dart';
 import 'screens/onboarding.dart';
 import 'screens/shell.dart';
+import 'screens/incoming_call.dart';
+import 'rtc.dart';
+
+/// Clé du navigateur racine : permet d'afficher l'écran d'appel entrant
+/// depuis le canal temps réel, hors de tout contexte d'écran.
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,8 +41,53 @@ class MboteApp extends StatefulWidget {
   State<MboteApp> createState() => _MboteAppState();
 }
 
-class _MboteAppState extends State<MboteApp> {
+class _MboteAppState extends State<MboteApp> with WidgetsBindingObserver {
   late bool locked = widget.locked;
+  bool _callShown = false; // évite d'empiler deux écrans d'appel
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // 📞 Branche les appels entrants : sans cette ligne, les offres reçues
+    // par le canal temps réel n'ont aucun écran où s'afficher.
+    Rtc.onOffer = _onOffer;
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    if (Rtc.onOffer == _onOffer) Rtc.onOffer = null;
+    super.dispose();
+  }
+
+  /// 👁️ App au premier plan / en arrière-plan → le serveur en a besoin pour
+  /// éviter les notifications en double quand l'écran est déjà ouvert.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    Rtc.setForeground(state == AppLifecycleState.resumed);
+  }
+
+  /// 📲 Appel entrant reçu par le canal temps réel.
+  void _onOffer(Map msg) {
+    // 📳 Acquittement immédiat : sans lui le serveur considère le socket
+    // comme « fantôme » au bout de 4,5 s, le ferme et bascule sur un push
+    // — la sonnerie puis la réponse ne passent plus.
+    final callId = msg['call_id'];
+    if (callId != null) {
+      Rtc.send({'type': 'ringing', 'call_id': callId, 'from': msg['from']});
+    }
+    if (_callShown) return;
+    final nav = appNavigatorKey.currentState;
+    if (nav == null) return;
+    _callShown = true;
+    nav
+        .push(MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => IncomingCallScreen(offer: msg),
+        ))
+        .whenComplete(() => _callShown = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +97,7 @@ class _MboteAppState extends State<MboteApp> {
       listenable: Listenable.merge([L10n.version, ThemeCtl.version]),
       builder: (_, __) => MaterialApp(
         title: 'MboteCall',
+        navigatorKey: appNavigatorKey,
         debugShowCheckedModeBanner: false,
         theme: mboteTheme(),
         home: !st.ready
