@@ -174,6 +174,9 @@ class _CallScreenState extends State<CallScreen>
       bool rejected = false,
       bool unreachable = false}) async {
     if (status == 'ended') return;
+    // On lit l'état AVANT les `await` : après, le widget peut avoir été
+    // démonté et `context` ne doit plus être utilisé.
+    final appState = context.read<AppState>();
     chrono?.cancel();
     rtcTimeout?.cancel();
     Rtc.onSignal = null;
@@ -184,12 +187,12 @@ class _CallScreenState extends State<CallScreen>
     if (isCallee) {
       // 📥 L'appelé journalise l'appel reçu (répondu si durée > 0)
       try {
-        await context.read<AppState>().api.logIncoming(widget.to, elapsed);
+        await appState.api.logIncoming(widget.to, elapsed);
       } catch (_) {}
     } else if (callId != null) {
       // L'appelant clôt son enregistrement côté serveur (gratuit)
       try {
-        await context.read<AppState>().api.hangup(callId!);
+        await appState.api.hangup(callId!);
       } catch (_) {}
     }
     if (mounted) {
@@ -308,7 +311,7 @@ class _CallScreenState extends State<CallScreen>
       body: Container(
         decoration: BoxDecoration(
           gradient: RadialGradient(
-            center: Alignment(0, -.6),
+            center: const Alignment(0, -.6),
             radius: 1.2,
             colors: [MC.halo, MC.nuit],
           ),
@@ -327,9 +330,8 @@ class _CallScreenState extends State<CallScreen>
                       : Text(statusLabel,
                           key: ValueKey('$statusLabel$pushSent'),
                           style: TextStyle(
-                              color: status == 'answered'
-                                  ? MC.savane
-                                  : MC.sable,
+                              color:
+                                  status == 'answered' ? MC.savane : MC.sable,
                               fontSize: 13,
                               letterSpacing: 2)),
                 ),
@@ -340,39 +342,39 @@ class _CallScreenState extends State<CallScreen>
               ScaleTransition(
                 scale: _pulse,
                 child: Container(
-                width: 128,
-                height: 128,
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: SweepGradient(
-                      colors: [MC.soleil, MC.braise, MC.terre, MC.soleil]),
-                  boxShadow: [
-                    BoxShadow(
-                        color: MC.soleil.withOpacity(.22),
-                        blurRadius: 36,
-                        spreadRadius: 6),
-                  ],
-                ),
-                child: Container(
-                  clipBehavior: Clip.antiAlias,
+                  width: 128,
+                  height: 128,
+                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                      shape: BoxShape.circle, color: MC.nuit2),
-                  child: hasPhoto
-                      ? Image.memory(
-                          base64Decode(calleeAvatar!.split(',').last),
-                          fit: BoxFit.cover,
-                          gaplessPlayback: true,
-                        )
+                    shape: BoxShape.circle,
+                    gradient: SweepGradient(
+                        colors: [MC.soleil, MC.braise, MC.terre, MC.soleil]),
+                    boxShadow: [
+                      BoxShadow(
+                          color: MC.soleil.withValues(alpha: .22),
+                          blurRadius: 36,
+                          spreadRadius: 6),
+                    ],
+                  ),
+                  child: Container(
+                    clipBehavior: Clip.antiAlias,
+                    decoration:
+                        BoxDecoration(shape: BoxShape.circle, color: MC.nuit2),
+                    child: hasPhoto
+                        ? Image.memory(
+                            base64Decode(calleeAvatar!.split(',').last),
+                            fit: BoxFit.cover,
+                            gaplessPlayback: true,
+                          )
                         : Center(
-                          child: Text(initial,
-                              style: TextStyle(
-                                  fontSize: 44,
-                                  fontWeight: FontWeight.w800,
-                                  color: MC.soleil)),
-                        ),
+                            child: Text(initial,
+                                style: TextStyle(
+                                    fontSize: 44,
+                                    fontWeight: FontWeight.w800,
+                                    color: MC.soleil)),
+                          ),
+                  ),
                 ),
-              ),
               ), // fin ScaleTransition 💫
               const SizedBox(height: 18),
               Text(name,
@@ -395,7 +397,7 @@ class _CallScreenState extends State<CallScreen>
                       fontSize: 38,
                       fontWeight: FontWeight.w800,
                       color: MC.soleil,
-                      fontFeatures: [FontFeature.tabularFigures()])),
+                      fontFeatures: const [FontFeature.tabularFigures()])),
               const SizedBox(height: 12),
               // 💚 MboteCall → MboteCall : l'icône officielle, sans texte
               if (isMbote)
@@ -404,7 +406,7 @@ class _CallScreenState extends State<CallScreen>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                          color: MC.soleil.withOpacity(.3),
+                          color: MC.soleil.withValues(alpha: .3),
                           blurRadius: 22,
                           spreadRadius: 2),
                     ],
@@ -446,8 +448,7 @@ class _CallScreenState extends State<CallScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _round(
-                        muted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                    _round(muted ? Icons.mic_off_rounded : Icons.mic_rounded,
                         muted, () {
                       setState(() => muted = !muted);
                       rtc?.setMuted(muted); // 🎤 coupe réellement le micro
@@ -463,7 +464,7 @@ class _CallScreenState extends State<CallScreen>
                           color: MC.rouge,
                           boxShadow: [
                             BoxShadow(
-                                color: MC.rouge.withOpacity(.4),
+                                color: MC.rouge.withValues(alpha: .4),
                                 blurRadius: 26,
                                 offset: const Offset(0, 8)),
                           ],
@@ -497,8 +498,7 @@ class _CallScreenState extends State<CallScreen>
             shape: BoxShape.circle,
             color: active ? MC.soleil : MC.nuit3,
           ),
-          child: Icon(icon,
-              color: active ? MC.onAccent : MC.sable, size: 22),
+          child: Icon(icon, color: active ? MC.onAccent : MC.sable, size: 22),
         ),
       );
 }

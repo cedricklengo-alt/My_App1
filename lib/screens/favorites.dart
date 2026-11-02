@@ -79,8 +79,7 @@ class FavoritesScreen extends StatelessWidget {
                 controller: phone,
                 keyboardType: TextInputType.phone,
                 style: TextStyle(color: MC.ivoire),
-                decoration:
-                    const InputDecoration(hintText: 'Numéro (+243…)')),
+                decoration: const InputDecoration(hintText: 'Numéro (+243…)')),
             const SizedBox(height: 18),
             MboteButton(
               label: L10n.t('add'),
@@ -91,6 +90,7 @@ class FavoritesScreen extends StatelessWidget {
                   await st.refresh();
                   if (ctx.mounted) Navigator.pop(ctx);
                 } catch (e) {
+                  if (!ctx.mounted) return;
                   ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
                       content: Text(friendlyError(e)),
                       backgroundColor: MC.rouge));

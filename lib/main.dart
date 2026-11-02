@@ -1,5 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'state.dart';
 import 'theme.dart';
@@ -21,6 +23,11 @@ void main() async {
   try {
     await Firebase.initializeApp();
   } catch (_) {/* google-services.json absent : l'app marche sans push */}
+  // 📅 Données de langue pour les dates en français (« 7 déc. 2024 · 09h00 »).
+  // Sans cet appel, DateFormat('…', 'fr_FR') lève une LocaleDataException.
+  try {
+    await initializeDateFormatting('fr_FR', null);
+  } catch (_) {/* format de repli numérique */}
   await L10n.load(); // 🗣️ langue sauvegardée (+ langues téléchargées)
   await ThemeCtl.load(); // 🎨 thème + police sauvegardés
   await CallPrefs.load(); // 🔔 sonnerie + vibration choisies
@@ -98,6 +105,14 @@ class _MboteAppState extends State<MboteApp> with WidgetsBindingObserver {
       builder: (_, __) => MaterialApp(
         title: 'MboteCall',
         navigatorKey: appNavigatorKey,
+        // 🇫🇷 Interface en français (sélecteurs de date, copier/coller, etc.)
+        locale: const Locale('fr'),
+        supportedLocales: const [Locale('fr'), Locale('en')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
         debugShowCheckedModeBanner: false,
         theme: mboteTheme(),
         home: !st.ready

@@ -18,7 +18,8 @@ class Push {
     if (_done) return;
     try {
       final fm = FirebaseMessaging.instance;
-      await fm.requestPermission(); // Android 13+ : « Autoriser les notifications ? »
+      await fm
+          .requestPermission(); // Android 13+ : « Autoriser les notifications ? »
       final token = await fm.getToken();
       if (token == null) return;
       await api.sendFcmToken(token);

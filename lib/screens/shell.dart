@@ -38,7 +38,7 @@ class _ShellScreenState extends State<ShellScreen> {
   // Les pages permanentes (IndexedStack)
   final List<Widget> _pages = const [
     FeedScreen(),
-    _CallsPlaceholder(),   // ← remplacer par CallsListScreen()
+    _CallsPlaceholder(), // ← remplacer par CallsListScreen()
     _MessagesPlaceholder(), // ← remplacer par ChatsListScreen()
   ];
 
@@ -187,8 +187,7 @@ class _NavItem extends StatelessWidget {
                 style: TextStyle(
                   color: color,
                   fontSize: 9,
-                  fontWeight:
-                      active ? FontWeight.w700 : FontWeight.w400,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w400,
                 ),
               ),
             ],
@@ -209,9 +208,9 @@ class _MoreMenuSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: MC.nuit2,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SafeArea(
         child: Column(
@@ -229,8 +228,8 @@ class _MoreMenuSheet extends StatelessWidget {
             ),
 
             // Titre
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -331,8 +330,8 @@ class _MoreItem extends StatelessWidget {
           HapticFeedback.selectionClick();
           onTap();
         },
-        splashColor: iconColor.withOpacity(.08),
-        highlightColor: iconColor.withOpacity(.04),
+        splashColor: iconColor.withValues(alpha: .08),
+        highlightColor: iconColor.withValues(alpha: .04),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           child: Row(
@@ -343,7 +342,7 @@ class _MoreItem extends StatelessWidget {
                 height: 42,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: iconColor.withOpacity(.12),
+                  color: iconColor.withValues(alpha: .12),
                 ),
                 child: Icon(icon, color: iconColor, size: 20),
               ),
@@ -354,7 +353,7 @@ class _MoreItem extends StatelessWidget {
                   children: [
                     Text(
                       label,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: MC.ivoire,
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -363,7 +362,7 @@ class _MoreItem extends StatelessWidget {
                     if (subtitle != null)
                       Text(
                         subtitle!,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: MC.kaki,
                           fontSize: 11,
                         ),
@@ -371,7 +370,7 @@ class _MoreItem extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
                 color: MC.kaki,
                 size: 18,
@@ -394,7 +393,7 @@ class _CallsPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: MC.nuit,
       body: Center(
         child: Text(
@@ -412,7 +411,7 @@ class _MessagesPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: MC.nuit,
       body: Center(
         child: Text(

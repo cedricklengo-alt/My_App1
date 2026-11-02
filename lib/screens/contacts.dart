@@ -75,7 +75,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
         entries.add(_Entry(name, raw, e164));
       }
     }
-    entries.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    entries
+        .sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     if (mounted) {
       setState(() {
         all = entries;
@@ -91,8 +92,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     try {
       for (var i = 0; i < entries.length; i += 300) {
         final batch = entries.skip(i).take(300).toList();
-        final found =
-            await api.checkMbote(batch.map((e) => e.e164).toList());
+        final found = await api.checkMbote(batch.map((e) => e.e164).toList());
         if (!mounted) return;
         setState(() {
           for (final e in batch) {
@@ -159,8 +159,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
                         style: TextStyle(color: MC.ivoire),
                         decoration: InputDecoration(
                           hintText: L10n.t('contacts_search'),
-                          prefixIcon: Icon(Icons.search_rounded,
-                              color: MC.kaki),
+                          prefixIcon:
+                              Icon(Icons.search_rounded, color: MC.kaki),
                         ),
                       ),
                     ),
@@ -171,8 +171,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                                   style: TextStyle(
                                       color: MC.kaki, fontSize: 13.5)))
                           : ListView.builder(
-                              padding:
-                                  const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                               itemCount: visible.length,
                               itemBuilder: (_, i) {
                                 final e = visible[i];
@@ -186,8 +185,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
                                     borderRadius: BorderRadius.circular(16),
                                     border: isMbote
                                         ? Border.all(
-                                            color:
-                                                MC.savane.withOpacity(.45))
+                                            color: MC.savane
+                                                .withValues(alpha: .45))
                                         : null,
                                   ),
                                   child: ListTile(
@@ -200,8 +199,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                                           color: color,
                                           borderRadius:
                                               BorderRadius.circular(14)),
-                                      child: Text(
-                                          e.name[0].toUpperCase(),
+                                      child: Text(e.name[0].toUpperCase(),
                                           style: TextStyle(
                                               color: MC.onAccent,
                                               fontWeight: FontWeight.w800,
@@ -233,9 +231,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
                                         if (!widget.pick) ...[
                                           const SizedBox(width: 10),
                                           Icon(Icons.call_rounded,
-                                              color: isMbote
-                                                  ? MC.savane
-                                                  : MC.kaki,
+                                              color:
+                                                  isMbote ? MC.savane : MC.kaki,
                                               size: 20),
                                         ],
                                       ],
@@ -266,8 +263,7 @@ class _PermissionAsk extends StatelessWidget {
             const SizedBox(height: 16),
             Text(L10n.t('contacts_perm'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: MC.sable, fontSize: 14.5, height: 1.5)),
+                style: TextStyle(color: MC.sable, fontSize: 14.5, height: 1.5)),
             const SizedBox(height: 22),
             MboteButton(label: L10n.t('contacts_allow'), onTap: onRetry),
           ],

@@ -95,9 +95,9 @@ class _PackagesScreenState extends State<PackagesScreen> {
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(18),
-                            border:
-                                Border.all(color: MC.savane.withOpacity(.5)),
-                            color: MC.savane.withOpacity(.08),
+                            border: Border.all(
+                                color: MC.savane.withValues(alpha: .5)),
+                            color: MC.savane.withValues(alpha: .08),
                           ),
                           child: Row(children: [
                             const Text('📦 ', style: TextStyle(fontSize: 22)),
@@ -151,7 +151,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                             color: unlimited
-                                ? MC.soleil.withOpacity(.55)
+                                ? MC.soleil.withValues(alpha: .55)
                                 : MC.ligne),
                       ),
                       child: Column(
@@ -174,8 +174,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
                           const SizedBox(height: 6),
                           Text(
                             '${unlimited ? '∞ ${L10n.t('unlimited')}' : '${p['minutes']} min'} · ${p['days']} jours · ${(p['prefix'] ?? '').toString().isEmpty ? '🌍' : '+${p['prefix']}…'}',
-                            style: TextStyle(
-                                color: MC.kaki, fontSize: 12.5),
+                            style: TextStyle(color: MC.kaki, fontSize: 12.5),
                           ),
                           const SizedBox(height: 12),
                           MboteButton(
@@ -193,7 +192,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
                   }),
                   if (catalog.isEmpty)
                     Padding(
-                      padding: EdgeInsets.symmetric(vertical: 30),
+                      padding: const EdgeInsets.symmetric(vertical: 30),
                       child: Center(
                         child: Text('Aucun forfait disponible pour le moment',
                             style: TextStyle(color: MC.kaki, fontSize: 13.5)),

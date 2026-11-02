@@ -32,7 +32,9 @@ class Rtc {
 
   static String get _url {
     // https://…/api  →  wss://…/ws   (et http → ws en local)
-    return Config.apiBase.replaceFirst('/api', '/ws').replaceFirst('http', 'ws');
+    return Config.apiBase
+        .replaceFirst('/api', '/ws')
+        .replaceFirst('http', 'ws');
   }
 
   /// Connexion (avec reconnexion automatique tant qu'on est connecté)
@@ -150,8 +152,7 @@ class RtcSession {
   Future<void> _init() async {
     _pc = await createPeerConnection(await _iceConfig());
     // 🎤 Micro (la permission est demandée au premier appel)
-    _mic = await navigator.mediaDevices
-        .getUserMedia({
+    _mic = await navigator.mediaDevices.getUserMedia({
       // 🎧 Qualité voix v1.8 : annulation d'écho, réduction de bruit,
       // gain automatique — indispensable en mains-libres.
       'audio': {

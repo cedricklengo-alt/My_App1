@@ -1,5 +1,9 @@
 // lib/widgets/feed/story_bar.dart
-// Bande de statuts style WhatsApp — design Kinshasa Noir
+// Bande de statuts (24 h) — style WhatsApp, identité Kinshasa.
+//
+// Les statuts viennent de `GET /api/feed/stories` et sont regroupés par auteur
+// (`StoryGroup.group`). Le premier rond est toujours « Mon statut » : il permet
+// d'ajouter une photo ou d'ouvrir la sienne.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,94 +12,158 @@ import '../../models/post.dart';
 import '../../theme.dart';
 
 class StoryBar extends StatelessWidget {
-  final List<StoryContact> stories;
-  final void Function(StoryContact) onStoryTap;
-  final VoidCallback onAddTap;
+  final List<StoryGroup> groups;
+  final String? myAvatar;
+  final void Function(StoryGroup) onGroupTap;
+  final void Function(StoryGroup? myGroup) onMyTap;
 
   const StoryBar({
     super.key,
-    required this.stories,
-    required this.onStoryTap,
-    required this.onAddTap,
+    required this.groups,
+    required this.onGroupTap,
+    required this.onMyTap,
+    this.myAvatar,
   });
+
+  StoryGroup? get _mine {
+    for (final g in groups) {
+      if (g.isMe) return g;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final mine = _mine;
+    final others = groups.where((g) => !g.isMe).toList();
+
     return SizedBox(
-      height: 88,
+      height: 96,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        itemCount: stories.length,
-        itemBuilder: (context, i) => _StoryItem(
-          story: stories[i],
-          onTap: () {
-            HapticFeedback.selectionClick();
-            if (stories[i].isMe) {
-              onAddTap();
-            } else {
-              onStoryTap(stories[i]);
-            }
-          },
-        ),
+        itemCount: others.length + 1,
+        itemBuilder: (context, i) {
+          if (i == 0) {
+            return _StoryItem(
+              label: 'Mon statut',
+              avatar: myAvatar,
+              initials: 'Moi',
+              ring: mine != null && mine.hasUnseen,
+              seen: mine != null && mine.allSeen,
+              addBadge: true,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                onMyTap(mine);
+              },
+            );
+          }
+          final g = others[i - 1];
+          return _StoryItem(
+            label: g.authorName.split(' ').first,
+            avatar: g.avatar,
+            initials: g.authorName,
+            ring: g.hasUnseen,
+            seen: g.allSeen,
+            onTap: () {
+              HapticFeedback.selectionClick();
+              onGroupTap(g);
+            },
+          );
+        },
       ),
     );
   }
 }
 
 class _StoryItem extends StatelessWidget {
-  final StoryContact story;
+  final String label;
+  final String? avatar;
+  final String initials;
+  final bool ring;
+  final bool seen;
+  final bool addBadge;
   final VoidCallback onTap;
 
-  const _StoryItem({required this.story, required this.onTap});
+  const _StoryItem({
+    required this.label,
+    this.avatar,
+    required this.initials,
+    required this.ring,
+    required this.seen,
+    required this.onTap,
+    this.addBadge = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final bool unseen = !story.isSeen && !story.isMe;
-
     return Semantics(
-      label: story.isMe ? 'Ajouter un statut' : 'Statut de ${story.name}',
+      label: addBadge ? 'Mon statut' : 'Statut de $label',
       button: true,
       child: GestureDetector(
         onTap: onTap,
+        behavior: HitTestBehavior.opaque,
         child: Container(
-          width: 64,
-          margin: const EdgeInsets.only(right: 10),
+          width: 68,
+          margin: const EdgeInsets.only(right: 8),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Anneau gradient (non vu) ou gris (vu/moi)
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: unseen ? MC.degrade : null,
-                  color: unseen ? null : MC.nuit3,
-                ),
-                padding: const EdgeInsets.all(2.5),
-                child: Container(
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: MC.nuit2,
-                  ),
-                  padding: const EdgeInsets.all(2),
-                  child: story.isMe
-                      ? _MeAvatar()
-                      : _Avatar(name: story.name, avatar: story.avatar),
+              SizedBox(
+                width: 62,
+                height: 62,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 62,
+                      height: 62,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: ring ? MC.degrade : null,
+                        color: ring ? null : MC.nuit3,
+                      ),
+                      padding: const EdgeInsets.all(2.5),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: MC.nuit2,
+                        ),
+                        padding: const EdgeInsets.all(2),
+                        child: ClipOval(
+                            child: _Avatar(url: avatar, name: initials)),
+                      ),
+                    ),
+                    if (addBadge)
+                      Positioned(
+                        right: -2,
+                        bottom: -2,
+                        child: Container(
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: MC.soleil,
+                            border: Border.all(color: MC.nuit, width: 2),
+                          ),
+                          child:
+                              Icon(Icons.add_rounded, size: 14, color: MC.nuit),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 5),
               Text(
-                story.isMe ? 'Mon statut' : story.name.split(' ').first,
-                style: const TextStyle(
-                  color: MC.sable,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                ),
+                label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: seen && !addBadge ? MC.kaki : MC.sable,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -105,66 +173,47 @@ class _StoryItem extends StatelessWidget {
   }
 }
 
-class _MeAvatar extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        color: MC.nuit3,
-      ),
-      child: const Center(
-        child: Icon(Icons.add_rounded, color: MC.soleil, size: 26),
-      ),
-    );
-  }
-}
-
 class _Avatar extends StatelessWidget {
+  final String? url;
   final String name;
-  final String? avatar;
+  const _Avatar({this.url, required this.name});
 
-  const _Avatar({required this.name, this.avatar});
+  String get _initialsLabel {
+    final parts =
+        name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).take(2);
+    final s = parts.map((w) => w[0].toUpperCase()).join();
+    return s.isEmpty ? '?' : s;
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (avatar != null) {
-      return ClipOval(
-        child: Image.network(
-          avatar!,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _Initials(name: name),
-        ),
+    if (url != null && url!.isNotEmpty) {
+      return Image.network(
+        url!,
+        fit: BoxFit.cover,
+        cacheWidth: 200,
+        errorBuilder: (_, __, ___) => _Initials(text: _initialsLabel),
       );
     }
-    return _Initials(name: name);
+    return _Initials(text: _initialsLabel);
   }
 }
 
 class _Initials extends StatelessWidget {
-  final String name;
-  const _Initials({required this.name});
+  final String text;
+  const _Initials({required this.text});
 
   @override
   Widget build(BuildContext context) {
-    final initials = name
-        .split(' ')
-        .take(2)
-        .map((w) => w.isNotEmpty ? w[0].toUpperCase() : '')
-        .join();
     return Container(
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        color: MC.nuit3,
-      ),
-      child: Center(
-        child: Text(
-          initials,
-          style: const TextStyle(
-            color: MC.soleil,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
+      color: MC.nuit3,
+      alignment: Alignment.center,
+      child: Text(
+        text,
+        style: TextStyle(
+          color: MC.soleil,
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

@@ -66,13 +66,16 @@ class L10n {
     'fr': {
       // ---- 🗣️ Lokota (notes vocales traduites) ----
       'lokota_home_title': 'Lokota',
-      'lokota_home_sub': 'Parle ta langue. Ils entendront la leur. Notes vocales traduites français ↔ lingala ↔ swahili.',
+      'lokota_home_sub':
+          'Parle ta langue. Ils entendront la leur. Notes vocales traduites français ↔ lingala ↔ swahili.',
       'lokota_pilot': 'PILOTE',
       'lokota_new': 'Nouvelle note',
-      'lokota_new_hint': 'Numéro MboteCall du proche à qui envoyer ta note vocale.',
+      'lokota_new_hint':
+          'Numéro MboteCall du proche à qui envoyer ta note vocale.',
       'lokota_open': 'Ouvrir la discussion',
       'lokota_empty_title': 'Aucune note vocale pour l\'instant',
-      'lokota_empty_body': 'Enregistre une note en français, lingala ou swahili : ton proche la recevra avec la traduction écrite dans sa langue.',
+      'lokota_empty_body':
+          'Enregistre une note en français, lingala ou swahili : ton proche la recevra avec la traduction écrite dans sa langue.',
       'lokota_translating': 'Traduction en cours…',
       'lokota_no_ai': 'Traduction indisponible (service IA non activé)',
       'lokota_failed': 'La traduction a échoué — la note reste écoutable',
@@ -89,14 +92,16 @@ class L10n {
       'favorites': 'Favoris',
       'add': '+ Ajouter',
       'empty_fav': 'Ajoute tes proches pour les appeler en 1 geste',
-      'low_credit': 'Crédit bientôt épuisé — recharge pour continuer à appeler tes proches',
+      'low_credit':
+          'Crédit bientôt épuisé — recharge pour continuer à appeler tes proches',
       'profile': 'Profil',
       'edit_name': 'Modifier mon nom',
       'rates_by_dest': 'Tarifs par destination',
       'language': 'Langue · Monɔkɔ · Lugha',
       'logout': 'Se déconnecter',
       'referral_title': 'Invite tes proches',
-      'referral_body': 'Partage ton code : ton proche reçoit 1 \$ à son premier appel, et toi aussi !',
+      'referral_body':
+          'Partage ton code : ton proche reçoit 1 \$ à son premier appel, et toi aussi !',
       'referral_code': 'Mon code parrain',
       'referral_stats': 'filleul(s) · gagné',
       'copy': 'Copier',
@@ -110,9 +115,11 @@ class L10n {
       'ring_silent': 'Silencieuse',
       'vibration': 'Vibration',
       'ring_hint': 'Touche une option pour l\'écouter',
-      'invite_message': '🧡 Mbote ! Je t\'écris depuis MboteCall, l\'appli qui me permet d\'appeler le pays à petit prix 🇨🇩\n\n💚 Appels MboteCall → MboteCall 100 % gratuits\n📞 Tarifs à la seconde vers tous les GSM, même sans Internet en face\n📱 Recharge de crédit Vodacom, Orange, Airtel à distance\n\n🎁 Télécharge l\'appli et entre mon code %CODE% à l\'inscription : tu reçois 1 \$ offert dès ton premier appel !',
+      'invite_message':
+          '🧡 Mbote ! Je t\'écris depuis MboteCall, l\'appli qui me permet d\'appeler le pays à petit prix 🇨🇩\n\n💚 Appels MboteCall → MboteCall 100 % gratuits\n📞 Tarifs à la seconde vers tous les GSM, même sans Internet en face\n📱 Recharge de crédit Vodacom, Orange, Airtel à distance\n\n🎁 Télécharge l\'appli et entre mon code %CODE% à l\'inscription : tu reçois 1 \$ offert dès ton premier appel !',
       'transfer_title': 'Envoyer du crédit 💸',
-      'transfer_sub': 'Le crédit arrive instantanément sur le compte MboteCall de ton proche.',
+      'transfer_sub':
+          'Le crédit arrive instantanément sur le compte MboteCall de ton proche.',
       'recipient': 'Numéro du bénéficiaire',
       'amount': 'Montant',
       'send': 'Envoyer',
@@ -132,7 +139,8 @@ class L10n {
       'buy': 'Acheter',
       'bought_ok': 'Forfait activé ! Bons appels 📞',
       'airtime_title': 'Offrir du crédit GSM',
-      'airtime_sub': 'Recharge le téléphone d\'un proche en RDC (Vodacom, Orange, Airtel, Africell) depuis ton solde MboteCall.',
+      'airtime_sub':
+          'Recharge le téléphone d\'un proche en RDC (Vodacom, Orange, Airtel, Africell) depuis ton solde MboteCall.',
       'airtime_sent': 'Crédit GSM envoyé à',
       'airtime_hist': 'DERNIÈRES RECHARGES',
       'pin_title': 'Code PIN 🔐',
@@ -144,18 +152,21 @@ class L10n {
       'pin_enter': 'Entre ton code PIN',
       'pin_wrong': 'Code incorrect, réessaie',
       'pin_forgot': 'Code PIN oublié ?',
-      'pin_reset_body': 'Pour vérifier que c\'est bien toi, nous allons envoyer un code par SMS au %PHONE%.',
+      'pin_reset_body':
+          'Pour vérifier que c\'est bien toi, nous allons envoyer un code par SMS au %PHONE%.',
       'pin_reset_send': 'Envoyer le code',
       'pin_reset_enter': 'Code reçu par SMS',
       'pin_reset_rules': 'Code valable 5 min · 3 essais maximum',
-      'pin_reset_done': 'Code PIN réinitialisé ✅ — choisis-en un nouveau dans Profil 🔐',
+      'pin_reset_done':
+          'Code PIN réinitialisé ✅ — choisis-en un nouveau dans Profil 🔐',
       'cancel_btn': 'Annuler',
       'pin_saved': 'Code PIN activé 🔐',
       'pin_removed': 'Code PIN désactivé',
       'contacts_title': 'Mes contacts',
       'contacts_all': 'Voir tous mes contacts',
       'contacts_search': 'Rechercher un contact…',
-      'contacts_perm': 'Autorise l\'accès à tes contacts pour retrouver en un clin d\'œil ceux qui sont déjà sur MboteCall 💚',
+      'contacts_perm':
+          'Autorise l\'accès à tes contacts pour retrouver en un clin d\'œil ceux qui sont déjà sur MboteCall 💚',
       'contacts_allow': 'Autoriser l\'accès',
       'contacts_empty': 'Aucun contact trouvé',
       'on_mbote': 'MboteCall 💚',
@@ -168,7 +179,8 @@ class L10n {
       'theme_label': 'Thème',
       'font_label': 'Police',
       'about': 'À propos de l\'application',
-      'about_text': 'MboteCall v1.3\n\nAppelle le pays, comme si tu y étais.\n\nAppels à la seconde vers tous les GSM d\'Afrique, appels gratuits entre utilisateurs, forfaits, transfert de crédit et recharge GSM à distance.',
+      'about_text':
+          'MboteCall v1.3\n\nAppelle le pays, comme si tu y étais.\n\nAppels à la seconde vers tous les GSM d\'Afrique, appels gratuits entre utilisateurs, forfaits, transfert de crédit et recharge GSM à distance.',
       'lang_more': 'Télécharger de nouvelles langues',
       'downloading': 'Téléchargement…',
       'downloaded': 'Langue installée ✓',
@@ -181,13 +193,15 @@ class L10n {
     'ln': {
       // ---- 🗣️ Lokota ----
       'lokota_home_title': 'Lokota',
-      'lokota_home_sub': 'Loba monoko na yo. Bakoyoka oyo ya bango. Banote ya mongongo ebongolami français ↔ lingala ↔ swahili.',
+      'lokota_home_sub':
+          'Loba monoko na yo. Bakoyoka oyo ya bango. Banote ya mongongo ebongolami français ↔ lingala ↔ swahili.',
       'lokota_pilot': 'PILOTE',
       'lokota_new': 'Note ya sika',
       'lokota_new_hint': 'Nimero MboteCall ya moto okotindela note na yo.',
       'lokota_open': 'Kofungola lisolo',
       'lokota_empty_title': 'Note ya mongongo ezali nanu te',
-      'lokota_empty_body': 'Kanga note na français, lingala to swahili : moto na yo akozwa yango na libongoli ekomami na monoko na ye.',
+      'lokota_empty_body':
+          'Kanga note na français, lingala to swahili : moto na yo akozwa yango na libongoli ekomami na monoko na ye.',
       'lokota_translating': 'Libongoli ezali kosalema…',
       'lokota_no_ai': 'Libongoli ezali te (IA efungwami nanu te)',
       'lokota_failed': 'Libongoli elongi te — note ekoki kaka koyokama',
@@ -211,7 +225,8 @@ class L10n {
       'language': 'Monɔkɔ · Langue · Lugha',
       'logout': 'Kobima',
       'referral_title': 'Bengá bandeko na yo',
-      'referral_body': 'Kabolá code na yo : ndeko na yo azwi 1 \$ na libengi ya liboso, mpe yo lokola !',
+      'referral_body':
+          'Kabolá code na yo : ndeko na yo azwi 1 \$ na libengi ya liboso, mpe yo lokola !',
       'referral_code': 'Code na ngai',
       'referral_stats': 'bato · ozwi',
       'copy': 'Kokopia',
@@ -225,9 +240,11 @@ class L10n {
       'ring_silent': 'Kimia',
       'vibration': 'Koningana',
       'ring_hint': 'Finá mpo na koyoka yango',
-      'invite_message': '🧡 Mbote ! Nazali kobenga mboka na MboteCall, application ya kobenga na ntalo moke 🇨🇩\n\n💚 Libengi MboteCall → MboteCall ezali ofele\n📞 Ntalo na segonde epai ya ba GSM nyonso\n📱 Kotinda krédi Vodacom, Orange, Airtel na mosika\n\n🎁 Zwá application mpe kotá code na ngai %CODE% : okozwa 1 \$ ya ofele na libengi na yo ya liboso !',
+      'invite_message':
+          '🧡 Mbote ! Nazali kobenga mboka na MboteCall, application ya kobenga na ntalo moke 🇨🇩\n\n💚 Libengi MboteCall → MboteCall ezali ofele\n📞 Ntalo na segonde epai ya ba GSM nyonso\n📱 Kotinda krédi Vodacom, Orange, Airtel na mosika\n\n🎁 Zwá application mpe kotá code na ngai %CODE% : okozwa 1 \$ ya ofele na libengi na yo ya liboso !',
       'transfer_title': 'Kotinda krédi 💸',
-      'transfer_sub': 'Krédi ekokoma mbala moko na compte MboteCall ya ndeko na yo.',
+      'transfer_sub':
+          'Krédi ekokoma mbala moko na compte MboteCall ya ndeko na yo.',
       'recipient': 'Nimero ya moto akozwa',
       'amount': 'Motuya',
       'send': 'Kotinda',
@@ -247,7 +264,8 @@ class L10n {
       'buy': 'Kosomba',
       'bought_ok': 'Forfait ebandi ! Bengá malamu 📞',
       'airtime_title': 'Kopesa krédi GSM',
-      'airtime_sub': 'Bakisá krédi na téléphone ya ndeko na yo na RDC (Vodacom, Orange, Airtel, Africell) na mbongo ya MboteCall.',
+      'airtime_sub':
+          'Bakisá krédi na téléphone ya ndeko na yo na RDC (Vodacom, Orange, Airtel, Africell) na mbongo ya MboteCall.',
       'airtime_sent': 'Krédi GSM etindami epai ya',
       'airtime_hist': 'BA RECHARGE YA SUKA',
       'pin_title': 'Code PIN 🔐',
@@ -259,7 +277,8 @@ class L10n {
       'pin_enter': 'Kotá code PIN na yo',
       'pin_wrong': 'Code ezali mabe, meká lisusu',
       'pin_forgot': 'Obosani code PIN ?',
-      'pin_reset_body': 'Mpo na kotala soki ezali yo, tokotinda code na SMS na %PHONE%.',
+      'pin_reset_body':
+          'Mpo na kotala soki ezali yo, tokotinda code na SMS na %PHONE%.',
       'pin_reset_send': 'Tindá code',
       'pin_reset_enter': 'Code oyo ozwi na SMS',
       'pin_reset_rules': 'Code esali 5 min · komeka mbala 3 kaka',
@@ -270,7 +289,8 @@ class L10n {
       'contacts_title': 'Ba contact na ngai',
       'contacts_all': 'Komona ba contact nyonso',
       'contacts_search': 'Koluka contact…',
-      'contacts_perm': 'Pesá nzela na ba contact mpo na komona noki baye bazali déjà na MboteCall 💚',
+      'contacts_perm':
+          'Pesá nzela na ba contact mpo na komona noki baye bazali déjà na MboteCall 💚',
       'contacts_allow': 'Kopesa nzela',
       'contacts_empty': 'Contact moko te emonani',
       'on_mbote': 'MboteCall 💚',
@@ -283,7 +303,8 @@ class L10n {
       'theme_label': 'Thème',
       'font_label': 'Makomi',
       'about': 'Makambo ya application',
-      'about_text': 'MboteCall v1.3\n\nBengá mboka, lokola ozali kuna.\n\nLibengi na segonde epai ya ba GSM nyonso ya Afrika, libengi ya ofele kati na ba utilisateur, ba forfait, kotinda krédi mpe recharge GSM na mosika.',
+      'about_text':
+          'MboteCall v1.3\n\nBengá mboka, lokola ozali kuna.\n\nLibengi na segonde epai ya ba GSM nyonso ya Afrika, libengi ya ofele kati na ba utilisateur, ba forfait, kotinda krédi mpe recharge GSM na mosika.',
       'lang_more': 'Kozwa minɔkɔ mosusu',
       'downloading': 'Ezali kokita…',
       'downloaded': 'Monɔkɔ ekoti ✓',
@@ -296,13 +317,16 @@ class L10n {
     'sw': {
       // ---- 🗣️ Lokota ----
       'lokota_home_title': 'Lokota',
-      'lokota_home_sub': 'Sema lugha yako. Watasikia yao. Noti za sauti zinazotafsiriwa français ↔ lingala ↔ swahili.',
+      'lokota_home_sub':
+          'Sema lugha yako. Watasikia yao. Noti za sauti zinazotafsiriwa français ↔ lingala ↔ swahili.',
       'lokota_pilot': 'MAJARIBIO',
       'lokota_new': 'Noti mpya',
-      'lokota_new_hint': 'Namba ya MboteCall ya mpendwa utakayemtumia noti yako.',
+      'lokota_new_hint':
+          'Namba ya MboteCall ya mpendwa utakayemtumia noti yako.',
       'lokota_open': 'Fungua mazungumzo',
       'lokota_empty_title': 'Hakuna noti ya sauti bado',
-      'lokota_empty_body': 'Rekodi noti kwa Kifaransa, Lingala au Kiswahili : mpendwa wako ataipokea na tafsiri kwa lugha yake.',
+      'lokota_empty_body':
+          'Rekodi noti kwa Kifaransa, Lingala au Kiswahili : mpendwa wako ataipokea na tafsiri kwa lugha yake.',
       'lokota_translating': 'Tafsiri inaendelea…',
       'lokota_no_ai': 'Tafsiri haipatikani (huduma ya IA haijawashwa)',
       'lokota_failed': 'Tafsiri imeshindikana — noti bado inasikika',
@@ -319,14 +343,16 @@ class L10n {
       'favorites': 'Wapendwa',
       'add': '+ Kuongeza',
       'empty_fav': 'Ongeza wapendwa wako ili kuwapigia kwa mguso mmoja',
-      'low_credit': 'Salio linakaribia kuisha — ongeza ili kuendelea kupiga simu',
+      'low_credit':
+          'Salio linakaribia kuisha — ongeza ili kuendelea kupiga simu',
       'profile': 'Wasifu',
       'edit_name': 'Kubadilisha jina langu',
       'rates_by_dest': 'Bei kwa nchi',
       'language': 'Lugha · Langue · Monɔkɔ',
       'logout': 'Kutoka',
       'referral_title': 'Alika wapendwa wako',
-      'referral_body': 'Shiriki code yako : mpendwa wako anapata \$1 kwenye simu yake ya kwanza, na wewe pia !',
+      'referral_body':
+          'Shiriki code yako : mpendwa wako anapata \$1 kwenye simu yake ya kwanza, na wewe pia !',
       'referral_code': 'Code yangu',
       'referral_stats': 'walioalikwa · umepata',
       'copy': 'Nakili',
@@ -340,9 +366,11 @@ class L10n {
       'ring_silent': 'Kimya',
       'vibration': 'Mtetemo',
       'ring_hint': 'Gusa chaguo ili kusikia',
-      'invite_message': '🧡 Mbote ! Ninapiga simu nyumbani kwa MboteCall, programu ya kupiga simu kwa bei nafuu 🇨🇩\n\n💚 Simu MboteCall → MboteCall ni bure kabisa\n📞 Bei kwa sekunde kuelekea GSM zote\n📱 Kutuma salio la Vodacom, Orange, Airtel ukiwa mbali\n\n🎁 Pakua programu na uingize code yangu %CODE% : unapata \$1 ya bure kwenye simu yako ya kwanza !',
+      'invite_message':
+          '🧡 Mbote ! Ninapiga simu nyumbani kwa MboteCall, programu ya kupiga simu kwa bei nafuu 🇨🇩\n\n💚 Simu MboteCall → MboteCall ni bure kabisa\n📞 Bei kwa sekunde kuelekea GSM zote\n📱 Kutuma salio la Vodacom, Orange, Airtel ukiwa mbali\n\n🎁 Pakua programu na uingize code yangu %CODE% : unapata \$1 ya bure kwenye simu yako ya kwanza !',
       'transfer_title': 'Kutuma salio 💸',
-      'transfer_sub': 'Salio linafika mara moja kwenye akaunti MboteCall ya mpendwa wako.',
+      'transfer_sub':
+          'Salio linafika mara moja kwenye akaunti MboteCall ya mpendwa wako.',
       'recipient': 'Namba ya mpokeaji',
       'amount': 'Kiasi',
       'send': 'Kutuma',
@@ -362,7 +390,8 @@ class L10n {
       'buy': 'Nunua',
       'bought_ok': 'Kifurushi kimewashwa ! Piga simu vizuri 📞',
       'airtime_title': 'Kutuma salio la GSM',
-      'airtime_sub': 'Ongeza salio kwenye simu ya mpendwa wako RDC (Vodacom, Orange, Airtel, Africell) kutoka akaunti yako ya MboteCall.',
+      'airtime_sub':
+          'Ongeza salio kwenye simu ya mpendwa wako RDC (Vodacom, Orange, Airtel, Africell) kutoka akaunti yako ya MboteCall.',
       'airtime_sent': 'Salio la GSM limetumwa kwa',
       'airtime_hist': 'MALIPO YA MWISHO',
       'pin_title': 'Nambari ya PIN 🔐',
@@ -374,7 +403,8 @@ class L10n {
       'pin_enter': 'Ingiza PIN yako',
       'pin_wrong': 'Nambari si sahihi, jaribu tena',
       'pin_forgot': 'Umesahau PIN ?',
-      'pin_reset_body': 'Ili kuthibitisha ni wewe, tutatuma msimbo kwa SMS kwa %PHONE%.',
+      'pin_reset_body':
+          'Ili kuthibitisha ni wewe, tutatuma msimbo kwa SMS kwa %PHONE%.',
       'pin_reset_send': 'Tuma msimbo',
       'pin_reset_enter': 'Msimbo uliopokea kwa SMS',
       'pin_reset_rules': 'Msimbo wa dakika 5 · majaribio 3 tu',
@@ -385,7 +415,8 @@ class L10n {
       'contacts_title': 'Mawasiliano yangu',
       'contacts_all': 'Kuona mawasiliano yote',
       'contacts_search': 'Kutafuta mawasiliano…',
-      'contacts_perm': 'Ruhusu ufikiaji wa mawasiliano ili kuona haraka walio tayari kwenye MboteCall 💚',
+      'contacts_perm':
+          'Ruhusu ufikiaji wa mawasiliano ili kuona haraka walio tayari kwenye MboteCall 💚',
       'contacts_allow': 'Kuruhusu',
       'contacts_empty': 'Hakuna mawasiliano',
       'on_mbote': 'MboteCall 💚',
@@ -398,7 +429,8 @@ class L10n {
       'theme_label': 'Mandhari',
       'font_label': 'Fonti',
       'about': 'Kuhusu programu',
-      'about_text': 'MboteCall v1.3\n\nPiga simu nyumbani, kana kwamba upo huko.\n\nSimu kwa sekunde kuelekea GSM zote za Afrika, simu za bure kati ya watumiaji, vifurushi, kutuma salio na kuongeza salio la GSM ukiwa mbali.',
+      'about_text':
+          'MboteCall v1.3\n\nPiga simu nyumbani, kana kwamba upo huko.\n\nSimu kwa sekunde kuelekea GSM zote za Afrika, simu za bure kati ya watumiaji, vifurushi, kutuma salio na kuongeza salio la GSM ukiwa mbali.',
       'lang_more': 'Kupakua lugha mpya',
       'downloading': 'Inapakua…',
       'downloaded': 'Lugha imewekwa ✓',

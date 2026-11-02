@@ -60,8 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _snack('🎁 Bienvenue ! 0,50 \$ offerts pour tester.');
       }
       Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const ShellScreen()),
-          (_) => false);
+          MaterialPageRoute(builder: (_) => const ShellScreen()), (_) => false);
     } catch (e) {
       _snack(friendlyError(e), error: true);
     } finally {
@@ -95,8 +94,8 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(
                 controller: phoneCtrl,
                 keyboardType: TextInputType.phone,
-                style: TextStyle(
-                    fontSize: 20, color: MC.ivoire, letterSpacing: 1),
+                style:
+                    TextStyle(fontSize: 20, color: MC.ivoire, letterSpacing: 1),
                 decoration: const InputDecoration(hintText: '+243 81 234 5678'),
               )
             else ...[
@@ -114,8 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text('Mode démo — code : $demoCode',
-                      style:
-                          TextStyle(color: MC.savane, fontSize: 12.5)),
+                      style: TextStyle(color: MC.savane, fontSize: 12.5)),
                 ),
               const SizedBox(height: 12),
               // 🎁 Code parrain (facultatif) — 1 $ offert au 1er appel
@@ -123,8 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 GestureDetector(
                   onTap: () => setState(() => showReferral = true),
                   child: Text(L10n.t('have_code'),
-                      style: TextStyle(
-                          color: MC.soleil, fontSize: 13.5)),
+                      style: TextStyle(color: MC.soleil, fontSize: 13.5)),
                 )
               else
                 TextField(
@@ -132,8 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   textCapitalization: TextCapitalization.characters,
                   style: TextStyle(
                       fontSize: 16, color: MC.ivoire, letterSpacing: 2),
-                  decoration:
-                      const InputDecoration(hintText: 'MBOTE-XXXX'),
+                  decoration: const InputDecoration(hintText: 'MBOTE-XXXX'),
                 ),
             ],
             const SizedBox(height: 26),

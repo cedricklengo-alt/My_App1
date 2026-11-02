@@ -103,10 +103,9 @@ class _PinScreenState extends State<PinScreen> {
             Container(
               width: 70,
               height: 70,
-              decoration: BoxDecoration(
-                  gradient: MC.degrade, shape: BoxShape.circle),
-              child: Icon(Icons.lock_rounded,
-                  color: MC.onAccent, size: 32),
+              decoration:
+                  BoxDecoration(gradient: MC.degrade, shape: BoxShape.circle),
+              child: Icon(Icons.lock_rounded, color: MC.onAccent, size: 32),
             ),
             const SizedBox(height: 18),
             Text(title,
@@ -119,8 +118,7 @@ class _PinScreenState extends State<PinScreen> {
               height: 18,
               child: error
                   ? Text(L10n.t('pin_wrong'),
-                      style:
-                          TextStyle(color: MC.rouge, fontSize: 12.5))
+                      style: TextStyle(color: MC.rouge, fontSize: 12.5))
                   : null,
             ),
             const SizedBox(height: 16),
@@ -206,113 +204,113 @@ class _PinScreenState extends State<PinScreen> {
 /// celui qui reçoit le SMS est le propriétaire légitime.
 /// Renvoie true si le PIN a bien été effacé.
 Future<bool> resetPinBySms(BuildContext context) async {
-    final st = context.read<AppState>();
-    final phone = st.phone;
-    if (phone.isEmpty) {
-      _pinSnack(context, friendlyError(ApiException(
-          'Pas d\'Internet — vérifie ta connexion 📶', 'offline')), err: true);
-      return false;
-    }
+  final st = context.read<AppState>();
+  final phone = st.phone;
+  if (phone.isEmpty) {
+    _pinSnack(
+        context,
+        friendlyError(ApiException(
+            'Pas d\'Internet — vérifie ta connexion 📶', 'offline')),
+        err: true);
+    return false;
+  }
 
-    // Étape 1. Explication claire + consentement
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: MC.nuit2,
-        title: Text(L10n.t('pin_forgot'),
-            style: TextStyle(color: MC.ivoire, fontSize: 18)),
-        content: Text(
-            L10n.t('pin_reset_body').replaceAll('%PHONE%', phone),
-            style: TextStyle(color: MC.sable, fontSize: 14, height: 1.5)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(L10n.t('cancel_btn'),
-                  style: TextStyle(color: MC.kaki))),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(L10n.t('pin_reset_send'),
-                  style: TextStyle(
-                      color: MC.soleil, fontWeight: FontWeight.w700))),
+  // Étape 1. Explication claire + consentement
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: MC.nuit2,
+      title: Text(L10n.t('pin_forgot'),
+          style: TextStyle(color: MC.ivoire, fontSize: 18)),
+      content: Text(L10n.t('pin_reset_body').replaceAll('%PHONE%', phone),
+          style: TextStyle(color: MC.sable, fontSize: 14, height: 1.5)),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child:
+                Text(L10n.t('cancel_btn'), style: TextStyle(color: MC.kaki))),
+        TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(L10n.t('pin_reset_send'),
+                style:
+                    TextStyle(color: MC.soleil, fontWeight: FontWeight.w700))),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return false;
+
+  // Étape 2. Envoi du code SMS dédié (protocole sécurisé : le code
+  // n'est JAMAIS renvoyé à l'app — il arrive par SMS sur la SIM du compte)
+  try {
+    await st.api.pinResetRequest();
+  } catch (e) {
+    if (context.mounted) _pinSnack(context, friendlyError(e), err: true);
+    return false;
+  }
+  if (!context.mounted) return false;
+
+  // Étape 3. Saisie du code reçu
+  final ctrl = TextEditingController();
+  final code = await showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: MC.nuit2,
+      title: Text(L10n.t('pin_reset_enter'),
+          style: TextStyle(color: MC.ivoire, fontSize: 17)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Text(L10n.t('pin_reset_rules'),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: MC.kaki, fontSize: 12.5)),
+          ),
+          TextField(
+            controller: ctrl,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: MC.ivoire, fontSize: 24, letterSpacing: 8),
+            decoration: InputDecoration(
+              counterText: '',
+              hintText: '••••••',
+              hintStyle: TextStyle(color: MC.kaki),
+            ),
+          ),
         ],
       ),
-    );
-    if (ok != true || !context.mounted) return false;
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child:
+                Text(L10n.t('cancel_btn'), style: TextStyle(color: MC.kaki))),
+        TextButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: Text('OK',
+                style:
+                    TextStyle(color: MC.soleil, fontWeight: FontWeight.w700))),
+      ],
+    ),
+  );
+  if (code == null || code.isEmpty || !context.mounted) return false;
 
-    // Étape 2. Envoi du code SMS dédié (protocole sécurisé : le code
-    // n'est JAMAIS renvoyé à l'app — il arrive par SMS sur la SIM du compte)
-    try {
-      await st.api.pinResetRequest();
-    } catch (e) {
-      if (context.mounted) _pinSnack(context, friendlyError(e), err: true);
-      return false;
+  // Étape 4. Vérification serveur (usage unique, 3 essais) → PIN effacé
+  try {
+    await st.api.pinResetVerify(code);
+    await Pin.remove();
+    if (context.mounted) {
+      _pinSnack(context, L10n.t('pin_reset_done'));
     }
-    if (!context.mounted) return false;
-
-    // Étape 3. Saisie du code reçu
-    final ctrl = TextEditingController();
-    final code = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: MC.nuit2,
-        title: Text(L10n.t('pin_reset_enter'),
-            style: TextStyle(color: MC.ivoire, fontSize: 17)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Text(L10n.t('pin_reset_rules'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: MC.kaki, fontSize: 12.5)),
-            ),
-            TextField(
-              controller: ctrl,
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: MC.ivoire, fontSize: 24, letterSpacing: 8),
-              decoration: InputDecoration(
-                counterText: '',
-                hintText: '••••••',
-                hintStyle: TextStyle(color: MC.kaki),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(L10n.t('cancel_btn'),
-                  style: TextStyle(color: MC.kaki))),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-              child: Text('OK',
-                  style: TextStyle(
-                      color: MC.soleil, fontWeight: FontWeight.w700))),
-        ],
-      ),
-    );
-    if (code == null || code.isEmpty || !context.mounted) return false;
-
-    // Étape 4. Vérification serveur (usage unique, 3 essais) → PIN effacé
-    try {
-      await st.api.pinResetVerify(code);
-      await Pin.remove();
-      if (context.mounted) {
-        _pinSnack(context, L10n.t('pin_reset_done'));
-      }
-      return true;
-    } catch (e) {
-      if (context.mounted) _pinSnack(context, friendlyError(e), err: true);
-      return false;
-    }
+    return true;
+  } catch (e) {
+    if (context.mounted) _pinSnack(context, friendlyError(e), err: true);
+    return false;
+  }
 }
 
 void _pinSnack(BuildContext context, String msg, {bool err = false}) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: err ? MC.rouge : MC.savane));
+      content: Text(msg), backgroundColor: err ? MC.rouge : MC.savane));
 }

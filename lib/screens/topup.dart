@@ -59,8 +59,8 @@ class _TopupScreenState extends State<TopupScreen> {
         ));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(friendlyError(e)), backgroundColor: MC.rouge));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: MC.rouge));
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -119,8 +119,8 @@ class _TopupScreenState extends State<TopupScreen> {
                       ? message
                       : 'Une demande de paiement vient d\'être envoyée. Tapez votre code PIN Mobile Money pour valider.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                      color: MC.sable, fontSize: 13.5, height: 1.5),
+                  style:
+                      TextStyle(color: MC.sable, fontSize: 13.5, height: 1.5),
                 ),
                 const SizedBox(height: 18),
                 TextButton(
@@ -128,8 +128,7 @@ class _TopupScreenState extends State<TopupScreen> {
                     timer?.cancel();
                     Navigator.pop(sheetCtx, null);
                   },
-                  child: Text('Annuler',
-                      style: TextStyle(color: MC.kaki)),
+                  child: Text('Annuler', style: TextStyle(color: MC.kaki)),
                 ),
               ],
             ),
@@ -160,9 +159,7 @@ class _TopupScreenState extends State<TopupScreen> {
                       selectedColor: MC.soleil,
                       backgroundColor: MC.nuit3,
                       labelStyle: TextStyle(
-                          color: amountCents == a
-                              ? MC.onAccent
-                              : MC.sable,
+                          color: amountCents == a ? MC.onAccent : MC.sable,
                           fontWeight: FontWeight.w700),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -190,8 +187,7 @@ class _TopupScreenState extends State<TopupScreen> {
                   color: selected ? const Color(0xFF2E2213) : MC.nuit3,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                      color: selected ? MC.soleil : MC.ligne,
-                      width: 1.5),
+                      color: selected ? MC.soleil : MC.ligne, width: 1.5),
                 ),
                 child: Row(
                   children: [
@@ -200,8 +196,7 @@ class _TopupScreenState extends State<TopupScreen> {
                       height: 38,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                          color: m.$4,
-                          borderRadius: BorderRadius.circular(10)),
+                          color: m.$4, borderRadius: BorderRadius.circular(10)),
                       child: Text(m.$2[0],
                           style: const TextStyle(
                               color: Colors.white,
@@ -218,8 +213,7 @@ class _TopupScreenState extends State<TopupScreen> {
                                   fontWeight: FontWeight.w700,
                                   fontSize: 14.5)),
                           Text(m.$3,
-                              style: TextStyle(
-                                  color: MC.kaki, fontSize: 11.5)),
+                              style: TextStyle(color: MC.kaki, fontSize: 11.5)),
                         ],
                       ),
                     ),

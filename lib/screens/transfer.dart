@@ -36,8 +36,8 @@ class _TransferScreenState extends State<TransferScreen> {
       ));
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(friendlyError(e)), backgroundColor: MC.rouge));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: MC.rouge));
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -55,14 +55,13 @@ class _TransferScreenState extends State<TransferScreen> {
               style: TextStyle(color: MC.sable, fontSize: 14)),
           const SizedBox(height: 20),
           Text(L10n.t('recipient').toUpperCase(),
-              style: TextStyle(
-                  color: MC.kaki, fontSize: 12, letterSpacing: 1.4)),
+              style:
+                  TextStyle(color: MC.kaki, fontSize: 12, letterSpacing: 1.4)),
           const SizedBox(height: 8),
           TextField(
             controller: phoneCtrl,
             keyboardType: TextInputType.phone,
-            style: TextStyle(
-                fontSize: 19, color: MC.ivoire, letterSpacing: 1),
+            style: TextStyle(fontSize: 19, color: MC.ivoire, letterSpacing: 1),
             decoration: InputDecoration(
               hintText: '+243 81 234 5678',
               suffixIcon: IconButton(
@@ -92,8 +91,8 @@ class _TransferScreenState extends State<TransferScreen> {
                           padding: const EdgeInsets.only(right: 8),
                           child: ActionChip(
                             label: Text(c['name'],
-                                style: TextStyle(
-                                    color: MC.sable, fontSize: 12.5)),
+                                style:
+                                    TextStyle(color: MC.sable, fontSize: 12.5)),
                             backgroundColor: MC.nuit3,
                             side: BorderSide.none,
                             onPressed: () =>
@@ -105,8 +104,8 @@ class _TransferScreenState extends State<TransferScreen> {
             ),
           const SizedBox(height: 22),
           Text(L10n.t('amount').toUpperCase(),
-              style: TextStyle(
-                  color: MC.kaki, fontSize: 12, letterSpacing: 1.4)),
+              style:
+                  TextStyle(color: MC.kaki, fontSize: 12, letterSpacing: 1.4)),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -118,9 +117,7 @@ class _TransferScreenState extends State<TransferScreen> {
                       selectedColor: MC.soleil,
                       backgroundColor: MC.nuit3,
                       labelStyle: TextStyle(
-                          color: amountCents == a
-                              ? MC.onAccent
-                              : MC.sable,
+                          color: amountCents == a ? MC.onAccent : MC.sable,
                           fontWeight: FontWeight.w700),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),

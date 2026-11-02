@@ -24,7 +24,8 @@ class IncomingCallScreen extends StatefulWidget {
 class _IncomingCallScreenState extends State<IncomingCallScreen> {
   Timer? vibre;
   bool done = false; // évite double pop / double journal
-  final List<Map> earlyIce = []; // 🧊 candidats réseau arrivés pendant la sonnerie
+  final List<Map> earlyIce =
+      []; // 🧊 candidats réseau arrivés pendant la sonnerie
 
   @override
   void initState() {
@@ -136,7 +137,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                       colors: [MC.soleil, MC.braise, MC.terre, MC.soleil]),
                   boxShadow: [
                     BoxShadow(
-                        color: MC.soleil.withOpacity(.22),
+                        color: MC.soleil.withValues(alpha: .22),
                         blurRadius: 36,
                         spreadRadius: 6),
                   ],
@@ -173,7 +174,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                        color: MC.soleil.withOpacity(.3),
+                        color: MC.soleil.withValues(alpha: .3),
                         blurRadius: 22,
                         spreadRadius: 2),
                   ],
@@ -233,7 +234,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
             color: color,
             boxShadow: [
               BoxShadow(
-                  color: color.withOpacity(.4),
+                  color: color.withValues(alpha: .4),
                   blurRadius: 26,
                   offset: const Offset(0, 8)),
             ],

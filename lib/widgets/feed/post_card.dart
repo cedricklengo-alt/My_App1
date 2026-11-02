@@ -1,5 +1,9 @@
 // lib/widgets/feed/post_card.dart
-// Carte post unifiée : photo · clip · texte · événement + bouton Appeler
+// Carte de publication unifiée : photo · clip · texte · événement + bouton Appeler.
+//
+// Cette carte est **purement présentationnelle** : elle ne garde aucun état.
+// L'état « j'aime » vit dans `FeedScreen` (et sur le serveur), ce qui évite
+// qu'un compteur retombe à zéro quand la carte sort du cache de défilement.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,47 +12,23 @@ import 'package:intl/intl.dart';
 import '../../models/post.dart';
 import '../../theme.dart';
 
-class PostCard extends StatefulWidget {
+class PostCard extends StatelessWidget {
   final Post post;
-  final VoidCallback? onCall;
   final VoidCallback? onLike;
   final VoidCallback? onComment;
   final VoidCallback? onShare;
+  final VoidCallback? onCall;
   final bool dataSaverMode;
 
   const PostCard({
     super.key,
     required this.post,
-    this.onCall,
     this.onLike,
     this.onComment,
     this.onShare,
+    this.onCall,
     this.dataSaverMode = false,
   });
-
-  @override
-  State<PostCard> createState() => _PostCardState();
-}
-
-class _PostCardState extends State<PostCard> {
-  late bool _liked;
-  late int _likes;
-
-  @override
-  void initState() {
-    super.initState();
-    _liked = false;
-    _likes = widget.post.likes;
-  }
-
-  void _toggleLike() {
-    HapticFeedback.selectionClick();
-    setState(() {
-      _liked = !_liked;
-      _likes += _liked ? 1 : -1;
-    });
-    widget.onLike?.call();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,19 +42,14 @@ class _PostCardState extends State<PostCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Header(post: widget.post),
-          _MediaSection(
-            post: widget.post,
-            dataSaverMode: widget.dataSaverMode,
-          ),
+          _Header(post: post),
+          _MediaSection(post: post, dataSaverMode: dataSaverMode),
           _Actions(
-            post: widget.post,
-            liked: _liked,
-            likes: _likes,
-            onLike: _toggleLike,
-            onComment: widget.onComment,
-            onShare: widget.onShare,
-            onCall: widget.onCall,
+            post: post,
+            onLike: onLike,
+            onComment: onComment,
+            onShare: onShare,
+            onCall: onCall,
           ),
         ],
       ),
@@ -92,31 +67,30 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasAvatar = post.authorAvatar != null;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+      padding: const EdgeInsets.fromLTRB(12, 12, 8, 8),
       child: Row(
         children: [
-          // Avatar 36px
+          // Avatar 40 dp — photo si disponible, initiale sinon
           Container(
-            width: 36,
-            height: 36,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: MC.nuit3,
-              border: Border.all(color: MC.soleil.withOpacity(.4), width: 1.5),
+              border: Border.all(
+                  color: MC.soleil.withValues(alpha: .4), width: 1.5),
             ),
-            child: Center(
-              child: Text(
-                post.authorName.isNotEmpty
-                    ? post.authorName[0].toUpperCase()
-                    : '?',
-                style: const TextStyle(
-                  color: MC.soleil,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
+            clipBehavior: Clip.antiAlias,
+            child: hasAvatar
+                ? Image.network(
+                    post.authorAvatar!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        _Initial(name: post.authorName),
+                  )
+                : _Initial(name: post.authorName),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -127,45 +101,40 @@ class _Header extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        post.authorName,
-                        style: const TextStyle(
+                        post.authorName.isEmpty
+                            ? 'Compte Mbote'
+                            : post.authorName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
                           color: MC.ivoire,
-                          fontSize: 13,
+                          fontSize: 14,
                           fontWeight: FontWeight.w700,
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 6),
                     _OrigineChip(origine: post.origine),
                   ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Row(
                   children: [
                     if (post.ville != null) ...[
-                      const Icon(
-                        Icons.location_on_rounded,
-                        size: 10,
-                        color: MC.kaki,
-                      ),
+                      Icon(Icons.location_on_rounded, size: 11, color: MC.kaki),
                       const SizedBox(width: 2),
-                      Text(
-                        post.ville!,
-                        style: const TextStyle(
-                          color: MC.kaki,
-                          fontSize: 10,
+                      Flexible(
+                        child: Text(
+                          post.ville!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: MC.kaki, fontSize: 11),
                         ),
                       ),
                       const SizedBox(width: 6),
                     ],
-                    Text(
-                      post.age,
-                      style: const TextStyle(
-                        color: MC.kaki,
-                        fontSize: 10,
-                      ),
-                    ),
+                    Text(post.age,
+                        style: TextStyle(color: MC.kaki, fontSize: 11)),
                     const SizedBox(width: 6),
                     _Badge(type: post.type),
                   ],
@@ -173,19 +142,52 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
-          // Menu
-          GestureDetector(
-            onTap: () {},
-            child: const Icon(
-              Icons.more_vert_rounded,
-              color: MC.kaki,
-              size: 18,
-            ),
+          // Menu : action réelle (copier le texte), plus de bouton mort
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert_rounded, color: MC.kaki, size: 20),
+            tooltip: 'Plus d’options',
+            color: MC.nuit3,
+            onSelected: (value) async {
+              if (value == 'copy') {
+                final text = post.texte ?? post.eventTitle ?? '';
+                if (text.isEmpty) return;
+                await Clipboard.setData(ClipboardData(text: text));
+              }
+            },
+            itemBuilder: (_) => [
+              if ((post.texte ?? post.eventTitle ?? '').isNotEmpty)
+                PopupMenuItem(
+                  value: 'copy',
+                  child: Text('Copier le texte',
+                      style: TextStyle(color: MC.ivoire)),
+                ),
+              PopupMenuItem(
+                value: 'share',
+                child: Text('Partager', style: TextStyle(color: MC.ivoire)),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+}
+
+class _Initial extends StatelessWidget {
+  final String name;
+  const _Initial({required this.name});
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Text(
+          name.isNotEmpty ? name[0].toUpperCase() : '?',
+          style: TextStyle(
+            color: MC.soleil,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      );
 }
 
 class _Badge extends StatelessWidget {
@@ -198,22 +200,25 @@ class _Badge extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final (label, color) = switch (type) {
-      PostType.clip => ('CLIP', MC.rouge),
-      PostType.event => ('ÉVÉN.', const Color(0xFF7C4DFF)),
+      PostType.clip => (
+          'CLIP',
+          const Color(0xFFE8674F)
+        ), // éclairci : contraste AA
+      PostType.event => ('ÉVÉN.', const Color(0xFF9C6DFF)),
       _ => ('', MC.nuit3),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
-        color: color.withOpacity(.2),
+        color: color.withValues(alpha: .2),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(.5), width: .8),
+        border: Border.all(color: color.withValues(alpha: .5), width: .8),
       ),
       child: Text(
         label,
         style: TextStyle(
           color: color,
-          fontSize: 8,
+          fontSize: 10,
           fontWeight: FontWeight.w800,
           letterSpacing: .5,
         ),
@@ -229,19 +234,19 @@ class _OrigineChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (origine == PostOrigine.rdc) {
-      return const Text('🇨🇩', style: TextStyle(fontSize: 11));
+      return const Text('🇨🇩', style: TextStyle(fontSize: 12));
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
-        color: MC.soleil.withOpacity(.15),
+        color: MC.soleil.withValues(alpha: .15),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: const Text(
+      child: Text(
         'Diaspora',
         style: TextStyle(
           color: MC.soleil,
-          fontSize: 8,
+          fontSize: 9,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -269,6 +274,60 @@ class _MediaSection extends StatelessWidget {
   }
 }
 
+/// Image réseau robuste : place-holder, erreur, et largeur bornée (mémoire).
+class _RemoteImage extends StatelessWidget {
+  final String url;
+  final double height;
+  const _RemoteImage({required this.url, required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      width: double.infinity,
+      child: Image.network(
+        url,
+        fit: BoxFit.cover,
+        cacheWidth: 1080,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          final total = progress.expectedTotalBytes;
+          final ratio =
+              total == null ? null : progress.cumulativeBytesLoaded / total;
+          return Container(
+            color: MC.nuit3,
+            child: Center(
+              child: SizedBox(
+                width: 26,
+                height: 26,
+                child: CircularProgressIndicator(
+                  value: ratio,
+                  strokeWidth: 2,
+                  color: MC.soleil,
+                ),
+              ),
+            ),
+          );
+        },
+        errorBuilder: (_, __, ___) => Container(
+          color: MC.nuit3,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.broken_image_rounded, color: MC.kaki, size: 30),
+                const SizedBox(height: 6),
+                Text('Image indisponible',
+                    style: TextStyle(color: MC.kaki, fontSize: 11)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PhotoMedia extends StatelessWidget {
   final Post post;
   const _PhotoMedia({required this.post});
@@ -278,32 +337,23 @@ class _PhotoMedia extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (post.texte != null)
+        if (post.texte != null && post.texte!.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
             child: Text(
               post.texte!,
-              style: const TextStyle(color: MC.ivoire, fontSize: 13, height: 1.4),
+              style: TextStyle(color: MC.ivoire, fontSize: 13, height: 1.4),
             ),
           ),
-        Container(
-          height: 200,
-          margin: const EdgeInsets.only(bottom: 4),
-          decoration: BoxDecoration(
+        if (post.mediaUrl != null)
+          _RemoteImage(url: post.mediaUrl!, height: 220)
+        else
+          Container(
+            height: 120,
             color: MC.nuit3,
-            image: post.mediaUrl != null
-                ? DecorationImage(
-                    image: NetworkImage(post.mediaUrl!),
-                    fit: BoxFit.cover,
-                  )
-                : null,
+            child: Center(
+                child: Icon(Icons.image_rounded, color: MC.kaki, size: 36)),
           ),
-          child: post.mediaUrl == null
-              ? const Center(
-                  child: Icon(Icons.image_rounded, color: MC.kaki, size: 40),
-                )
-              : null,
-        ),
       ],
     );
   }
@@ -319,57 +369,48 @@ class _ClipMedia extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (post.texte != null)
+        if (post.texte != null && post.texte!.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
             child: Text(
               post.texte!,
-              style: const TextStyle(color: MC.ivoire, fontSize: 13, height: 1.4),
+              style: TextStyle(color: MC.ivoire, fontSize: 13, height: 1.4),
             ),
           ),
         Stack(
           children: [
-            Container(
-              height: 220,
-              color: MC.nuit3,
-              child: const Center(
-                child: Icon(Icons.play_circle_fill_rounded,
-                    color: Colors.transparent, size: 56),
-              ),
-            ),
-            // Bouton play
+            if (post.mediaUrl != null && !dataSaverMode)
+              _RemoteImage(url: post.mediaUrl!, height: 220)
+            else
+              Container(height: 220, color: MC.nuit3),
             Positioned.fill(
               child: Center(
                 child: Container(
                   width: 52,
                   height: 52,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: MC.soleil,
+                    color: MC.soleil.withValues(alpha: dataSaverMode ? .35 : 1),
                   ),
-                  child: const Icon(
-                    Icons.play_arrow_rounded,
-                    color: MC.nuit,
-                    size: 32,
-                  ),
+                  child:
+                      Icon(Icons.play_arrow_rounded, color: MC.nuit, size: 32),
                 ),
               ),
             ),
-            // Durée
-            if (post.clipDureeSeconds != null)
+            if (post.clipDureeLabel.isNotEmpty)
               Positioned(
                 bottom: 8,
                 right: 10,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.black54,
+                    color: Colors.black.withValues(alpha: .6),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     post.clipDureeLabel,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: MC.ivoire,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
@@ -377,24 +418,23 @@ class _ClipMedia extends StatelessWidget {
                   ),
                 ),
               ),
-            // Badge data saver
             if (dataSaverMode)
               Positioned(
                 top: 8,
                 left: 10,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 7, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
-                    color: MC.soleil.withOpacity(.9),
+                    color: MC.soleil.withValues(alpha: .9),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.data_saver_on_rounded,
-                          size: 10, color: MC.nuit),
-                      SizedBox(width: 3),
+                          size: 11, color: MC.nuit),
+                      const SizedBox(width: 3),
                       Text(
                         'Éco data',
                         style: TextStyle(
@@ -420,8 +460,11 @@ class _TexteMedia extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (post.texte == null) return const SizedBox.shrink();
+    if (post.texte == null || post.texte!.isEmpty) {
+      return const SizedBox.shrink();
+    }
     return Container(
+      width: double.infinity,
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -431,11 +474,7 @@ class _TexteMedia extends StatelessWidget {
       ),
       child: Text(
         post.texte!,
-        style: const TextStyle(
-          color: MC.ivoire,
-          fontSize: 14,
-          height: 1.5,
-        ),
+        style: TextStyle(color: MC.ivoire, fontSize: 14, height: 1.5),
       ),
     );
   }
@@ -445,54 +484,62 @@ class _EventMedia extends StatelessWidget {
   final Post post;
   const _EventMedia({required this.post});
 
+  /// Formatage tolérant : si les données de langue ne sont pas chargées, on
+  /// retombe sur un format numérique plutôt que de faire tomber l'écran.
+  String? get _dateLabel {
+    final d = post.eventDate;
+    if (d == null) return null;
+    try {
+      return DateFormat("d MMM yyyy · HH'h'mm", 'fr_FR').format(d);
+    } catch (_) {
+      String two(int n) => n.toString().padLeft(2, '0');
+      return '${two(d.day)}/${two(d.month)}/${d.year} · ${two(d.hour)}h${two(d.minute)}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final dateLabel = post.eventDate != null
-        ? DateFormat("d MMM yyyy · HH'h'mm", 'fr_FR').format(post.eventDate!)
-        : null;
+    final dateLabel = _dateLabel;
+    const violet = Color(0xFF9C6DFF);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF7C4DFF).withOpacity(.4)),
+        border: Border.all(color: violet.withValues(alpha: .4)),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF7C4DFF).withOpacity(.15),
-            MC.nuit2,
-          ],
+          colors: [violet.withValues(alpha: .15), MC.nuit2],
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Bandeau date
           if (dateLabel != null)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF7C4DFF).withOpacity(.2),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(11),
-                ),
+                color: violet.withValues(alpha: .2),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(11)),
               ),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.calendar_today_rounded,
-                    size: 11,
-                    color: Color(0xFF7C4DFF),
-                  ),
+                  const Icon(Icons.calendar_today_rounded,
+                      size: 12, color: violet),
                   const SizedBox(width: 6),
-                  Text(
-                    dateLabel,
-                    style: const TextStyle(
-                      color: Color(0xFF7C4DFF),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                  Flexible(
+                    child: Text(
+                      dateLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: violet,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
@@ -505,30 +552,32 @@ class _EventMedia extends StatelessWidget {
               children: [
                 Text(
                   post.eventTitle ?? '',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: MC.ivoire,
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+                if (post.texte != null && post.texte!.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    post.texte!,
+                    style:
+                        TextStyle(color: MC.sable, fontSize: 13, height: 1.4),
+                  ),
+                ],
                 if (post.eventLieu != null) ...[
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      const Icon(
-                        Icons.place_rounded,
-                        size: 12,
-                        color: MC.kaki,
-                      ),
+                      Icon(Icons.place_rounded, size: 13, color: MC.kaki),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           post.eventLieu!,
-                          style: const TextStyle(
-                            color: MC.sable,
-                            fontSize: 12,
-                          ),
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: MC.sable, fontSize: 12),
                         ),
                       ),
                     ],
@@ -538,21 +587,20 @@ class _EventMedia extends StatelessWidget {
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 6,
+                    runSpacing: 6,
                     children: post.eventTags
                         .map(
                           (t) => Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 7, vertical: 2),
+                                horizontal: 7, vertical: 3),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF7C4DFF).withOpacity(.15),
+                              color: violet.withValues(alpha: .15),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
                               '#$t',
-                              style: const TextStyle(
-                                color: Color(0xFF9C6DFF),
-                                fontSize: 10,
-                              ),
+                              style:
+                                  const TextStyle(color: violet, fontSize: 11),
                             ),
                           ),
                         )
@@ -574,18 +622,14 @@ class _EventMedia extends StatelessWidget {
 
 class _Actions extends StatelessWidget {
   final Post post;
-  final bool liked;
-  final int likes;
-  final VoidCallback onLike;
+  final VoidCallback? onLike;
   final VoidCallback? onComment;
   final VoidCallback? onShare;
   final VoidCallback? onCall;
 
   const _Actions({
     required this.post,
-    required this.liked,
-    required this.likes,
-    required this.onLike,
+    this.onLike,
     this.onComment,
     this.onShare,
     this.onCall,
@@ -593,74 +637,69 @@ class _Actions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Label selon type de contact
-    final callLabel = post.isContact ? 'Appeler' : 'Contacter';
-
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 4, 10, 12),
+      padding: const EdgeInsets.fromLTRB(6, 2, 10, 8),
       child: Row(
         children: [
           _ActBtn(
-            icon: liked
+            icon: post.liked
                 ? Icons.favorite_rounded
                 : Icons.favorite_border_rounded,
-            color: liked ? MC.rouge : MC.kaki,
-            count: likes,
-            semanticLabel: 'J\'aime',
+            color: post.liked ? MC.rouge : MC.kaki,
+            count: post.likes,
+            semanticLabel: post.liked ? 'Retirer mon j’aime' : 'J’aime',
             onTap: onLike,
           ),
-          const SizedBox(width: 4),
           _ActBtn(
             icon: Icons.chat_bubble_outline_rounded,
             count: post.comments,
             semanticLabel: 'Commenter',
             onTap: onComment,
           ),
-          const SizedBox(width: 4),
           _ActBtn(
             icon: Icons.share_rounded,
             semanticLabel: 'Partager',
             onTap: onShare,
           ),
           const Spacer(),
-          // Bouton Appeler — le différenciateur Mbote
-          Semantics(
-            label: callLabel,
-            button: true,
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.mediumImpact();
-                onCall?.call();
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 7),
-                decoration: BoxDecoration(
-                  color: MC.soleil,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.call_rounded,
-                      size: 14,
-                      color: MC.nuit,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      callLabel,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: MC.nuit,
+          // Bouton Appeler : seulement si l'auteur est joignable (numéro fourni
+          // par l'API pour les contacts). Sinon inutile de promettre un appel.
+          if (post.canCall && onCall != null)
+            Semantics(
+              label:
+                  post.isContact ? 'Appeler ${post.authorName}' : 'Contacter',
+              button: true,
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  onCall!.call();
+                },
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 40),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: MC.soleil,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.call_rounded, size: 15, color: MC.nuit),
+                      const SizedBox(width: 5),
+                      Text(
+                        post.isContact ? 'Appeler' : 'Contacter',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: MC.nuit,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -669,14 +708,14 @@ class _Actions extends StatelessWidget {
 
 class _ActBtn extends StatelessWidget {
   final IconData icon;
-  final Color color;
+  final Color? color;
   final int count;
   final String semanticLabel;
   final VoidCallback? onTap;
 
   const _ActBtn({
     required this.icon,
-    this.color = MC.kaki,
+    this.color,
     this.count = 0,
     required this.semanticLabel,
     this.onTap,
@@ -684,25 +723,29 @@ class _ActBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = color ?? MC.kaki;
     return Semantics(
       label: semanticLabel,
       button: true,
-      child: GestureDetector(
+      child: InkWell(
         onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          // Cible tactile confortable (≥ 44 dp) même avec une icône de 20 dp
+          constraints: const BoxConstraints(minWidth: 46, minHeight: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          alignment: Alignment.center,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 18, color: color),
+              Icon(icon, size: 20, color: c),
               if (count > 0) ...[
-                const SizedBox(width: 4),
+                const SizedBox(width: 5),
                 Text(
                   _fmt(count),
                   style: TextStyle(
-                    color: color,
-                    fontSize: 11,
+                    color: c,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -715,6 +758,7 @@ class _ActBtn extends StatelessWidget {
   }
 
   String _fmt(int n) {
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
     if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
     return '$n';
   }

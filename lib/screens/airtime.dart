@@ -40,7 +40,7 @@ class _AirtimeScreenState extends State<AirtimeScreen> {
     final p = phone.text.replaceAll(RegExp(r'[\s.\-()]'), '');
     if (!RegExp(r'^\+?\d{8,15}$').hasMatch(p)) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Numéro invalide — format +243…'),
+          content: const Text('Numéro invalide — format +243…'),
           backgroundColor: MC.rouge));
       return;
     }
@@ -51,8 +51,7 @@ class _AirtimeScreenState extends State<AirtimeScreen> {
       await _loadHistory();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              '${L10n.t('airtime_sent')} $p (${r['operator']}) ✓'),
+          content: Text('${L10n.t('airtime_sent')} $p (${r['operator']}) ✓'),
           backgroundColor: MC.savane));
     } catch (e) {
       if (!mounted) return;
@@ -80,8 +79,7 @@ class _AirtimeScreenState extends State<AirtimeScreen> {
         padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
         children: [
           Text(L10n.t('airtime_sub'),
-              style: TextStyle(
-                  color: MC.sable, fontSize: 13.5, height: 1.5)),
+              style: TextStyle(color: MC.sable, fontSize: 13.5, height: 1.5)),
           const SizedBox(height: 16),
 
           // Solde disponible
@@ -103,8 +101,8 @@ class _AirtimeScreenState extends State<AirtimeScreen> {
           const SizedBox(height: 16),
 
           Text(L10n.t('recipient'),
-              style: TextStyle(
-                  color: MC.kaki, fontSize: 12, letterSpacing: 1.2)),
+              style:
+                  TextStyle(color: MC.kaki, fontSize: 12, letterSpacing: 1.2)),
           const SizedBox(height: 8),
           TextField(
             controller: phone,
@@ -130,8 +128,8 @@ class _AirtimeScreenState extends State<AirtimeScreen> {
           const SizedBox(height: 16),
 
           Text(L10n.t('amount'),
-              style: TextStyle(
-                  color: MC.kaki, fontSize: 12, letterSpacing: 1.2)),
+              style:
+                  TextStyle(color: MC.kaki, fontSize: 12, letterSpacing: 1.2)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -194,8 +192,7 @@ class _AirtimeScreenState extends State<AirtimeScreen> {
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13.5)),
                         Text(_date(h['created_at']),
-                            style: TextStyle(
-                                color: MC.kaki, fontSize: 11.5)),
+                            style: TextStyle(color: MC.kaki, fontSize: 11.5)),
                       ],
                     ),
                   ),
@@ -204,8 +201,7 @@ class _AirtimeScreenState extends State<AirtimeScreen> {
                           color: ok ? MC.savane : MC.kaki,
                           fontWeight: FontWeight.w800,
                           fontSize: 13.5,
-                          decoration:
-                              ok ? null : TextDecoration.lineThrough)),
+                          decoration: ok ? null : TextDecoration.lineThrough)),
                 ]),
               );
             }),

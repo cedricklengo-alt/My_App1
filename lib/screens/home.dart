@@ -61,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(22),
                 boxShadow: [
                   BoxShadow(
-                      color: MC.braise.withOpacity(.3),
+                      color: MC.braise.withValues(alpha: .3),
                       blurRadius: 26,
                       offset: const Offset(0, 10)),
                 ],
@@ -77,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 fontSize: 11,
                                 letterSpacing: 1.4,
                                 fontWeight: FontWeight.w700,
-                                color: MC.onAccent.withOpacity(.7))),
+                                color: MC.onAccent.withValues(alpha: .7))),
                         const SizedBox(height: 4),
                         Text(fmtMoney(st.balanceCents),
                             style: TextStyle(
@@ -88,7 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             '≈ ${st.balanceCents ~/ 9} ${L10n.t('min_to_drc')}',
                             style: TextStyle(
                                 fontSize: 12,
-                                color: MC.onAccent.withOpacity(.8))),
+                                color: MC.onAccent.withValues(alpha: .8))),
                       ],
                     ),
                   ),
@@ -127,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: MC.soleil.withOpacity(.45)),
+                  border: Border.all(color: MC.soleil.withValues(alpha: .45)),
                 ),
                 child: Row(
                   children: [
@@ -149,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 7, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: MC.soleil.withOpacity(.16),
+                                  color: MC.soleil.withValues(alpha: .16),
                                   borderRadius: BorderRadius.circular(999),
                                   border: Border.all(color: MC.soleil),
                                 ),
@@ -217,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 decoration: BoxDecoration(
                   color: MC.nuit2,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: MC.soleil.withOpacity(.35)),
+                  border: Border.all(color: MC.soleil.withValues(alpha: .35)),
                 ),
                 child: Row(
                   children: [
@@ -244,9 +244,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: MC.rouge.withOpacity(.12),
+                  color: MC.rouge.withValues(alpha: .12),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: MC.rouge.withOpacity(.4)),
+                  border: Border.all(color: MC.rouge.withValues(alpha: .4)),
                 ),
                 child: Row(children: [
                   const Text('⚠️ ', style: TextStyle(fontSize: 16)),
@@ -261,18 +261,17 @@ class _HomeScreenState extends State<HomeScreen> {
             // ---- 🎉 Bannière Happy Hour ----
             ...promos.map((p) => Container(
                   margin: const EdgeInsets.only(top: 10),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
-                    color: MC.soleil.withOpacity(.1),
+                    color: MC.soleil.withValues(alpha: .1),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: MC.soleil.withOpacity(.45)),
+                    border: Border.all(color: MC.soleil.withValues(alpha: .45)),
                   ),
                   child: Row(children: [
                     const Text('🎉 ', style: TextStyle(fontSize: 16)),
                     Expanded(
-                      child: Text(
-                          '${p['title']} — ${L10n.t('promo_until')}',
+                      child: Text('${p['title']} — ${L10n.t('promo_until')}',
                           style: TextStyle(
                               color: MC.soleil,
                               fontWeight: FontWeight.w700,

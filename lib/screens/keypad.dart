@@ -111,8 +111,7 @@ class _KeypadScreenState extends State<KeypadScreen> {
                 ),
                 IconButton(
                   tooltip: L10n.t('contacts_title'),
-                  icon: Icon(Icons.contacts_rounded,
-                      color: MC.sable, size: 23),
+                  icon: Icon(Icons.contacts_rounded, color: MC.sable, size: 23),
                   onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -180,7 +179,7 @@ class _KeypadScreenState extends State<KeypadScreen> {
               final clean = number.replaceAll(RegExp(r'[\s.\-()]'), '');
               if (!RegExp(r'^\+\d{8,15}$').hasMatch(clean)) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('Numéro invalide — format +243…'),
+                    content: const Text('Numéro invalide — format +243…'),
                     backgroundColor: MC.rouge));
                 return;
               }
@@ -193,16 +192,16 @@ class _KeypadScreenState extends State<KeypadScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
-                    colors: [Color(0xFF3BC684), MC.savane]),
+                    colors: [const Color(0xFF3BC684), MC.savane]),
                 boxShadow: [
                   BoxShadow(
-                      color: MC.savane.withOpacity(.4),
+                      color: MC.savane.withValues(alpha: .4),
                       blurRadius: 24,
                       offset: const Offset(0, 8)),
                 ],
               ),
-              child: const Icon(Icons.call_rounded,
-                  color: Colors.white, size: 30),
+              child:
+                  const Icon(Icons.call_rounded, color: Colors.white, size: 30),
             ),
           ),
           const Spacer(),
