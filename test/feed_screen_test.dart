@@ -12,6 +12,7 @@ import 'package:mbote/models/post.dart';
 import 'package:mbote/screens/feed_screen.dart';
 import 'package:mbote/state.dart';
 import 'package:mbote/theme.dart';
+import 'package:mbote/widgets/feed/media_view.dart';
 import 'package:mbote/widgets/feed/post_card.dart';
 
 /// Faux backend : programmable, et il enregistre les appels reçus.
@@ -20,6 +21,7 @@ class FakeApi extends Api {
   List<Post> page2 = [];
   Object? failWith; // si non nul, feedPage lève cette erreur
   bool failLike = false;
+  bool deleteFails = false;
 
   final List<String> calls = [];
   int feedPageCalls = 0;
@@ -76,6 +78,18 @@ class FakeApi extends Api {
   }
 
   @override
+  Future<void> deletePost(String id) async {
+    calls.add('deletePost($id)');
+    if (deleteFails) throw ApiException('Suppression refusée', 'forbidden');
+    page1 = page1.where((p) => p.id != id).toList();
+  }
+
+  @override
+  Future<void> deleteStory(String id) async {
+    calls.add('deleteStory($id)');
+  }
+
+  @override
   Future<Map> likePost(String id) async {
     calls.add('likePost($id)');
     await Future<void>.delayed(const Duration(milliseconds: 5));
@@ -120,6 +134,14 @@ class FakeApi extends Api {
     calls.add('createPost(${postTypeToApi(type)},$texte)');
     return post('nouveau', texte: texte ?? '', phone: '+243810000001');
   }
+}
+
+/// État connecté minimal : FeedScreen a besoin de mon identifiant pour
+/// distinguer « mes » publications des autres.
+AppState loggedState([String? id]) {
+  final st = AppState();
+  st.id = id;
+  return st;
 }
 
 Widget wrap(FeedScreen screen, AppState state) {
@@ -292,5 +314,109 @@ void main() {
 
     expect(api.calls, contains('addComment(p1,Super !)'));
     expect(find.text('Super !'), findsWidgets);
+  });
+
+  testWidgets('ma publication : pas de bouton Appeler, mais « Supprimer »',
+      (tester) async {
+    final api = FakeApi()
+      ..page1 = [
+        FakeApi.post('p1', texte: 'Mon post'), // auteur = u_p1
+        FakeApi.post('p2', texte: 'Post de Bob'), // auteur = u_p2
+      ];
+    // id de l'auteur des posts factices = 'u_p1'
+    final state = loggedState('u_p1');
+
+    await tester.pumpWidget(wrap(FeedScreen(api: api), state));
+    await tester.pumpAndSettle();
+
+    // Une seule pastille « Appeler » : celle du post de Bob.
+    expect(find.text('Appeler'), findsOneWidget);
+    expect(find.byIcon(Icons.call_rounded), findsOneWidget);
+
+    // Le menu du post de Bob ne propose pas de suppression…
+    await tester.tap(find.byIcon(Icons.more_vert_rounded).last);
+    await tester.pumpAndSettle();
+    expect(find.text('Supprimer'), findsNothing);
+    await tester.tapAt(const Offset(10, 10)); // referme le menu
+    await tester.pumpAndSettle();
+
+    // …celui de mon post, oui.
+    await tester.tap(find.byIcon(Icons.more_vert_rounded).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Supprimer'), findsOneWidget);
+  });
+
+  testWidgets('suppression : confirmation puis disparition immédiate',
+      (tester) async {
+    final api = FakeApi()..page1 = [FakeApi.post('p1', texte: 'À jeter')];
+    await tester.pumpWidget(wrap(FeedScreen(api: api), loggedState('u_p1')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_vert_rounded).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Supprimer'));
+    await tester.pumpAndSettle();
+
+    // Boîte de confirmation
+    expect(find.text('Supprimer la publication ?'), findsOneWidget);
+
+    // Annuler ne supprime rien
+    await tester.tap(find.text('Annuler'));
+    await tester.pumpAndSettle();
+    expect(find.text('À jeter'), findsOneWidget);
+    expect(api.calls.where((c) => c.startsWith('deletePost')), isEmpty);
+
+    // Confirmer supprime et met l'interface à jour tout de suite
+    await tester.tap(find.byIcon(Icons.more_vert_rounded).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Supprimer'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Supprimer').last);
+    await tester.pumpAndSettle();
+
+    expect(api.calls, contains('deletePost(p1)'));
+    expect(find.text('À jeter'), findsNothing);
+    expect(find.text('Le fil est encore vide par ici.'), findsOneWidget);
+  });
+
+  testWidgets('suppression refusée par le serveur → le post revient',
+      (tester) async {
+    final api = FakeApi()
+      ..page1 = [FakeApi.post('p1', texte: 'Résistant')]
+      ..deleteFails = true;
+    await tester.pumpWidget(wrap(FeedScreen(api: api), loggedState('u_p1')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_vert_rounded).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Supprimer'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Supprimer').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Résistant'), findsOneWidget); // ↩️ remis en place
+  });
+
+  testWidgets('publication vidéo : lecteur présent, pas de plantage',
+      (tester) async {
+    final api = FakeApi()
+      ..page1 = [
+        Post(
+          id: 'v1',
+          authorId: 'u_v1',
+          authorName: 'Bob',
+          type: PostType.clip,
+          createdAt: DateTime.now(),
+          mediaUrl: 'http://127.0.0.1:9/video.mp4',
+          clipDureeSeconds: 42,
+        ),
+      ];
+    await tester.pumpWidget(wrap(FeedScreen(api: api), AppState()));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MboteVideo), findsOneWidget);
+    expect(find.text('Appuyer pour lire la vidéo'), findsOneWidget);
+    expect(find.text('0:42'), findsOneWidget); // durée affichée
+    expect(tester.takeException(), isNull);
   });
 }

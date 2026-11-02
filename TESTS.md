@@ -1,13 +1,17 @@
-# ✅ Tests du fil de publication — MboteCall
+# ✅ Tests — MboteCall (fil, statuts et appels)
 
-Tout ce qui concerne l'onglet **Accueil** (fil + statuts) est couvert par des
-tests **exécutables**. Aucun test ne dépend d'un téléphone ni d'Internet.
+Tout ce qui concerne l'onglet **Accueil** (fil + statuts) **et les appels**
+(audio, vidéo, groupe) est couvert par des tests **exécutables**. Aucun test ne
+dépend d'un téléphone, d'un micro, d'une caméra ni d'Internet.
 
 ```bash
-# 1. Backend (46 vérifications, lance son propre serveur sur le port 4788)
+# 1. Backend — fil (56 vérifications, serveur sur le port 4788)
 cd mbote-backend && npm install && node test/feed.test.js
 
-# 2. Application Flutter (29 tests)
+# 1 bis. Backend — appels (30 vérifications WebSocket réelles, port 4789)
+node test/calls.test.js
+
+# 2. Application Flutter (44 tests)
 cd My_App1
 flutter pub get
 flutter test
@@ -45,8 +49,30 @@ Si le dépôt backend est absent, le test est **ignoré** (pas d'échec).
 ## Dernier passage complet
 
 ```
-Backend  : 46 réussis, 0 échec
-Flutter  : 29 tests, All tests passed!   (6 s)
-Analyse  : 0 erreur, 0 avertissement, 2 infos (dépréciations Firebase Messaging
-           dans lib/push.dart : getToken → register, onTokenRefresh → onRegistered)
+Backend fil     : 56 réussis, 0 échec
+Backend appels  : 30 réussis, 0 échec   (WebSocket réels : offre/réponse/refus,
+                                         drapeau vidéo, salle de groupe, historique)
+Flutter         : 44 tests, All tests passed!   (13 s)
+Analyse         : 0 erreur, 0 avertissement, 2 infos (dépréciations Firebase
+                  Messaging dans lib/push.dart)
 ```
+
+⚠️ Ce qui **ne peut pas** être testé ici (pas de téléphone, pas de micro ni de
+caméra) : la qualité audio/vidéo réelle, l'écho, le passage d'un réseau 4G à un
+autre. Tout le reste — signalisation, états, grille, historique, permissions —
+est couvert.
+
+## Appels : ce que le test WebSocket vérifie réellement
+
+`node test/calls.test.js` ouvre de vrais clients WebSocket et joue le rôle des
+téléphones :
+
+1. **Audio individuel** : offre → sonnerie → réponse → raccrochage.
+2. **Vidéo individuel** : le drapeau `video` survit au relais ; le refus aussi.
+3. **Groupe** : création de salle par l'hôte ; entrée refusée sans invitation ;
+   invitation relayée avec le mode vidéo de la salle ; arrivée annoncée aux
+   autres (`group_peer_joined`) ; offres/réponses/candidats maillés ;
+   micro coupé diffusé ; départ annoncé ; 5ᵉ personne refusée (4 max).
+4. **Historique** : l'appel de groupe est journalisé une seule fois, gratuit,
+   avec sa durée.
+5. **Garde-fous** : un non-membre ne peut pas injecter de SDP dans la salle.

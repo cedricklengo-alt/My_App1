@@ -6,15 +6,20 @@
 // Les états chargement / erreur / vide / fin de liste sont gérés, et
 // l'API est injectable (`FeedScreen(api: …)`) pour les tests.
 
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:video_player/video_player.dart';
 
 import '../api.dart';
 import '../models/post.dart';
 import '../state.dart';
 import '../theme.dart';
+import '../widgets/feed/media_view.dart';
 import '../widgets/feed/post_card.dart';
 import '../widgets/feed/story_bar.dart';
 import 'call_sheet.dart';
@@ -215,6 +220,85 @@ class _FeedScreenState extends State<FeedScreen> {
         name: post.authorName, avatar: post.authorAvatar);
   }
 
+  // ── Suppression ────────────────────────────────────────
+
+  /// 🗑️ Demande confirmation puis supprime la publication.
+  /// L'élément disparaît de la liste **tout de suite** ; si le serveur refuse,
+  /// il est remis à sa place (aucune perte silencieuse).
+  Future<void> _confirmDelete(Post post) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: MC.nuit2,
+        title: Text('Supprimer la publication ?',
+            style: TextStyle(color: MC.ivoire, fontSize: 17)),
+        content: Text(
+          'Elle disparaîtra du fil pour tout le monde. Cette action est '
+          'définitive.',
+          style: TextStyle(color: MC.sable, fontSize: 13.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Annuler', style: TextStyle(color: MC.kaki)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Supprimer',
+                style: TextStyle(color: MC.rouge, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    final index = _posts.indexWhere((p) => p.id == post.id);
+    if (index == -1) return;
+    setState(() => _posts.removeAt(index)); // ⚡ retrait immédiat
+    try {
+      await _api.deletePost(post.id);
+      _toast('Publication supprimée');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _posts.insert(index, post)); // ↩️ remise en place
+      _toast(friendlyError(e));
+    }
+  }
+
+  /// 🗑️ Supprime un de mes statuts (confirmation incluse).
+  Future<bool> _confirmDeleteStory(Story story) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: MC.nuit2,
+        title: Text('Supprimer ce statut ?',
+            style: TextStyle(color: MC.ivoire, fontSize: 17)),
+        content: Text('Il ne sera plus visible par personne.',
+            style: TextStyle(color: MC.sable, fontSize: 13.5)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Annuler', style: TextStyle(color: MC.kaki)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Supprimer',
+                style: TextStyle(color: MC.rouge, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return false;
+    try {
+      await _api.deleteStory(story.id);
+      _toast('Statut supprimé');
+      return true;
+    } catch (e) {
+      if (mounted) _toast(friendlyError(e));
+      return false;
+    }
+  }
+
   // ── Publication ────────────────────────────────────────
 
   Future<void> _openCreate() async {
@@ -238,6 +322,7 @@ class _FeedScreenState extends State<FeedScreen> {
         type: postTypeFrom(draft['type']),
         texte: draft['texte'] as String?,
         mediaUrl: draft['media_url'] as String?,
+        clipDureeSeconds: draft['clip_duree_seconds'] as int?,
         eventTitle: draft['event_title'] as String?,
         eventDate: draft['event_date'] as DateTime?,
         eventLieu: draft['event_lieu'] as String?,
@@ -272,15 +357,119 @@ class _FeedScreenState extends State<FeedScreen> {
     }
   }
 
+  /// 📸 Nouveau statut : photo, courte vidéo ou texte.
   Future<void> _addStory() async {
+    final choix = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: MC.nuit2,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 6),
+              child: Row(
+                children: [
+                  Text('Nouveau statut',
+                      style: TextStyle(
+                          color: MC.ivoire,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800)),
+                ],
+              ),
+            ),
+            _StoryOption(
+              icon: Icons.photo_camera_rounded,
+              label: 'Photo',
+              onTap: () => Navigator.pop(ctx, 'photo'),
+            ),
+            _StoryOption(
+              icon: Icons.videocam_rounded,
+              label: 'Vidéo courte (60 s max)',
+              onTap: () => Navigator.pop(ctx, 'video'),
+            ),
+            _StoryOption(
+              icon: Icons.text_fields_rounded,
+              label: 'Texte',
+              onTap: () => Navigator.pop(ctx, 'texte'),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+    if (choix == null || !mounted) return;
+
+    if (choix == 'texte') {
+      await _addTextStory();
+      return;
+    }
+
     final picker = ImagePicker();
-    final file =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    XFile? file;
+    try {
+      file = choix == 'video'
+          ? await picker.pickVideo(
+              source: ImageSource.gallery,
+              maxDuration: const Duration(seconds: 60))
+          : await picker.pickImage(
+              source: ImageSource.gallery, imageQuality: 80);
+    } catch (e) {
+      if (mounted) _toast(friendlyError(e));
+      return;
+    }
     if (file == null) return;
     try {
       _toast('Envoi du statut…');
       final url = await _api.uploadMedia(file.path);
       await _api.postStory(mediaUrl: url);
+      await _refresh();
+      _toast('Statut publié — visible 24 h');
+    } catch (e) {
+      if (!mounted) return;
+      _toast(friendlyError(e));
+    }
+  }
+
+  /// ✍️ Statut texte seul (sans photo) — accepté par le serveur depuis la v3.6.
+  Future<void> _addTextStory() async {
+    final ctrl = TextEditingController();
+    final texte = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: MC.nuit2,
+        title: Text('Statut texte',
+            style: TextStyle(color: MC.ivoire, fontSize: 16)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          maxLength: 300,
+          maxLines: 4,
+          style: TextStyle(color: MC.ivoire),
+          decoration: InputDecoration(
+            hintText: 'Quoi de neuf ?',
+            hintStyle: TextStyle(color: MC.kaki),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Annuler', style: TextStyle(color: MC.kaki))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: Text('Publier',
+                style:
+                    TextStyle(color: MC.soleil, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (texte == null || texte.isEmpty || !mounted) return;
+    try {
+      await _api.postStory(texte: texte);
       await _refresh();
       _toast('Statut publié — visible 24 h');
     } catch (e) {
@@ -297,6 +486,29 @@ class _FeedScreenState extends State<FeedScreen> {
         builder: (_) => _StoryViewer(
           group: group,
           api: _api,
+          // 🗑️ Suppression possible seulement sur mes propres statuts.
+          onDelete: group.isMe ? _confirmDeleteStory : null,
+          onDeleted: (storyId) {
+            if (!mounted) return;
+            setState(() {
+              _groups = [
+                for (final g in _groups)
+                  if (g.userId != group.userId)
+                    g
+                  else if (g.stories.any((s) => s.id != storyId))
+                    StoryGroup(
+                      userId: g.userId,
+                      authorName: g.authorName,
+                      avatar: g.avatar,
+                      isMe: g.isMe,
+                      stories: [
+                        for (final s in g.stories)
+                          if (s.id != storyId) s,
+                      ],
+                    ),
+              ];
+            });
+          },
           onSeen: (storyId) {
             setState(() {
               _groups = [
@@ -424,10 +636,15 @@ class _FeedScreenState extends State<FeedScreen> {
                 separatorBuilder: (_, __) => const SizedBox(height: 2),
                 itemBuilder: (context, i) {
                   final post = posts[i];
+                  final mine = _myId != null && post.authorId == _myId;
                   return PostCard(
                     post: post,
+                    myId: _myId,
                     dataSaverMode: _dataSaver,
-                    onCall: post.canCall ? () => _call(post) : null,
+                    // 📞 Jamais d'appel sur sa propre publication (double
+                    // sécurité : la carte le vérifie aussi).
+                    onCall: (!mine && post.canCall) ? () => _call(post) : null,
+                    onDelete: mine ? () => _confirmDelete(post) : null,
                     onLike: () => _toggleLike(post),
                     onComment: () => _openComments(post),
                     onShare: () => _share(post),
@@ -978,6 +1195,7 @@ class _CreateSheetState extends State<_CreateSheet> {
   String _type = 'texte';
   String _visibilite = 'contacts';
   String? _mediaUrl;
+  int? _clipSec; // durée de la vidéo, quand on publie un clip
   String? _ville;
   DateTime? _eventDate;
   bool _uploading = false;
@@ -1017,6 +1235,51 @@ class _CreateSheetState extends State<_CreateSheet> {
     }
   }
 
+  /// 🎬 Choisit une courte vidéo (60 s max) et l'envoie.
+  Future<void> _pickVideo() async {
+    try {
+      final picker = ImagePicker();
+      final file = await picker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(seconds: 60),
+      );
+      if (file == null || !mounted) return;
+      setState(() => _uploading = true);
+      final duree = await _videoSeconds(file.path);
+      final url = await _apiUpload(file);
+      if (!mounted) return;
+      setState(() {
+        _mediaUrl = url;
+        _clipSec = duree;
+        _uploading = false;
+        _type = 'clip';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _uploading = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(friendlyError(e))));
+    }
+  }
+
+  /// Durée de la vidéo (meilleur effort) : si la lecture locale n'est pas
+  /// disponible, on publie sans durée plutôt que de bloquer l'envoi.
+  Future<int?> _videoSeconds(String path) async {
+    VideoPlayerController? c;
+    try {
+      c = VideoPlayerController.file(File(path));
+      await c.initialize().timeout(const Duration(seconds: 6));
+      final ms = c.value.duration.inMilliseconds;
+      return ms > 0 ? (ms / 1000).round() : null;
+    } catch (_) {
+      return null;
+    } finally {
+      try {
+        await c?.dispose();
+      } catch (_) {}
+    }
+  }
+
   Future<String> _apiUpload(XFile file) async {
     final api = context.read<AppState>().api;
     return api.uploadMedia(file.path);
@@ -1040,7 +1303,7 @@ class _CreateSheetState extends State<_CreateSheet> {
     if (_uploading) return false;
     return switch (_type) {
       'texte' => _texte.text.trim().isNotEmpty,
-      'photo' => _mediaUrl != null,
+      'photo' || 'clip' => _mediaUrl != null,
       'event' => _titre.text.trim().isNotEmpty,
       _ => false,
     };
@@ -1052,6 +1315,7 @@ class _CreateSheetState extends State<_CreateSheet> {
       'type': _type,
       'texte': _texte.text.trim(),
       'media_url': _mediaUrl,
+      'clip_duree_seconds': _clipSec,
       'event_title': _titre.text.trim(),
       'event_date': _eventDate,
       'event_lieu': _lieu.text.trim(),
@@ -1119,6 +1383,13 @@ class _CreateSheetState extends State<_CreateSheet> {
                   ),
                   const SizedBox(width: 8),
                   _TypeChip(
+                    label: 'Vidéo',
+                    icon: Icons.videocam_rounded,
+                    active: _type == 'clip',
+                    onTap: () => setState(() => _type = 'clip'),
+                  ),
+                  const SizedBox(width: 8),
+                  _TypeChip(
                     label: 'Événement',
                     icon: Icons.event_rounded,
                     active: _type == 'event',
@@ -1128,23 +1399,32 @@ class _CreateSheetState extends State<_CreateSheet> {
               ),
               const SizedBox(height: 14),
 
-              // Photo
-              if (_type == 'photo') ...[
+              // Photo / Vidéo
+              if (_type == 'photo' || _type == 'clip') ...[
                 if (_mediaUrl == null)
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: MC.soleil,
                       side: BorderSide(color: MC.soleil.withValues(alpha: .5)),
                     ),
-                    onPressed: _uploading ? null : _pickImage,
+                    onPressed: _uploading
+                        ? null
+                        : (_type == 'clip' ? _pickVideo : _pickImage),
                     icon: _uploading
                         ? const SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.add_photo_alternate_rounded,
+                        : Icon(
+                            _type == 'clip'
+                                ? Icons.video_call_rounded
+                                : Icons.add_photo_alternate_rounded,
                             size: 18),
-                    label: Text(_uploading ? 'Envoi…' : 'Choisir une photo'),
+                    label: Text(_uploading
+                        ? 'Envoi…'
+                        : (_type == 'clip'
+                            ? 'Choisir une vidéo (60 s max)'
+                            : 'Choisir une photo')),
                   )
                 else
                   ClipRRect(
@@ -1373,10 +1653,19 @@ class _StoryViewer extends StatefulWidget {
   final Api api;
   final void Function(String storyId) onSeen;
 
+  /// Présent uniquement pour MES statuts : renvoie `true` si la suppression
+  /// a bien été faite côté serveur.
+  final Future<bool> Function(Story story)? onDelete;
+
+  /// Prévient l'écran d'accueil qu'un statut a disparu.
+  final void Function(String storyId)? onDeleted;
+
   const _StoryViewer({
     required this.group,
     required this.api,
     required this.onSeen,
+    this.onDelete,
+    this.onDeleted,
   });
 
   @override
@@ -1386,16 +1675,42 @@ class _StoryViewer extends StatefulWidget {
 class _StoryViewerState extends State<_StoryViewer> {
   int _index = 0;
   final Set<String> _marked = {};
+  late List<Story> _stories;
+  Timer? _auto;
 
   @override
   void initState() {
     super.initState();
+    _stories = List<Story>.from(widget.group.stories);
     _mark(0);
+    _armAutoAdvance();
+  }
+
+  @override
+  void dispose() {
+    _auto?.cancel();
+    super.dispose();
+  }
+
+  Story? get _story =>
+      _stories.isEmpty ? null : _stories[_index.clamp(0, _stories.length - 1)];
+
+  /// 📷 Les statuts photo/texte avancent seuls (5 s) ; une vidéo se termine
+  /// naturellement, on ne la coupe pas au milieu.
+  void _armAutoAdvance() {
+    _auto?.cancel();
+    final st = _story;
+    if (st == null) return;
+    final video = st.mediaUrl != null && isVideoUrl(st.mediaUrl);
+    if (video) return;
+    _auto = Timer(const Duration(seconds: 5), () {
+      if (mounted) _next();
+    });
   }
 
   void _mark(int i) {
-    if (i < 0 || i >= widget.group.stories.length) return;
-    final s = widget.group.stories[i];
+    if (i < 0 || i >= _stories.length) return;
+    final s = _stories[i];
     if (_marked.contains(s.id)) return;
     _marked.add(s.id);
     widget.onSeen(s.id);
@@ -1403,23 +1718,49 @@ class _StoryViewerState extends State<_StoryViewer> {
   }
 
   void _next() {
-    if (_index + 1 >= widget.group.stories.length) {
+    if (_index + 1 >= _stories.length) {
       Navigator.pop(context);
       return;
     }
     setState(() => _index++);
     _mark(_index);
+    _armAutoAdvance();
   }
 
   void _prev() {
     if (_index == 0) return;
     setState(() => _index--);
+    _armAutoAdvance();
+  }
+
+  /// 🗑️ Supprime le statut affiché (confirmation gérée par l'écran d'accueil).
+  Future<void> _delete() async {
+    final st = _story;
+    final cb = widget.onDelete;
+    if (st == null || cb == null) return;
+    _auto?.cancel();
+    final done = await cb(st);
+    if (!mounted || !done) {
+      _armAutoAdvance();
+      return;
+    }
+    widget.onDeleted?.call(st.id);
+    setState(() {
+      _stories.removeAt(_index);
+      if (_index >= _stories.length) _index = _stories.length - 1;
+    });
+    if (_stories.isEmpty) {
+      Navigator.pop(context);
+      return;
+    }
+    _mark(_index);
+    _armAutoAdvance();
   }
 
   @override
   Widget build(BuildContext context) {
-    final stories = widget.group.stories;
-    final story = stories[_index.clamp(0, stories.length - 1)];
+    final story = _story;
+    final height = MediaQuery.of(context).size.height;
     return Scaffold(
       backgroundColor: Colors.black,
       body: GestureDetector(
@@ -1434,15 +1775,21 @@ class _StoryViewerState extends State<_StoryViewer> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (story.mediaUrl != null)
-              Image.network(
-                story.mediaUrl!,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Center(
-                  child: Text('Statut indisponible',
-                      style: TextStyle(color: MC.kaki, fontSize: 13)),
-                ),
-              )
+            if (story == null)
+              const SizedBox.shrink()
+            else if (story.mediaUrl != null)
+              // 🎬 Vidéo jouée directement dans le statut, sinon photo.
+              isVideoUrl(story.mediaUrl)
+                  ? MboteVideo(
+                      url: story.mediaUrl!,
+                      height: height,
+                      autoPlay: true,
+                    )
+                  : MboteImage(
+                      url: story.mediaUrl!,
+                      height: height,
+                      fit: BoxFit.contain,
+                    )
             else
               Center(
                 child: Padding(
@@ -1462,7 +1809,7 @@ class _StoryViewerState extends State<_StoryViewer> {
               right: 12,
               child: Row(
                 children: [
-                  for (var i = 0; i < stories.length; i++)
+                  for (var i = 0; i < _stories.length; i++)
                     Expanded(
                       child: Container(
                         height: 3,
@@ -1478,7 +1825,7 @@ class _StoryViewerState extends State<_StoryViewer> {
                 ],
               ),
             ),
-            // Auteur + fermeture
+            // Auteur + suppression + fermeture
             Positioned(
               top: 56,
               left: 12,
@@ -1517,6 +1864,13 @@ class _StoryViewerState extends State<_StoryViewer> {
                           fontWeight: FontWeight.w700),
                     ),
                   ),
+                  if (widget.onDelete != null)
+                    IconButton(
+                      onPressed: _delete,
+                      tooltip: 'Supprimer ce statut',
+                      icon: Icon(Icons.delete_outline_rounded,
+                          color: MC.ivoire, size: 22),
+                    ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
                     icon: Icon(Icons.close_rounded, color: MC.ivoire, size: 22),
@@ -1524,9 +1878,57 @@ class _StoryViewerState extends State<_StoryViewer> {
                 ],
               ),
             ),
+            // Légende éventuelle sous une photo/vidéo
+            if (story != null &&
+                story.texte != null &&
+                story.texte!.isNotEmpty &&
+                story.mediaUrl != null)
+              Positioned(
+                left: 18,
+                right: 18,
+                bottom: 60,
+                child: Text(
+                  story.texte!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: MC.ivoire,
+                    fontSize: 15,
+                    height: 1.4,
+                    shadows: const [
+                      Shadow(color: Colors.black, blurRadius: 8),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Ligne d'option de la feuille « Nouveau statut ».
+class _StoryOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _StoryOption(
+      {required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      leading: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: MC.soleil.withValues(alpha: .15),
+        ),
+        child: Icon(icon, color: MC.soleil, size: 19),
+      ),
+      title: Text(label, style: TextStyle(color: MC.ivoire, fontSize: 14)),
     );
   }
 }

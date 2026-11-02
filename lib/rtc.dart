@@ -30,6 +30,20 @@ class Rtc {
   /// — posé par l'écran d'appel actif
   static void Function(Map msg)? onSignal;
 
+  /// 👥 Auditeurs des messages d'appel de groupe (`group_*`).
+  /// Une liste (et non un seul emplacement) : l'écran d'accueil écoute en
+  /// permanence pour les invitations, pendant que l'écran d'appel de groupe
+  /// écoute la même salle.
+  static final List<void Function(Map msg)> _groupListeners = [];
+
+  static void addGroupListener(void Function(Map msg) f) {
+    if (!_groupListeners.contains(f)) _groupListeners.add(f);
+  }
+
+  static void removeGroupListener(void Function(Map msg) f) {
+    _groupListeners.remove(f);
+  }
+
   static String get _url {
     // https://…/api  →  wss://…/ws   (et http → ws en local)
     return Config.apiBase
@@ -60,8 +74,16 @@ class Rtc {
           } catch (_) {
             continue;
           }
-          if (msg['type'] == 'offer') {
+          final type = '${msg['type']}';
+          if (type == 'offer') {
             onOffer?.call(msg);
+          } else if (type.startsWith('group_')) {
+            // 👥 Signalisation d'appel de groupe : à tous les auditeurs.
+            for (final f in List.of(_groupListeners)) {
+              try {
+                f(msg);
+              } catch (_) {}
+            }
           } else {
             onSignal?.call(msg);
           }
@@ -101,16 +123,27 @@ class Rtc {
   }
 }
 
-/// 🎧 Une session d'appel voix (WebRTC audio uniquement).
+/// 🎧 Une session d'appel (audio seul, ou audio + vidéo si `video: true`).
 class RtcSession {
   final String peer; // numéro de l'autre téléphone
   final String callId;
+
+  /// 📹 true = appel vidéo (caméra + micro), false = appel audio.
+  final bool video;
+
   RTCPeerConnection? _pc;
   MediaStream? _mic;
-  void Function()? onConnected; // la voix passe !
+
+  void Function()? onConnected; // la voix/limage passe !
   void Function()? onEnded; // connexion perdue
 
-  RtcSession({required this.peer, required this.callId});
+  /// Flux local (ma caméra + mon micro) → aperçu « moi » à l'écran.
+  void Function(MediaStream stream)? onLocalStream;
+
+  /// Flux distant (la caméra/l'image de l'autre) → plein écran.
+  void Function(MediaStream stream)? onRemoteStream;
+
+  RtcSession({required this.peer, required this.callId, this.video = false});
 
   /// 🛟 Repli intégré si le serveur est injoignable : STUN seul.
   /// (L'ancien TURN public « openrelay » a été retiré par Metered —
@@ -124,6 +157,9 @@ class RtcSession {
 
   /// Config ICE reçue du serveur (cache pour la session)
   static Map<String, dynamic>? _cachedIce;
+
+  /// 📡 Config STUN/TURN publique (utilisée aussi par les appels de groupe).
+  static Future<Map<String, dynamic>> iceConfig() => _iceConfig();
 
   /// 📡 Demande au serveur la liste STUN/TURN (identifiants TURN jamais
   /// écrits dans l'app → rotation possible sans recompiler). Repli : STUN.
@@ -151,20 +187,54 @@ class RtcSession {
 
   Future<void> _init() async {
     _pc = await createPeerConnection(await _iceConfig());
-    // 🎤 Micro (la permission est demandée au premier appel)
-    _mic = await navigator.mediaDevices.getUserMedia({
-      // 🎧 Qualité voix v1.8 : annulation d'écho, réduction de bruit,
-      // gain automatique — indispensable en mains-libres.
-      'audio': {
-        'echoCancellation': true,
-        'noiseSuppression': true,
-        'autoGainControl': true,
-      },
-      'video': false,
-    });
+    // 🎤 Micro (+ 📹 caméra avant si appel vidéo). La permission est demandée
+    // au premier appel ; si elle est refusée, l'appel bascule en audio seul.
+    try {
+      _mic = await navigator.mediaDevices.getUserMedia({
+        // 🎧 Qualité voix v1.8 : annulation d'écho, réduction de bruit,
+        // gain automatique — indispensable en mains-libres.
+        'audio': {
+          'echoCancellation': true,
+          'noiseSuppression': true,
+          'autoGainControl': true,
+        },
+        'video': video
+            ? {
+                'facingMode': 'user',
+                'width': {'ideal': 640},
+                'height': {'ideal': 480},
+                'frameRate': {'ideal': 24},
+              }
+            : false,
+      });
+    } catch (e) {
+      if (!video) rethrow;
+      // La caméra est indisponible (permission, matériel) : on continue en
+      // audio pour ne pas perdre l'appel.
+      _mic = await navigator.mediaDevices.getUserMedia({
+        'audio': {
+          'echoCancellation': true,
+          'noiseSuppression': true,
+          'autoGainControl': true,
+        },
+        'video': false,
+      });
+    }
+    if (video && _mic != null) {
+      try {
+        onLocalStream?.call(_mic!);
+      } catch (_) {}
+    }
     for (final t in _mic!.getTracks()) {
       await _pc!.addTrack(t, _mic!);
     }
+    _pc!.onTrack = (event) {
+      if (event.streams.isNotEmpty) {
+        try {
+          onRemoteStream?.call(event.streams.first);
+        } catch (_) {}
+      }
+    };
     _pc!.onIceCandidate = (c) {
       if (c.candidate != null) {
         Rtc.send({
@@ -192,12 +262,16 @@ class RtcSession {
   /// Côté APPELANT : crée l'offre et l'envoie au standardiste
   Future<void> call() async {
     await _init();
-    final offer = await _pc!.createOffer({'offerToReceiveAudio': 1});
+    final offer = await _pc!.createOffer({
+      'offerToReceiveAudio': 1,
+      'offerToReceiveVideo': video ? 1 : 0,
+    });
     await _pc!.setLocalDescription(offer);
     Rtc.send({
       'type': 'offer',
       'to': peer,
       'call_id': callId,
+      'video': video, // 📹 l'appelé saura qu'il s'agit d'un appel vidéo
       'sdp': {'type': offer.type, 'sdp': offer.sdp},
     });
   }
@@ -232,6 +306,22 @@ class RtcSession {
 
   void setMuted(bool m) {
     _mic?.getAudioTracks().forEach((t) => t.enabled = !m);
+  }
+
+  /// 📹 Coupe / réactive la caméra sans interrompre l'appel.
+  void setVideoEnabled(bool on) {
+    _mic?.getVideoTracks().forEach((t) => t.enabled = on);
+  }
+
+  bool get hasVideoTrack => (_mic?.getVideoTracks().isNotEmpty ?? false);
+
+  /// 🔄 Bascule caméra avant / arrière.
+  Future<void> switchCamera() async {
+    try {
+      final tracks = _mic?.getVideoTracks() ?? const <MediaStreamTrack>[];
+      if (tracks.isEmpty) return;
+      await Helper.switchCamera(tracks.first);
+    } catch (_) {/* certains appareils n'ont qu'une caméra */}
   }
 
   void setSpeaker(bool on) {

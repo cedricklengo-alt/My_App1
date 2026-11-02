@@ -168,6 +168,20 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                       fontWeight: FontWeight.w800,
                       color: MC.ivoire)),
               const SizedBox(height: 14),
+              // 📹 Précise le type d'appel entrant
+              if (widget.offer['video'] == true)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.videocam_rounded, size: 15, color: MC.soleil),
+                      const SizedBox(width: 6),
+                      Text('Appel vidéo entrant',
+                          style: TextStyle(color: MC.soleil, fontSize: 12.5)),
+                    ],
+                  ),
+                ),
               // 💚 Icône officielle : c'est un appel MboteCall gratuit
               Container(
                 decoration: BoxDecoration(
@@ -208,6 +222,8 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                         builder: (_) => CallScreen(
                           to: offer['from'],
                           displayName: offer['from_name']?.toString(),
+                          // 📹 l'appelant a demandé la vidéo → on l'ouvre en vidéo
+                          video: offer['video'] == true,
                           incomingOffer: {...offer, 'early_ice': earlyIce},
                         ),
                       ),

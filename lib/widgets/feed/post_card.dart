@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 
 import '../../models/post.dart';
 import '../../theme.dart';
+import 'media_view.dart';
 
 class PostCard extends StatelessWidget {
   final Post post;
@@ -18,6 +19,14 @@ class PostCard extends StatelessWidget {
   final VoidCallback? onComment;
   final VoidCallback? onShare;
   final VoidCallback? onCall;
+
+  /// 🗑️ Fourni seulement pour MES publications (suppression autorisée).
+  final VoidCallback? onDelete;
+
+  /// Mon identifiant : sert à ne jamais afficher « Appeler » sur ma propre
+  /// publication, et à proposer la suppression au bon endroit.
+  final String? myId;
+
   final bool dataSaverMode;
 
   const PostCard({
@@ -27,8 +36,13 @@ class PostCard extends StatelessWidget {
     this.onComment,
     this.onShare,
     this.onCall,
+    this.onDelete,
+    this.myId,
     this.dataSaverMode = false,
   });
+
+  /// Cette publication est-elle la mienne ?
+  bool get isMine => myId != null && myId!.isNotEmpty && myId == post.authorId;
 
   @override
   Widget build(BuildContext context) {
@@ -42,10 +56,11 @@ class PostCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Header(post: post),
+          _Header(post: post, isMine: isMine, onDelete: onDelete),
           _MediaSection(post: post, dataSaverMode: dataSaverMode),
           _Actions(
             post: post,
+            isMine: isMine,
             onLike: onLike,
             onComment: onComment,
             onShare: onShare,
@@ -62,8 +77,11 @@ class PostCard extends StatelessWidget {
 // ──────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
+  final bool isMine;
+  final VoidCallback? onDelete;
+
   final Post post;
-  const _Header({required this.post});
+  const _Header({required this.post, this.isMine = false, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -152,6 +170,8 @@ class _Header extends StatelessWidget {
                 final text = post.texte ?? post.eventTitle ?? '';
                 if (text.isEmpty) return;
                 await Clipboard.setData(ClipboardData(text: text));
+              } else if (value == 'delete') {
+                onDelete?.call();
               }
             },
             itemBuilder: (_) => [
@@ -165,6 +185,19 @@ class _Header extends StatelessWidget {
                 value: 'share',
                 child: Text('Partager', style: TextStyle(color: MC.ivoire)),
               ),
+              // 🗑️ Seul l'auteur voit cette entrée.
+              if (isMine && onDelete != null)
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_outline_rounded,
+                          size: 17, color: MC.rouge),
+                      const SizedBox(width: 8),
+                      Text('Supprimer', style: TextStyle(color: MC.rouge)),
+                    ],
+                  ),
+                ),
             ],
           ),
         ],
@@ -274,60 +307,6 @@ class _MediaSection extends StatelessWidget {
   }
 }
 
-/// Image réseau robuste : place-holder, erreur, et largeur bornée (mémoire).
-class _RemoteImage extends StatelessWidget {
-  final String url;
-  final double height;
-  const _RemoteImage({required this.url, required this.height});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: height,
-      width: double.infinity,
-      child: Image.network(
-        url,
-        fit: BoxFit.cover,
-        cacheWidth: 1080,
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          final total = progress.expectedTotalBytes;
-          final ratio =
-              total == null ? null : progress.cumulativeBytesLoaded / total;
-          return Container(
-            color: MC.nuit3,
-            child: Center(
-              child: SizedBox(
-                width: 26,
-                height: 26,
-                child: CircularProgressIndicator(
-                  value: ratio,
-                  strokeWidth: 2,
-                  color: MC.soleil,
-                ),
-              ),
-            ),
-          );
-        },
-        errorBuilder: (_, __, ___) => Container(
-          color: MC.nuit3,
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.broken_image_rounded, color: MC.kaki, size: 30),
-                const SizedBox(height: 6),
-                Text('Image indisponible',
-                    style: TextStyle(color: MC.kaki, fontSize: 11)),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _PhotoMedia extends StatelessWidget {
   final Post post;
   const _PhotoMedia({required this.post});
@@ -346,7 +325,10 @@ class _PhotoMedia extends StatelessWidget {
             ),
           ),
         if (post.mediaUrl != null)
-          _RemoteImage(url: post.mediaUrl!, height: 220)
+          isVideoUrl(post.mediaUrl)
+              // Une « photo » qui pointe en réalité vers une vidéo : on la joue.
+              ? MboteVideo(url: post.mediaUrl!, height: 220)
+              : MboteImage(url: post.mediaUrl!, height: 220)
         else
           Container(
             height: 120,
@@ -377,78 +359,80 @@ class _ClipMedia extends StatelessWidget {
               style: TextStyle(color: MC.ivoire, fontSize: 13, height: 1.4),
             ),
           ),
-        Stack(
-          children: [
-            if (post.mediaUrl != null && !dataSaverMode)
-              _RemoteImage(url: post.mediaUrl!, height: 220)
-            else
-              Container(height: 220, color: MC.nuit3),
-            Positioned.fill(
-              child: Center(
-                child: Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: MC.soleil.withValues(alpha: dataSaverMode ? .35 : 1),
-                  ),
-                  child:
-                      Icon(Icons.play_arrow_rounded, color: MC.nuit, size: 32),
-                ),
-              ),
-            ),
-            if (post.clipDureeLabel.isNotEmpty)
-              Positioned(
-                bottom: 8,
-                right: 10,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: .6),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    post.clipDureeLabel,
-                    style: TextStyle(
-                      color: MC.ivoire,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
+        if (post.mediaUrl != null)
+          Stack(
+            children: [
+              // 🎬 La vidéo démarre au premier appui : aucune donnée consommée
+              // avant (important sur une connexion 3G/4G limitée).
+              MboteVideo(url: post.mediaUrl!, height: 220),
+              if (post.clipDureeLabel.isNotEmpty)
+                Positioned(
+                  bottom: 8,
+                  right: 10,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: .6),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      post.clipDureeLabel,
+                      style: TextStyle(
+                        color: MC.ivoire,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            if (dataSaverMode)
-              Positioned(
-                top: 8,
-                left: 10,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: MC.soleil.withValues(alpha: .9),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.data_saver_on_rounded,
-                          size: 11, color: MC.nuit),
-                      const SizedBox(width: 3),
-                      Text(
-                        'Éco data',
-                        style: TextStyle(
-                          color: MC.nuit,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
+              if (dataSaverMode)
+                Positioned(
+                  top: 8,
+                  left: 10,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: MC.soleil.withValues(alpha: .9),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.data_saver_on_rounded,
+                            size: 11, color: MC.nuit),
+                        const SizedBox(width: 3),
+                        Text(
+                          'Éco data',
+                          style: TextStyle(
+                            color: MC.nuit,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
+            ],
+          )
+        else
+          Container(
+            height: 220,
+            color: MC.nuit3,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.videocam_off_rounded, color: MC.kaki, size: 30),
+                  const SizedBox(height: 6),
+                  Text('Vidéo indisponible',
+                      style: TextStyle(color: MC.kaki, fontSize: 11)),
+                ],
               ),
-          ],
-        ),
+            ),
+          ),
       ],
     );
   }
@@ -622,6 +606,7 @@ class _EventMedia extends StatelessWidget {
 
 class _Actions extends StatelessWidget {
   final Post post;
+  final bool isMine;
   final VoidCallback? onLike;
   final VoidCallback? onComment;
   final VoidCallback? onShare;
@@ -629,6 +614,7 @@ class _Actions extends StatelessWidget {
 
   const _Actions({
     required this.post,
+    this.isMine = false,
     this.onLike,
     this.onComment,
     this.onShare,
@@ -662,9 +648,11 @@ class _Actions extends StatelessWidget {
             onTap: onShare,
           ),
           const Spacer(),
-          // Bouton Appeler : seulement si l'auteur est joignable (numéro fourni
-          // par l'API pour les contacts). Sinon inutile de promettre un appel.
-          if (post.canCall && onCall != null)
+          // 📞 Bouton Appeler :
+          //   • jamais sur MA propre publication (on ne s'appelle pas soi-même) ;
+          //   • seulement si l'API a fourni le numéro (auteur = contact) ;
+          //   • jamais d'appel automatique : il faut un appui explicite.
+          if (!isMine && post.canCall && onCall != null)
             Semantics(
               label:
                   post.isContact ? 'Appeler ${post.authorName}' : 'Contacter',

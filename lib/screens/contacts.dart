@@ -5,6 +5,7 @@ import '../state.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import 'call.dart';
+import 'call_sheet.dart';
 
 /// 📒 Contacts du téléphone, avec badge 💚 pour ceux qui ont déjà MboteCall.
 /// - mode normal : toucher un contact → l'appeler (gratuit si MboteCall).
@@ -123,6 +124,13 @@ class _ContactsScreenState extends State<ContactsScreen> {
     }
   }
 
+  /// 📹 Appui long : choisir entre audio, vidéo et appel de groupe.
+  void _onLongPress(_Entry e) {
+    if (widget.pick) return;
+    final phone = e.mbotePhone ?? e.e164;
+    showCallModeSheet(context, phone, name: e.name);
+  }
+
   @override
   Widget build(BuildContext context) {
     final q = query.toLowerCase();
@@ -191,6 +199,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                                   ),
                                   child: ListTile(
                                     onTap: () => _onTap(e),
+                                    onLongPress: () => _onLongPress(e),
                                     leading: Container(
                                       width: 42,
                                       height: 42,

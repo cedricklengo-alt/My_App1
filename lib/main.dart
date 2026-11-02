@@ -10,6 +10,7 @@ import 'pin.dart';
 import 'prefs.dart';
 import 'screens/onboarding.dart';
 import 'screens/shell.dart';
+import 'screens/group_call.dart';
 import 'screens/incoming_call.dart';
 import 'rtc.dart';
 
@@ -51,6 +52,7 @@ class MboteApp extends StatefulWidget {
 class _MboteAppState extends State<MboteApp> with WidgetsBindingObserver {
   late bool locked = widget.locked;
   bool _callShown = false; // évite d'empiler deux écrans d'appel
+  bool _groupShown = false; // idem pour les invitations de groupe
 
   @override
   void initState() {
@@ -59,12 +61,16 @@ class _MboteAppState extends State<MboteApp> with WidgetsBindingObserver {
     // 📞 Branche les appels entrants : sans cette ligne, les offres reçues
     // par le canal temps réel n'ont aucun écran où s'afficher.
     Rtc.onOffer = _onOffer;
+    // 👥 Invitations à un appel de groupe (l'écran d'appel de groupe, quand il
+    // est ouvert, écoute la même salle de son côté).
+    Rtc.addGroupListener(_onGroupMessage);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     if (Rtc.onOffer == _onOffer) Rtc.onOffer = null;
+    Rtc.removeGroupListener(_onGroupMessage);
     super.dispose();
   }
 
@@ -94,6 +100,21 @@ class _MboteAppState extends State<MboteApp> with WidgetsBindingObserver {
           builder: (_) => IncomingCallScreen(offer: msg),
         ))
         .whenComplete(() => _callShown = false);
+  }
+
+  /// 👥 Invitation de groupe reçue alors qu'aucun appel de groupe n'est ouvert.
+  void _onGroupMessage(Map msg) {
+    if ('${msg['type']}' != 'group_invite') return;
+    if (_groupShown) return;
+    final nav = appNavigatorKey.currentState;
+    if (nav == null) return;
+    _groupShown = true;
+    nav
+        .push(MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => IncomingGroupScreen(invite: msg),
+        ))
+        .whenComplete(() => _groupShown = false);
   }
 
   @override

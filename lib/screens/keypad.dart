@@ -204,6 +204,33 @@ class _KeypadScreenState extends State<KeypadScreen> {
                   const Icon(Icons.call_rounded, color: Colors.white, size: 30),
             ),
           ),
+          const SizedBox(width: 18),
+          // 📹 Appel vidéo direct
+          GestureDetector(
+            onTap: () {
+              final clean = number.replaceAll(RegExp(r'[\s.\-()]'), '');
+              if (!RegExp(r'^\+\d{8,15}$').hasMatch(clean)) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: const Text('Numéro invalide — format +243…'),
+                    backgroundColor: MC.rouge));
+                return;
+              }
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => CallScreen(to: clean, video: true)));
+            },
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: MC.nuit3,
+                border: Border.all(color: MC.soleil.withValues(alpha: .5)),
+              ),
+              child: Icon(Icons.videocam_rounded, color: MC.soleil, size: 24),
+            ),
+          ),
           const Spacer(),
         ],
       ),

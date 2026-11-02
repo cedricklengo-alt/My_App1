@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:provider/provider.dart';
 import '../api.dart';
 import '../state.dart';
@@ -23,8 +24,16 @@ class CallScreen extends StatefulWidget {
   /// 📲 Si non nul : on est l'APPELÉ (offre WebRTC reçue, on décroche)
   final Map? incomingOffer;
 
-  const CallScreen(
-      {super.key, required this.to, this.displayName, this.incomingOffer});
+  /// 📹 Appel vidéo (caméra + micro). Sinon appel audio classique.
+  final bool video;
+
+  const CallScreen({
+    super.key,
+    required this.to,
+    this.displayName,
+    this.incomingOffer,
+    this.video = false,
+  });
 
   @override
   State<CallScreen> createState() => _CallScreenState();
@@ -53,6 +62,15 @@ class _CallScreenState extends State<CallScreen>
   String? error;
   bool muted = false;
   bool speaker = false;
+  bool cameraOn = false; // 📹 caméra active (appels vidéo)
+
+  // 📹 Moteurs d'affichage (créés à la première image reçue)
+  RTCVideoRenderer? _localRender;
+  RTCVideoRenderer? _remoteRender;
+
+  /// Cet appel est-il un appel vidéo ? (demandé, ou annoncé par l'appelant)
+  bool get isVideoCall =>
+      widget.video || widget.incomingOffer?['video'] == true;
   bool pushSent = false; // 📲 l'appelé est prévenu par notification
   Timer? poll;
 
@@ -62,12 +80,39 @@ class _CallScreenState extends State<CallScreen>
   Timer? chrono;
   Timer? rtcTimeout; // ⏱️ garde-fou : injoignable si pas de réponse
 
+  /// 📹 Relie les flux de la session aux moteurs d'affichage.
+  void _attachVideo(RtcSession s) {
+    if (!isVideoCall) return;
+    cameraOn = true;
+    s.onLocalStream = (stream) async {
+      var r = _localRender;
+      if (r == null) {
+        r = RTCVideoRenderer();
+        await r.initialize();
+        _localRender = r;
+      }
+      r.srcObject = stream;
+      if (mounted) setState(() {});
+    };
+    s.onRemoteStream = (stream) async {
+      var r = _remoteRender;
+      if (r == null) {
+        r = RTCVideoRenderer();
+        await r.initialize();
+        _remoteRender = r;
+      }
+      r.srcObject = stream;
+      if (mounted) setState(() {});
+    };
+  }
+
   bool get isMbote => freeReason == 'mbote';
   bool get isCallee => widget.incomingOffer != null;
 
   @override
   void initState() {
     super.initState();
+    cameraOn = isVideoCall; // 📹 un appel vidéo démarre caméra allumée
     if (isCallee) {
       _answerIncoming();
     } else {
@@ -84,9 +129,14 @@ class _CallScreenState extends State<CallScreen>
     calleeName = offer['from_name']?.toString();
     calleeAvatar = offer['from_avatar']?.toString();
     Rtc.onSignal = _onSignal;
-    rtc = RtcSession(peer: widget.to, callId: callId!);
+    rtc = RtcSession(
+      peer: widget.to,
+      callId: callId!,
+      video: isVideoCall,
+    );
     rtc!.onConnected = _onVoiceConnected;
     rtc!.onEnded = () => _endRtc(remote: true);
+    _attachVideo(rtc!);
     try {
       await rtc!.answer(Map.from(offer['sdp']));
       // 🧊 Rejoue les candidats réseau arrivés pendant la sonnerie
@@ -107,9 +157,14 @@ class _CallScreenState extends State<CallScreen>
   /// 🎙️ Côté appelant : lance la vraie voix après /calls/start
   Future<void> _startRtc() async {
     Rtc.onSignal = _onSignal;
-    rtc = RtcSession(peer: widget.to, callId: callId!);
+    rtc = RtcSession(
+      peer: widget.to,
+      callId: callId!,
+      video: isVideoCall,
+    );
     rtc!.onConnected = _onVoiceConnected;
     rtc!.onEnded = () => _endRtc(remote: true);
+    _attachVideo(rtc!);
     // ⏱️ Si rien ne se passe en 25 s → le téléphone d'en face est injoignable
     rtcTimeout = Timer(const Duration(seconds: 25), () {
       if (status != 'answered') _endRtc(remote: true, unreachable: true);
@@ -281,6 +336,8 @@ class _CallScreenState extends State<CallScreen>
     rtcTimeout?.cancel();
     if (Rtc.onSignal == _onSignal) Rtc.onSignal = null;
     rtc?.close();
+    _localRender?.dispose();
+    _remoteRender?.dispose();
     super.dispose();
   }
 
@@ -319,7 +376,11 @@ class _CallScreenState extends State<CallScreen>
         child: SafeArea(
           child: Column(
             children: [
-              const Spacer(flex: 2),
+              // 📹 En vidéo, l'image prend la place : pas de grands blancs.
+              if (!isVideoCall)
+                const Spacer(flex: 2)
+              else
+                const SizedBox(height: 6),
               // Statut discret — masqué pendant la conversation MboteCall → MboteCall
               SizedBox(
                 height: 18,
@@ -337,45 +398,48 @@ class _CallScreenState extends State<CallScreen>
                 ),
               ),
               const SizedBox(height: 26),
-              // 📷 Avatar : anneau dégradé doré + halo, photo ou initiale
-              // 💫 … qui pulse doucement tant que ça sonne
-              ScaleTransition(
-                scale: _pulse,
-                child: Container(
-                  width: 128,
-                  height: 128,
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: SweepGradient(
-                        colors: [MC.soleil, MC.braise, MC.terre, MC.soleil]),
-                    boxShadow: [
-                      BoxShadow(
-                          color: MC.soleil.withValues(alpha: .22),
-                          blurRadius: 36,
-                          spreadRadius: 6),
-                    ],
-                  ),
+              // 📹 Appel vidéo : l'image de l'autre (ou l'avatar en attendant)
+              // 📷 Appel audio : anneau dégradé doré + halo, photo ou initiale
+              if (isVideoCall)
+                Expanded(child: _videoArea(name, initial, hasPhoto))
+              else
+                ScaleTransition(
+                  scale: _pulse,
                   child: Container(
-                    clipBehavior: Clip.antiAlias,
-                    decoration:
-                        BoxDecoration(shape: BoxShape.circle, color: MC.nuit2),
-                    child: hasPhoto
-                        ? Image.memory(
-                            base64Decode(calleeAvatar!.split(',').last),
-                            fit: BoxFit.cover,
-                            gaplessPlayback: true,
-                          )
-                        : Center(
-                            child: Text(initial,
-                                style: TextStyle(
-                                    fontSize: 44,
-                                    fontWeight: FontWeight.w800,
-                                    color: MC.soleil)),
-                          ),
+                    width: 128,
+                    height: 128,
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: SweepGradient(
+                          colors: [MC.soleil, MC.braise, MC.terre, MC.soleil]),
+                      boxShadow: [
+                        BoxShadow(
+                            color: MC.soleil.withValues(alpha: .22),
+                            blurRadius: 36,
+                            spreadRadius: 6),
+                      ],
+                    ),
+                    child: Container(
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                          shape: BoxShape.circle, color: MC.nuit2),
+                      child: hasPhoto
+                          ? Image.memory(
+                              base64Decode(calleeAvatar!.split(',').last),
+                              fit: BoxFit.cover,
+                              gaplessPlayback: true,
+                            )
+                          : Center(
+                              child: Text(initial,
+                                  style: TextStyle(
+                                      fontSize: 44,
+                                      fontWeight: FontWeight.w800,
+                                      color: MC.soleil)),
+                            ),
+                    ),
                   ),
-                ),
-              ), // fin ScaleTransition 💫
+                ), // fin ScaleTransition 💫
               const SizedBox(height: 18),
               Text(name,
                   style: TextStyle(
@@ -429,6 +493,10 @@ class _CallScreenState extends State<CallScreen>
                       : 'Coût : ${fmtMoney(cost)} · ${(priceMin / 100).toStringAsFixed(2)} \$/min',
                   style: TextStyle(color: MC.sable, fontSize: 12.5),
                 ),
+              if (!isVideoCall)
+                const Spacer(flex: 2)
+              else
+                const SizedBox(height: 10),
               if (status == 'error')
                 Padding(
                   padding: const EdgeInsets.all(18),
@@ -436,7 +504,10 @@ class _CallScreenState extends State<CallScreen>
                       textAlign: TextAlign.center,
                       style: TextStyle(color: MC.rouge, fontSize: 14)),
                 ),
-              const Spacer(flex: 2),
+              if (!isVideoCall)
+                const Spacer(flex: 2)
+              else
+                const SizedBox(height: 12),
               // Commandes : micro · raccrocher · haut-parleur (maquette validée)
               if (status == 'ended' || status == 'error')
                 Padding(
@@ -474,15 +545,133 @@ class _CallScreenState extends State<CallScreen>
                       ),
                     ),
                     const SizedBox(width: 26),
-                    _round(Icons.volume_up_rounded, speaker, () {
-                      setState(() => speaker = !speaker);
-                      rtc?.setSpeaker(speaker); // 🔊 vrai haut-parleur
-                    }),
+                    if (isVideoCall) ...[
+                      _round(
+                        cameraOn
+                            ? Icons.videocam_rounded
+                            : Icons.videocam_off_rounded,
+                        !cameraOn,
+                        () {
+                          setState(() => cameraOn = !cameraOn);
+                          rtc?.setVideoEnabled(cameraOn);
+                        },
+                      ),
+                      const SizedBox(width: 26),
+                      _round(Icons.flip_camera_ios_rounded, false, () {
+                        rtc?.switchCamera();
+                      }),
+                    ] else
+                      _round(Icons.volume_up_rounded, speaker, () {
+                        setState(() => speaker = !speaker);
+                        rtc?.setSpeaker(speaker); // 🔊 vrai haut-parleur
+                      }),
                   ],
                 ),
               const SizedBox(height: 46),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// 📹 Zone vidéo : image du correspondant + mon aperçu en petit.
+  Widget _videoArea(String name, String initial, bool hasPhoto) {
+    final remote = _remoteRender;
+    final showRemote = remote != null && remote.srcObject != null;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+      child: AspectRatio(
+        aspectRatio: 3 / 4,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: Container(
+                color: MC.nuit2,
+                child: showRemote
+                    ? FittedBox(
+                        fit: BoxFit.cover,
+                        child: SizedBox(
+                          width: remote.videoWidth == 0
+                              ? 360
+                              : remote.videoWidth.toDouble(),
+                          height: remote.videoHeight == 0
+                              ? 640
+                              : remote.videoHeight.toDouble(),
+                          child: RTCVideoView(remote),
+                        ),
+                      )
+                    : Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircleAvatar(
+                              radius: 44,
+                              backgroundColor: MC.nuit3,
+                              backgroundImage: hasPhoto
+                                  ? MemoryImage(base64Decode(
+                                      calleeAvatar!.split(',').last))
+                                  : null,
+                              child: hasPhoto
+                                  ? null
+                                  : Text(initial,
+                                      style: TextStyle(
+                                          color: MC.soleil,
+                                          fontSize: 34,
+                                          fontWeight: FontWeight.w800)),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              isCallee
+                                  ? 'Connexion vidéo…'
+                                  : 'En attente de sa caméra…',
+                              style: TextStyle(color: MC.kaki, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+            ),
+            // Mon aperçu (petit, en bas à droite)
+            if (_localRender != null && _localRender!.srcObject != null)
+              Positioned(
+                right: 10,
+                bottom: 10,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    width: 78,
+                    height: 108,
+                    child: RTCVideoView(_localRender!, mirror: true),
+                  ),
+                ),
+              ),
+            if (!cameraOn)
+              Positioned(
+                left: 10,
+                bottom: 10,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: .55),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.videocam_off_rounded,
+                          size: 12, color: MC.rouge),
+                      const SizedBox(width: 4),
+                      Text('Caméra coupée',
+                          style: TextStyle(color: MC.sable, fontSize: 10)),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

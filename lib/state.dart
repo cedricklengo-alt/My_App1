@@ -6,7 +6,8 @@ import 'rtc.dart';
 
 /// État global de l'application (session, solde, contacts).
 class AppState extends ChangeNotifier {
-  final Api api = Api();
+  /// Remplaçable par un faux serveur dans les tests d'interface.
+  Api api = Api();
 
   String? token;
   String? id; // identifiant serveur (pour « mon statut » dans le fil)

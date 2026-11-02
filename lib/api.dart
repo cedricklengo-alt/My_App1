@@ -267,6 +267,25 @@ class Api {
     return Post.fromJson(Map<String, dynamic>.from(r['post'] as Map));
   }
 
+  // ---- Appels de groupe « Mbote Famille » (gratuits) ----
+
+  /// 🧾 Journalise le début d'un appel de groupe (visible dans l'historique).
+  Future<Map> startGroupCall(String callId) async =>
+      await _send('POST', '/calls/group/start', {'call_id': callId});
+
+  /// 🧾 Clôt l'appel de groupe avec sa durée réelle.
+  Future<Map> endGroupCall(String callId, int durationSec) async => await _send(
+      'POST', '/calls/group/$callId/end', {'duration_sec': durationSec});
+
+  /// 🗑️ Supprime une publication — le serveur refuse (403) si je n'en suis
+  /// pas l'auteur, ce qui protège même si l'interface se trompe.
+  Future<void> deletePost(String id) async =>
+      await _send('DELETE', '/feed/posts/$id');
+
+  /// 🗑️ Supprime un statut (auteur uniquement).
+  Future<void> deleteStory(String id) async =>
+      await _send('DELETE', '/feed/stories/$id');
+
   /// Bascule « j'aime ». Renvoie l'état faisant foi côté serveur.
   Future<Map> likePost(String id) async =>
       await _send('POST', '/feed/posts/$id/like');
