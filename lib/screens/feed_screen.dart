@@ -28,6 +28,10 @@ import '../widgets/feed/post_card.dart';
 import '../widgets/feed/story_bar.dart';
 import 'call_sheet.dart';
 
+/// Les trois lectures du fil. Elles n'inventent rien : chacune interroge une
+/// route différente du serveur, qui applique lui-même les règles de visibilité.
+enum _Onglet { pourToi, abonnements, tendances }
+
 class FeedScreen extends StatefulWidget {
   /// Injectée par les tests ; en production on prend celle de `AppState`.
   final Api? api;
@@ -54,6 +58,26 @@ class _FeedScreenState extends State<FeedScreen> {
   bool _dataSaver = false;
   bool _searching = false;
   String _query = '';
+
+  // ── Fil public : trois façons de lire les mêmes publications ─────────────
+  //   pourToi     : tout ce que j'ai le droit de voir, du plus récent au plus ancien
+  //   abonnements : les auteurs que je suis
+  //   tendances   : la découverte publique, classée par intérêt
+  _Onglet _onglet = _Onglet.pourToi;
+
+  /// Mot-clé en cours de consultation (onglet Tendances).
+  String? _tagFiltre;
+
+  /// Curseur de la découverte (classement par intérêt → pagination par décalage).
+  int? _nextOffset;
+
+  /// Publications dont j'ai déjà annoncé la vue au serveur, pour ne pas
+  /// marteler l'API à chaque reconstruction de la liste.
+  final Set<String> _vuesAnnoncees = {};
+
+  /// Vrai quand une de MES publications est encore limitée à mes contacts :
+  /// on propose alors de l'ouvrir à tout le monde (aucun changement sans accord).
+  bool _aDesPublicationsRestreintes = false;
 
   @override
   void initState() {
@@ -84,21 +108,47 @@ class _FeedScreenState extends State<FeedScreen> {
 
  // Chargement ────────────────────────────────────────
 
+  /// Lit la première page de l'onglet courant.
+  Future<FeedPage> _lirePremierePage() {
+    switch (_onglet) {
+      case _Onglet.abonnements:
+        return _api.followingPage();
+      case _Onglet.tendances:
+        return _api.discoverPage(tag: _tagFiltre);
+      case _Onglet.pourToi:
+        return _api.feedPage();
+    }
+  }
+
+  /// Lit la page suivante de l'onglet courant.
+  Future<FeedPage> _lirePageSuivante() {
+    switch (_onglet) {
+      case _Onglet.abonnements:
+        return _api.followingPage(before: _nextBefore, cursor: _nextCursor);
+      case _Onglet.tendances:
+        return _api.discoverPage(tag: _tagFiltre, offset: _nextOffset);
+      case _Onglet.pourToi:
+        return _api.feedPage(before: _nextBefore, cursor: _nextCursor);
+    }
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final page = await _api.feedPage();
+      final page = await _lirePremierePage();
       final stories = await _api.feedStories();
       if (!mounted) return;
       setState(() {
         _posts = page.posts;
         _nextBefore = page.nextBefore;
         _nextCursor = page.nextCursor;
+        _nextOffset = page.nextOffset;
         _groups = StoryGroup.group(stories, myUserId: _myId);
         _loading = false;
+        _majBandeauAudience();
       });
     } catch (e) {
       if (!mounted) return;
@@ -106,6 +156,42 @@ class _FeedScreenState extends State<FeedScreen> {
         _loading = false;
         _error = friendlyError(e);
       });
+    }
+  }
+
+  /// Change d'onglet : on repart de la première page.
+  void _changerOnglet(_Onglet o) {
+    if (_onglet == o && _tagFiltre == null) return;
+    HapticFeedback.selectionClick();
+    setState(() {
+      _onglet = o;
+      _tagFiltre = null;
+      _nextBefore = null;
+      _nextCursor = null;
+      _nextOffset = null;
+      _posts = const [];
+      _vuesAnnoncees.clear();
+    });
+    _load();
+  }
+
+  /// Affiche (ou masque) le rappel « tes publications sont limitées ».
+  void _majBandeauAudience() {
+    _aDesPublicationsRestreintes = _posts.any(
+        (p) => (p.aMoi || p.authorId == _myId) && p.visibilite == PostVisibilite.contacts);
+  }
+
+  /// Ouvre TOUTES mes publications à tout le monde (action explicite).
+  Future<void> _ouvrirMesPublications() async {
+    try {
+      final r = await _api.setAllPostsVisibility(PostVisibilite.public);
+      if (!mounted) return;
+      _toast('${r['publications'] ?? 0} publication(s) désormais visibles par tous');
+      await _refresh();
+      setState(() => _aDesPublicationsRestreintes = false);
+    } catch (e) {
+      if (!mounted) return;
+      _toast(friendlyError(e));
     }
   }
 
@@ -120,15 +206,17 @@ class _FeedScreenState extends State<FeedScreen> {
   /// Tirer pour rafraîchir : en cas d'échec on garde le fil affiché.
   Future<void> _refresh() async {
     try {
-      final page = await _api.feedPage();
+      final page = await _lirePremierePage();
       final stories = await _api.feedStories();
       if (!mounted) return;
       setState(() {
         _posts = page.posts;
         _nextBefore = page.nextBefore;
         _nextCursor = page.nextCursor;
+        _nextOffset = page.nextOffset;
         _groups = StoryGroup.group(stories, myUserId: _myId);
         _error = null;
+        _majBandeauAudience();
       });
     } catch (e) {
       if (!mounted) return;
@@ -137,17 +225,22 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Future<void> _loadMore() async {
-    if (_loadingMore || _nextCursor == null) return;
+    if (_loadingMore) return;
+    if (_onglet == _Onglet.tendances
+        ? _nextOffset == null
+        : _nextCursor == null) {
+      return;
+    }
     setState(() => _loadingMore = true);
     try {
-      final page =
-          await _api.feedPage(before: _nextBefore, cursor: _nextCursor);
+      final page = await _lirePageSuivante();
       if (!mounted) return;
       final seen = _posts.map((p) => p.id).toSet();
       setState(() {
         _posts = [..._posts, ...page.posts.where((p) => !seen.contains(p.id))];
         _nextBefore = page.nextBefore;
         _nextCursor = page.nextCursor;
+        _nextOffset = page.nextOffset;
         _loadingMore = false;
       });
     } catch (e) {
@@ -162,6 +255,82 @@ class _FeedScreenState extends State<FeedScreen> {
     final remaining =
         _scroll.position.maxScrollExtent - _scroll.position.pixels;
     if (remaining < 600) _loadMore();
+  }
+
+  // Compter une vue ───────────────────────────────────
+
+  /// Annonce au serveur que cette publication a été lue. Le serveur ne compte
+  /// qu'une fois par personne et ignore l'auteur ; l'application se contente
+  /// donc d'afficher le chiffre qu'il renvoie.
+  void _annoncerVue(Post post) {
+    if (post.aMoi || post.authorId == _myId) return;
+    if (!_vuesAnnoncees.add(post.id)) return;
+    _api.viewPost(post.id).then((r) {
+      if (!mounted) return;
+      final n = (r['vues'] as num?)?.toInt();
+      if (n == null) return;
+      final i = _posts.indexWhere((p) => p.id == post.id);
+      if (i == -1) return;
+      setState(() => _posts[i] = _posts[i].copyWith(vues: n));
+    }).catchError((_) {/* le compteur n'est pas vital */});
+  }
+
+  // Abonnements ───────────────────────────────────────
+
+  /// Suivre / ne plus suivre l'auteur d'une publication.
+  Future<void> _basculerSuivi(Post post) async {
+    HapticFeedback.selectionClick();
+    final suivre = !post.suivi;
+    // Optimiste : toutes ses publications affichées passent à « suivi ».
+    setState(() {
+      _posts = [
+        for (final p in _posts)
+          if (p.authorId == post.authorId) p.copyWith(suivi: suivre) else p,
+      ];
+    });
+    try {
+      final r = suivre
+          ? await _api.followAuthor(post.authorId)
+          : await _api.unfollowAuthor(post.authorId);
+      if (!mounted) return;
+      final suivi = r['suivi'] == true;
+      setState(() {
+        _posts = [
+          for (final p in _posts)
+            if (p.authorId == post.authorId) p.copyWith(suivi: suivi) else p,
+        ];
+      });
+      _toast(suivi
+          ? 'Tu suis ${post.authorName}'
+          : 'Tu ne suis plus ${post.authorName}');
+    } catch (e) {
+      if (!mounted) return;
+      // On remet l'état d'avant : le serveur est la seule vérité.
+      setState(() {
+        _posts = [
+          for (final p in _posts)
+            if (p.authorId == post.authorId) p.copyWith(suivi: !suivre)
+            else p,
+        ];
+      });
+      _toast(friendlyError(e));
+    }
+  }
+
+  // Mots-clés ─────────────────────────────────────────
+
+  /// Ouvre la découverte filtrée sur un mot-clé.
+  void _ouvrirTag(String tag) {
+    setState(() {
+      _onglet = _Onglet.tendances;
+      _tagFiltre = tag;
+      _nextBefore = null;
+      _nextCursor = null;
+      _nextOffset = null;
+      _posts = const [];
+      _vuesAnnoncees.clear();
+    });
+    _load();
   }
 
   void _toast(String message) {
@@ -343,7 +512,7 @@ class _FeedScreenState extends State<FeedScreen> {
         eventDate: draft['event_date'] as DateTime?,
         eventLieu: draft['event_lieu'] as String?,
         eventTags: (draft['event_tags'] as List?)?.cast<String>() ?? const [],
-        visibilite: postVisibiliteFrom(draft['visibilite'] ?? 'contacts'),
+        visibilite: postVisibiliteFrom(draft['visibilite'] ?? 'public'),
         ville: draft['ville'] as String?,
       );
       if (!mounted) return;
@@ -593,6 +762,23 @@ class _FeedScreenState extends State<FeedScreen> {
               onQuery: (v) => setState(() => _query = v),
             ),
 
+            // Choix de lecture : tout · abonnements · tendances
+            if (!_searching)
+              SliverToBoxAdapter(
+                child: _OngletBar(
+                  onglet: _onglet,
+                  tagFiltre: _tagFiltre,
+                  onChoix: _changerOnglet,
+                  onEffacerTag: () => _changerOnglet(_Onglet.tendances),
+                ),
+              ),
+
+            // Rappel : mes anciennes publications sont encore limitées
+            if (!_searching && _aDesPublicationsRestreintes)
+              SliverToBoxAdapter(
+                child: _BandeauAudience(onOuvrir: _ouvrirMesPublications),
+              ),
+
             // Bande de statuts
             if (!_searching)
               SliverToBoxAdapter(
@@ -639,6 +825,7 @@ class _FeedScreenState extends State<FeedScreen> {
                 child: _EmptyState(
                   searching: _query.trim().isNotEmpty,
                   onCreate: _openCreate,
+                  onglet: _onglet,
                 ),
               )
             else
@@ -648,10 +835,14 @@ class _FeedScreenState extends State<FeedScreen> {
                 itemBuilder: (context, i) {
                   final post = posts[i];
                   final mine = _myId != null && post.authorId == _myId;
+                  // Une publication affichée est une publication lue.
+                  if (!post.aMoi && !mine) _annoncerVue(post);
                   return PostCard(
                     post: post,
                     myId: _myId,
                     dataSaverMode: _dataSaver,
+                    onFollow: mine ? null : () => _basculerSuivi(post),
+                    onTag: _ouvrirTag,
                     //Jamais d'appel sur sa propre publication (double
                     // sécurité : la carte le vérifie aussi).
                     onCall: (!mine && post.canCall) ? () => _call(post) : null,
@@ -810,7 +1001,36 @@ class _FeedAppBar extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   final bool searching;
   final VoidCallback onCreate;
-  const _EmptyState({required this.searching, required this.onCreate});
+  final _Onglet onglet;
+  const _EmptyState({
+    required this.searching,
+    required this.onCreate,
+    this.onglet = _Onglet.pourToi,
+  });
+
+  String get _titre {
+    if (searching) return 'Aucun résultat dans ce fil.';
+    switch (onglet) {
+      case _Onglet.abonnements:
+        return 'Tu ne suis encore personne.';
+      case _Onglet.tendances:
+        return 'Rien à découvrir pour le moment.';
+      case _Onglet.pourToi:
+        return 'Le fil est encore vide par ici.';
+    }
+  }
+
+  String get _detail {
+    if (searching) return 'Essaie un autre mot.';
+    switch (onglet) {
+      case _Onglet.abonnements:
+        return 'Ouvre la découverte, puis appuie sur « Suivre » : les publications de cet auteur arriveront ici.';
+      case _Onglet.tendances:
+        return 'Les publications publiques apparaîtront ici dès que la communauté en aura partagé.';
+      case _Onglet.pourToi:
+        return 'Publie une photo, une pensée ou un événement — tout le monde le verra si tu choisis « Tout le monde ».';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -827,18 +1047,14 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             Text(
-              searching
-                  ? 'Aucun résultat dans ce fil.'
-                  : 'Le fil est encore vide par ici.',
+              _titre,
               textAlign: TextAlign.center,
               style: TextStyle(
                   color: MC.ivoire, fontSize: Tx.bodyLg, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 6),
             Text(
-              searching
-                  ? 'Essaie un autre mot.'
-                  : 'Publie une photo, une pensée ou un événement — tes contacts le verront.',
+              _detail,
               textAlign: TextAlign.center,
               style: TextStyle(color: MC.kaki, fontSize: Tx.label, height: 1.4),
             ),
@@ -858,6 +1074,201 @@ class _EmptyState extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Barre de choix du fil : « Pour toi », « Abonnements », « Tendances ».
+/// Elle indique aussi le mot-clé en cours de consultation, avec un bouton pour
+/// revenir à la découverte complète.
+class _OngletBar extends StatelessWidget {
+  final _Onglet onglet;
+  final String? tagFiltre;
+  final ValueChanged<_Onglet> onChoix;
+  final VoidCallback onEffacerTag;
+
+  const _OngletBar({
+    required this.onglet,
+    required this.onChoix,
+    required this.onEffacerTag,
+    this.tagFiltre,
+  });
+
+  static const _libelles = {
+    _Onglet.pourToi: 'Pour toi',
+    _Onglet.abonnements: 'Abonnements',
+    _Onglet.tendances: 'Tendances',
+  };
+
+  static const _icones = {
+    _Onglet.pourToi: Icons.home_rounded,
+    _Onglet.abonnements: Icons.people_alt_rounded,
+    _Onglet.tendances: Icons.local_fire_department_rounded,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Sp.x3, Sp.x2, Sp.x3, Sp.x1),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              for (final o in _Onglet.values) ...[
+                Expanded(
+                  child: Semantics(
+                    selected: onglet == o,
+                    button: true,
+                    label: 'Fil ${_libelles[o]}',
+                    child: GestureDetector(
+                      onTap: () => onChoix(o),
+                      child: Container(
+                        // 48 dp : cible tactile minimale exigée par Android.
+                        constraints: const BoxConstraints(minHeight: 48),
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 9),
+                        decoration: BoxDecoration(
+                          color: onglet == o ? MC.soleil : MC.nuit2,
+                          borderRadius: BorderRadius.circular(Rd.lg),
+                          border: Border.all(
+                              color: onglet == o ? MC.soleil : MC.ligne),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _icones[o],
+                              size: 14,
+                              color: onglet == o ? MC.nuit : MC.kaki,
+                            ),
+                            const SizedBox(width: 5),
+                            Flexible(
+                              child: Text(
+                                _libelles[o]!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: onglet == o ? MC.nuit : MC.kaki,
+                                  fontSize: Tx.caption,
+                                  fontWeight: onglet == o
+                                      ? FontWeight.w800
+                                      : FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (tagFiltre != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.tag_rounded, size: 13, color: MC.soleil),
+                  const SizedBox(width: 4),
+                  Text(
+                    tagFiltre!,
+                    style: TextStyle(
+                        color: MC.soleil,
+                        fontSize: Tx.caption,
+                        fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: onEffacerTag,
+                    child: Container(
+                      constraints: const BoxConstraints(minHeight: 48),
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: MC.nuit3,
+                        borderRadius: BorderRadius.circular(Rd.lg),
+                        border: Border.all(color: MC.ligne),
+                      ),
+                      child: Text(
+                        'Voir toute la découverte',
+                        style: TextStyle(color: MC.ivoire, fontSize: Tx.caption),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Rappel d'audience : une de mes publications est encore limitée à mes
+/// contacts — donc vue par presque personne. L'ouverture est proposée, jamais
+/// imposée.
+class _BandeauAudience extends StatelessWidget {
+  final VoidCallback onOuvrir;
+  const _BandeauAudience({required this.onOuvrir});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(Sp.x3, Sp.x2, Sp.x3, Sp.x1),
+      padding: const EdgeInsets.all(Sp.x3),
+      decoration: BoxDecoration(
+        color: MC.nuit2,
+        borderRadius: BorderRadius.circular(Rd.md),
+        border: Border.all(color: MC.soleil.withValues(alpha: 0.45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.lock_outline_rounded, size: 16, color: MC.soleil),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Tes anciennes publications sont limitées à tes contacts',
+                  style: TextStyle(
+                      color: MC.ivoire,
+                      fontSize: Tx.label,
+                      fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Seules les personnes qui ont ton numéro enregistré les voient. '
+            'Tu peux les ouvrir à tout le monde en un geste.',
+            style: TextStyle(color: MC.kaki, fontSize: Tx.caption, height: 1.35),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: MC.soleil,
+                foregroundColor: MC.nuit,
+                padding: const EdgeInsets.symmetric(vertical: 11),
+              ),
+              onPressed: onOuvrir,
+              icon: const Icon(Icons.public_rounded, size: 16),
+              label: const Text(
+                'Rendre mes publications visibles par tous',
+                style: TextStyle(fontSize: Tx.label, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1247,7 +1658,10 @@ class _CreateSheetState extends State<_CreateSheet> {
   final TextEditingController _tags = TextEditingController();
 
   String _type = 'texte';
-  String _visibilite = 'contacts';
+  // PAR DÉFAUT : tout le monde. Le défaut précédent (« Mes contacts ») faisait
+  // qu'une publication n'était vue que par les gens qui avaient déjà l'auteur
+  // dans leur répertoire — c'est-à-dire, en pratique, par personne.
+  String _visibilite = 'public';
   String? _mediaUrl;
   int? _clipSec; // durée de la vidéo, quand on publie un clip
   String? _ville;
@@ -1579,16 +1993,34 @@ class _CreateSheetState extends State<_CreateSheet> {
                     style: TextStyle(color: MC.ivoire, fontSize: Tx.label),
                     items: const [
                       DropdownMenuItem(
-                          value: 'contacts', child: Text('Mes contacts')),
-                      DropdownMenuItem(
-                          value: 'communauté', child: Text('La communauté')),
-                      DropdownMenuItem(
                           value: 'public', child: Text('Tout le monde')),
+                      DropdownMenuItem(
+                          value: 'communaute', child: Text('Communauté Mbote')),
+                      DropdownMenuItem(
+                          value: 'contacts',
+                          child: Text('Mes contacts seulement')),
                     ],
                     onChanged: (v) =>
-                        setState(() => _visibilite = v ?? 'contacts'),
+                        setState(() => _visibilite = v ?? 'public'),
                   ),
                 ],
+              ),
+              const SizedBox(height: 4),
+              // Dire clairement ce que chaque choix implique : c'est ce qui
+              // manquait, et c'est ce qui a rendu le fil vide sans que personne
+              // ne s'en aperçoive.
+              Text(
+                switch (_visibilite) {
+                  'contacts' =>
+                    'Seules les personnes qui ont ton numéro enregistré verront cette publication.',
+                  'communaute' =>
+                    'Tous les membres de Mbote verront cette publication, sans apparaître dans les tendances.',
+                  _ => 'Tout le monde verra cette publication dans le fil et dans la découverte.',
+                },
+                style: TextStyle(
+                    color: _visibilite == 'contacts' ? MC.soleil : MC.kaki,
+                    fontSize: Tx.caption,
+                    height: 1.35),
               ),
               const SizedBox(height: 16),
               SizedBox(

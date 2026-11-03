@@ -41,7 +41,10 @@ PostVisibilite postVisibiliteFrom(Object? v) => switch ('$v') {
 
 String postVisibiliteToApi(PostVisibilite v) => switch (v) {
       PostVisibilite.public => 'public',
-      PostVisibilite.communaute => 'communauté',
+      // Valeur canonique SANS accent : c'est celle que le serveur enregistre.
+      // (Il accepte encore « communauté », mais l'écrire ainsi évite toute
+      // question d'encodage Unicode.)
+      PostVisibilite.communaute => 'communaute',
       PostVisibilite.contacts => 'contacts',
     };
 
@@ -91,6 +94,20 @@ class Post {
   final PostVisibilite visibilite;
   final PostOrigine origine;
 
+  /// Nombre de lectures (une seule par personne, la vue de l'auteur exclue).
+  final int vues;
+
+  /// Mots-clés de la publication (`#kinshasa` → `kinshasa`), calculés par le
+  /// serveur. Ils alimentent les tendances et le filtrage par mot-clé.
+  final List<String> tags;
+
+  /// Je suis l'auteur de cet auteur-ci (bouton « Suivre »).
+  final bool suivi;
+
+  /// Cette publication est-elle la mienne ? Le serveur le dit explicitement,
+  /// ce qui évite de comparer des identifiants côté affichage.
+  final bool aMoi;
+
   const Post({
     required this.id,
     required this.authorId,
@@ -113,6 +130,10 @@ class Post {
     this.duree = PostDuree.permanent,
     this.visibilite = PostVisibilite.contacts,
     this.origine = PostOrigine.rdc,
+    this.vues = 0,
+    this.tags = const [],
+    this.suivi = false,
+    this.aMoi = false,
   });
 
   /// Auteur dans mes contacts → l'API m'a donné son numéro.
@@ -157,6 +178,12 @@ class Post {
       duree: postDureeFrom(j['duree']),
       visibilite: postVisibiliteFrom(j['visibilite']),
       origine: postOrigineFrom(j['origine']),
+      vues: (j['vues'] as num?)?.toInt() ?? 0,
+      tags: (j['tags'] as List?)?.map((e) => '$e').toList(growable: false) ??
+          const [],
+      // Le serveur renvoie 1/0 (SQLite) ou true/false (PostgreSQL).
+      suivi: j['suivi'] == 1 || j['suivi'] == true,
+      aMoi: j['a_moi'] == 1 || j['a_moi'] == true,
     );
   }
 
@@ -183,6 +210,9 @@ class Post {
     int? likes,
     int? comments,
     bool? liked,
+    int? vues,
+    bool? suivi,
+    PostVisibilite? visibilite,
   }) =>
       Post(
         id: id,
@@ -204,8 +234,12 @@ class Post {
         comments: comments ?? this.comments,
         liked: liked ?? this.liked,
         duree: duree,
-        visibilite: visibilite,
+        visibilite: visibilite ?? this.visibilite,
         origine: origine,
+        vues: vues ?? this.vues,
+        tags: tags,
+        suivi: suivi ?? this.suivi,
+        aMoi: aMoi,
       );
 
   /// Temps écoulé lisible (ex. « à l'instant », « 2 min », « 3 h », « hier »).

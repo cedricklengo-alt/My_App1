@@ -464,6 +464,103 @@ class Api {
     );
   }
 
+  /// DÉCOUVERTE — publications publiques du réseau, pour la partie
+  /// « Tendances » du fil.
+  ///
+  /// `sort = 'tendances'` classe par intérêt (j'aime, commentaires, vues)
+  /// pondéré par la fraîcheur ; `sort = 'recent'` trie par date. Les
+  /// publications limitées aux contacts n'y figurent jamais : c'est le serveur
+  /// qui applique la règle, pas l'application.
+  Future<FeedPage> discoverPage({
+    String sort = 'tendances',
+    String? tag,
+    String? ville,
+    int? offset,
+  }) async {
+    final q = StringBuffer('/feed/discover?sort=$sort');
+    if (tag != null && tag.isNotEmpty) {
+      q.write('&tag=${Uri.encodeComponent(tag)}');
+    }
+    if (ville != null && ville.isNotEmpty) {
+      q.write('&ville=${Uri.encodeComponent(ville)}');
+    }
+    if (offset != null) q.write('&offset=$offset');
+    final r = await _send('GET', q.toString());
+    final list = (r['posts'] as List? ?? const [])
+        .map((e) => Post.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+    final next = r['next'];
+    return FeedPage(
+      posts: list,
+      nextOffset: next is Map ? (next['offset'] as num?)?.toInt() : null,
+    );
+  }
+
+  /// Fil « Abonnements » : les publications des auteurs que je suis.
+  Future<FeedPage> followingPage({int? before, String? cursor}) async {
+    final q = StringBuffer('/feed/following');
+    if (before != null) q.write('?before=$before');
+    if (cursor != null) q.write(before != null ? '&cursor=' : '?cursor=');
+    if (cursor != null) q.write(Uri.encodeComponent(cursor));
+    final r = await _send('GET', q.toString());
+    final list = (r['posts'] as List? ?? const [])
+        .map((e) => Post.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+    final next = r['next'];
+    return FeedPage(
+      posts: list,
+      nextBefore: next is Map ? (next['before'] as num?)?.toInt() : null,
+      nextCursor: next is Map ? next['cursor']?.toString() : null,
+    );
+  }
+
+  /// Mots-clés en tendance sur les 7 derniers jours.
+  Future<List<Map>> trendingTags({int limit = 20}) async {
+    final r = await _send('GET', '/feed/tags?limit=$limit');
+    return (r['tags'] as List? ?? const [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+
+  /// Publications portant un mot-clé.
+  Future<List<Post>> postsByTag(String tag) async {
+    final r = await _send('GET', '/feed/tags/${Uri.encodeComponent(tag)}');
+    return (r['posts'] as List? ?? const [])
+        .map((e) => Post.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  /// S'abonner à un auteur. Renvoie `{suivi, abonnes}`.
+  Future<Map> followAuthor(String auteurId) async =>
+      await _send('POST', '/feed/authors/$auteurId/follow');
+
+  /// Se désabonner. Renvoie `{suivi, abonnes}`.
+  Future<Map> unfollowAuthor(String auteurId) async =>
+      await _send('DELETE', '/feed/authors/$auteurId/follow');
+
+  /// Profil public d'un auteur : `{auteur, posts}`.
+  Future<Map> authorProfile(String auteurId) async =>
+      await _send('GET', '/feed/authors/$auteurId');
+
+  /// Compte une vue. Le serveur ignore un second appel du même lecteur et la
+  /// vue de l'auteur : le chiffre ne peut donc pas être gonflé.
+  Future<Map> viewPost(String id) async =>
+      await _send('POST', '/feed/posts/$id/view');
+
+  /// Change l'audience d'UNE de mes publications (`public`, `communaute`,
+  /// `contacts`).
+  Future<Map> setPostVisibility(String id, PostVisibilite v) async =>
+      await _send('PATCH', '/feed/posts/$id/visibilite',
+          {'visibilite': postVisibiliteToApi(v)});
+
+  /// Ouvre TOUTES mes publications à la même audience.
+  ///
+  /// Sert à réparer l'effet du formulaire qui proposait « Mes contacts » par
+  /// défaut : ces publications n'ont jamais été vues par personne. Rien n'est
+  /// changé sans que l'auteur l'ait demandé.
+  Future<Map> setAllPostsVisibility(PostVisibilite v) async => await _send(
+      'PUT', '/feed/posts/visibilite', {'visibilite': postVisibiliteToApi(v)});
+
   /// Publie une publication (texte, photo, clip ou événement).
   Future<Post> createPost({
     required PostType type,
@@ -475,7 +572,7 @@ class Api {
     List<String> eventTags = const [],
     int? clipDureeSeconds,
     String? ville,
-    PostVisibilite visibilite = PostVisibilite.contacts,
+    PostVisibilite visibilite = PostVisibilite.public,
     PostOrigine origine = PostOrigine.rdc,
     PostDuree duree = PostDuree.permanent,
   }) async {
@@ -612,10 +709,21 @@ class Api {
 /// Une page du fil + curseur de continuation.
 class FeedPage {
   final List<Post> posts;
+
+  /// Curseur des fils chronologiques (fil principal, abonnements).
   final int? nextBefore;
   final String? nextCursor;
 
-  const FeedPage({required this.posts, this.nextBefore, this.nextCursor});
+  /// Curseur de la découverte par tendances : le classement par intérêt se
+  /// fait côté serveur, on avance donc par décalage.
+  final int? nextOffset;
 
-  bool get hasMore => nextCursor != null;
+  const FeedPage({
+    required this.posts,
+    this.nextBefore,
+    this.nextCursor,
+    this.nextOffset,
+  });
+
+  bool get hasMore => nextCursor != null || nextOffset != null;
 }

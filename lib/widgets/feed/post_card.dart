@@ -24,6 +24,12 @@ class PostCard extends StatelessWidget {
   ///Fourni seulement pour MES publications (suppression autorisée).
   final VoidCallback? onDelete;
 
+  /// Suivre / ne plus suivre l'auteur (jamais proposé sur mes publications).
+  final VoidCallback? onFollow;
+
+  /// Appui sur un mot-clé : ouvre la découverte filtrée sur ce mot-clé.
+  final ValueChanged<String>? onTag;
+
   /// Mon identifiant : sert à ne jamais afficher « Appeler » sur ma propre
   /// publication, et à proposer la suppression au bon endroit.
   final String? myId;
@@ -38,6 +44,8 @@ class PostCard extends StatelessWidget {
     this.onShare,
     this.onCall,
     this.onDelete,
+    this.onFollow,
+    this.onTag,
     this.myId,
     this.dataSaverMode = false,
   });
@@ -57,8 +65,15 @@ class PostCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Header(post: post, isMine: isMine, onDelete: onDelete),
+          _Header(
+            post: post,
+            isMine: isMine,
+            onDelete: onDelete,
+            onFollow: isMine ? null : onFollow,
+          ),
           _MediaSection(post: post, dataSaverMode: dataSaverMode),
+          if (post.tags.isNotEmpty)
+            _MotsCles(tags: post.tags, onTag: onTag),
           _Actions(
             post: post,
             isMine: isMine,
@@ -80,9 +95,15 @@ class PostCard extends StatelessWidget {
 class _Header extends StatelessWidget {
   final bool isMine;
   final VoidCallback? onDelete;
+  final VoidCallback? onFollow;
 
   final Post post;
-  const _Header({required this.post, this.isMine = false, this.onDelete});
+  const _Header({
+    required this.post,
+    this.isMine = false,
+    this.onDelete,
+    this.onFollow,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -156,11 +177,57 @@ class _Header extends StatelessWidget {
                         style: TextStyle(color: MC.kaki, fontSize: Tx.caption)),
                     const SizedBox(width: 6),
                     _Badge(type: post.type),
+                    // Sur MES publications : rappeler qui peut la voir. Sans
+                    // cette pastille, une publication « contacts » paraissait
+                    // publique alors qu'elle n'atteignait personne.
+                    if (isMine) ...[
+                      const SizedBox(width: 6),
+                      _Audience(visibilite: post.visibilite),
+                    ],
                   ],
                 ),
               ],
             ),
           ),
+          // Suivre l'auteur : la façon la plus simple, pour un lecteur,
+          // de retrouver ses publications.
+          if (onFollow != null && !post.suivi)
+            Semantics(
+              button: true,
+              label: 'Suivre ${post.authorName}',
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  onFollow!.call();
+                },
+                child: Container(
+                  // 48 dp : cible tactile minimale exigée par Android.
+                  constraints: const BoxConstraints(minHeight: 48),
+                  alignment: Alignment.center,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: MC.nuit3,
+                    borderRadius: BorderRadius.circular(Rd.lg),
+                    border: Border.all(color: MC.soleil.withValues(alpha: 0.5)),
+                  ),
+                  child: Text(
+                    'Suivre',
+                    style: TextStyle(
+                      color: MC.soleil,
+                      fontSize: Tx.caption,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (onFollow != null && post.suivi)
+            Padding(
+              padding: const EdgeInsets.only(left: 6),
+              child: Text('Suivi',
+                  style: TextStyle(color: MC.kaki, fontSize: Tx.caption)),
+            ),
           // Menu : action réelle (copier le texte), plus de bouton mort
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert_rounded, color: MC.kaki, size: 20),
@@ -640,6 +707,14 @@ class _Actions extends StatelessWidget {
             semanticLabel: 'Commenter',
             onTap: onComment,
           ),
+          // Nombre de lectures : information publique, comme sur un fil
+          // social classique. Non cliquable — on ne « clique » pas une vue.
+          if (post.vues > 0)
+            _ActBtn(
+              icon: Icons.visibility_outlined,
+              count: post.vues,
+              semanticLabel: '${post.vues} vue(s)',
+            ),
           _ActBtn(
             icon: Icons.share_rounded,
             semanticLabel: 'Partager',
@@ -688,6 +763,81 @@ class _Actions extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Bande de mots-clés sous le contenu. Un appui ouvre la découverte filtrée.
+class _MotsCles extends StatelessWidget {
+  final List<String> tags;
+  final ValueChanged<String>? onTag;
+  const _MotsCles({required this.tags, this.onTag});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Sp.x3, 0, Sp.x3, Sp.x2),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          for (final t in tags.take(6))
+            Semantics(
+              button: onTag != null,
+              label: 'Voir les publications du mot-clé $t',
+              child: GestureDetector(
+                onTap: onTag == null ? null : () => onTag!.call(t),
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  alignment: Alignment.center,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: MC.nuit3,
+                    borderRadius: BorderRadius.circular(Rd.lg),
+                    border: Border.all(color: MC.ligne),
+                  ),
+                  child: Text(
+                    '#$t',
+                    style: TextStyle(
+                        color: MC.soleil,
+                        fontSize: Tx.caption,
+                        fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pastille d'audience, affichée sur MES publications seulement.
+/// Elle répond à la question « qui voit ce que je publie ? » là où l'utilisateur
+/// en a besoin : sur sa propre publication.
+class _Audience extends StatelessWidget {
+  final PostVisibilite visibilite;
+  const _Audience({required this.visibilite});
+
+  @override
+  Widget build(BuildContext context) {
+    final (icone, libelle) = switch (visibilite) {
+      PostVisibilite.public => (Icons.public_rounded, 'Tout le monde'),
+      PostVisibilite.communaute =>
+        (Icons.groups_rounded, 'Communauté'),
+      PostVisibilite.contacts => (Icons.lock_outline_rounded, 'Mes contacts'),
+    };
+    final couleur =
+        visibilite == PostVisibilite.contacts ? MC.soleil : MC.kaki;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icone, size: 11, color: couleur),
+        const SizedBox(width: 3),
+        Text(libelle,
+            style: TextStyle(color: couleur, fontSize: Tx.caption)),
+      ],
     );
   }
 }
