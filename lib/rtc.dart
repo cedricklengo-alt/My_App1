@@ -19,6 +19,19 @@ class Rtc {
   static bool _wanted = false;
   static bool _fg = true; // l'app démarre au premier plan
 
+  /// 🫀 Battement de cœur du canal.
+  ///
+  /// Sans lui, un canal resté muet est fermé par les intermédiaires (proxy de
+  /// Render, NAT de l'opérateur) au bout d'une minute environ. L'app croyait
+  /// alors être joignable alors que le serveur ne la voyait plus : l'appel
+  /// partait dans le vide, sans sonnerie chez l'autre — « les appels ne
+  /// passent pas ». On envoie `ping` régulièrement et on force la reconnexion
+  /// si plus rien n'arrive.
+  static Duration pingInterval = const Duration(seconds: 25);
+  static Duration silenceMax = const Duration(seconds: 70);
+  static Timer? _ping;
+  static DateTime _dernierMessage = DateTime.now();
+
   ///Voyant : sommes-nous connectés au standardiste ?
   /// (affiché sur l'écran Clavier — vert = prêt à appeler/recevoir)
   static final ValueNotifier<bool> connected = ValueNotifier(false);
@@ -79,6 +92,7 @@ class Rtc {
         _ws = await WebSocket.connect('$_url?token=$_token');
         connected.value = true; //prêt à appeler/recevoir
         setForeground(_fg); //état initial annoncé au serveur
+        _demarrerBattement();
         await for (final data in _ws!) {
           Map msg;
           try {
@@ -86,6 +100,7 @@ class Rtc {
           } catch (_) {
             continue;
           }
+          _dernierMessage = DateTime.now();
           final type = '${msg['type']}';
           if (type == 'offer') {
             onOffer?.call(msg);
@@ -108,10 +123,34 @@ class Rtc {
           }
         }
       } catch (_) {/* serveur injoignable : on retente */}
+      _ping?.cancel();
+      _ping = null;
       _ws = null;
       connected.value = false; //reconnexion…
       if (_wanted) await Future.delayed(const Duration(seconds: 4));
     }
+  }
+
+  /// Envoie `ping` à intervalle régulier et coupe un canal devenu muet.
+  static void _demarrerBattement() {
+    _ping?.cancel();
+    _dernierMessage = DateTime.now();
+    _ping = Timer.periodic(pingInterval, (_) {
+      final ws = _ws;
+      if (ws == null) return;
+      final silence = DateTime.now().difference(_dernierMessage);
+      if (silence > silenceMax) {
+        // Canal fantôme : plus rien depuis trop longtemps. On ferme pour
+        // laisser `_loop` se reconnecter proprement.
+        try {
+          ws.close();
+        } catch (_) {}
+        return;
+      }
+      try {
+        ws.add(jsonEncode({'type': 'ping'}));
+      } catch (_) {}
+    });
   }
 
   static void send(Map msg) {
@@ -135,10 +174,13 @@ class Rtc {
   static void disconnect() {
     _wanted = false;
     _token = null;
+    _ping?.cancel();
+    _ping = null;
     try {
       _ws?.close();
     } catch (_) {}
     _ws = null;
+    connected.value = false;
   }
 }
 
@@ -155,6 +197,10 @@ class RtcSession {
 
   void Function()? onConnected; // la voix/limage passe !
   void Function()? onEnded; // connexion perdue
+  /// La connexion a ÉCHOUÉ (aucun chemin réseau trouvé). Distinct d'une fin
+  /// normale : sans relais TURN, deux téléphones derrière un NAT symétrique
+  /// (fréquent sur réseau mobile) n'y arrivent jamais.
+  void Function()? onFailed;
 
   /// Flux local (ma caméra + mon micro) → aperçu « moi » à l'écran.
   void Function(MediaStream stream)? onLocalStream;
@@ -170,7 +216,7 @@ class RtcSession {
   static const _fallbackConfig = {
     'iceServers': [
       {'urls': 'stun:stun.l.google.com:19302'},
-      {'urls': 'stun:stun.relay.metered.ca:80'},
+      {'urls': 'stun:stun1.l.google.com:19302'},
     ],
   };
 
@@ -271,8 +317,11 @@ class RtcSession {
     _pc!.onConnectionState = (s) {
       if (s == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
         onConnected?.call();
-      } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
-          s == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
+      } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
+        // Échec réseau : on le dit, au lieu de laisser l'écran se fermer sans
+        // explication (symptôme « l'appel ne passe pas »).
+        (onFailed ?? onEnded)?.call();
+      } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
         onEnded?.call();
       }
     };

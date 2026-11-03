@@ -8,6 +8,7 @@ import '../state.dart';
 import '../design.dart';
 import '../theme.dart';
 import '../widgets/avatar.dart';
+import '../call_status.dart';
 import '../l10n.dart';
 import '../rtc.dart';
 
@@ -158,6 +159,9 @@ class _CallScreenState extends State<CallScreen>
     );
     rtc!.onConnected = _onVoiceConnected;
     rtc!.onEnded = () => _endRtc(remote: true);
+    // Aucun chemin réseau trouvé (NAT symétrique, pas de relais TURN) : on le
+    // dit clairement au lieu de fermer l'écran sans explication.
+    rtc!.onFailed = () => _endRtc(remote: true, reseau: true);
     _attachVideo(rtc!);
     try {
       await rtc!.answer(Map.from(offer['sdp']));
@@ -186,6 +190,9 @@ class _CallScreenState extends State<CallScreen>
     );
     rtc!.onConnected = _onVoiceConnected;
     rtc!.onEnded = () => _endRtc(remote: true);
+    // Aucun chemin réseau trouvé (NAT symétrique, pas de relais TURN) : on le
+    // dit clairement au lieu de fermer l'écran sans explication.
+    rtc!.onFailed = () => _endRtc(remote: true, reseau: true);
     _attachVideo(rtc!);
  // Si rien ne se passe en 25 s → le téléphone d'en face est injoignable
     rtcTimeout = Timer(const Duration(seconds: 25), () {
@@ -249,7 +256,8 @@ class _CallScreenState extends State<CallScreen>
   Future<void> _endRtc(
       {bool remote = false,
       bool rejected = false,
-      bool unreachable = false}) async {
+      bool unreachable = false,
+      bool reseau = false}) async {
     if (status == 'ended') return;
     // On lit l'état AVANT les `await` : après, le widget peut avoir été
     // démonté et `context` ne doit plus être utilisé.
@@ -277,6 +285,7 @@ class _CallScreenState extends State<CallScreen>
         status = 'ended';
         if (rejected) endReason = 'rejected';
         if (unreachable) endReason = 'unreachable';
+        if (reseau) endReason = 'network';
       });
       _pulse.stop();
       //L'écran se referme tout seul après 2 s (bouton Fermer toujours là)
@@ -367,19 +376,10 @@ class _CallScreenState extends State<CallScreen>
     super.dispose();
   }
 
-  String get statusLabel => switch (status) {
-        'connexion' => 'Connexion…',
-        'ringing' => pushSent ? 'Notification envoyée…' : 'Ça sonne…',
-        'answered' => 'EN LIGNE · HD',
-        'ended' => endReason == 'no_credit'
-            ? 'Crédit épuisé'
-            : endReason == 'rejected'
-                ? 'Occupé — réessaie plus tard'
-                : endReason == 'unreachable'
-                    ? 'Pas de réponse — réessaie plus tard'
-                    : 'Appel terminé',
-        _ => 'Erreur',
-      };
+  /// Libellé calculé par `libelleAppel` (lib/call_status.dart) : la table des
+  /// messages est testée séparément, sans monter l'écran.
+  String get statusLabel =>
+      libelleAppel(status: status, endReason: endReason, pushSent: pushSent);
 
   @override
   Widget build(BuildContext context) {
