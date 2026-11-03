@@ -19,7 +19,7 @@ import 'package:mbote/widgets/feed/post_card.dart';
 class FakeApi extends Api {
   List<Post> fil = [];
   List<Post> abonnements = [];
-  List<Post> tendances = [];
+  List<Post> tendancesDecouverte = [];
 
   final List<String> calls = [];
 
@@ -72,7 +72,7 @@ class FakeApi extends Api {
     int? offset,
   }) async {
     calls.add('discoverPage($sort,${tag ?? '-'})');
-    return FeedPage(posts: tendances);
+    return FeedPage(posts: tendancesDecouverte);
   }
 
   @override
@@ -166,7 +166,7 @@ void main() {
   testWidgets('« Tendances » interroge la découverte publique', (tester) async {
     final api = FakeApi()
       ..fil = [FakeApi.post('p1', texte: 'Du fil')]
-      ..tendances = [FakeApi.post('p2', texte: 'Ce qui marche aujourd’hui')];
+      ..tendancesDecouverte = [FakeApi.post('p2', texte: 'Ce qui marche aujourd’hui')];
 
     await tester.pumpWidget(wrap(FeedScreen(api: api)));
     await tester.pumpAndSettle();
@@ -245,7 +245,7 @@ void main() {
       (tester) async {
     final api = FakeApi()
       ..fil = [FakeApi.post('p1', texte: 'Concert', tags: ['kinshasa'])]
-      ..tendances = [FakeApi.post('p2', texte: 'Autre concert')];
+      ..tendancesDecouverte = [FakeApi.post('p2', texte: 'Autre concert')];
 
     await tester.pumpWidget(wrap(FeedScreen(api: api)));
     await tester.pumpAndSettle();

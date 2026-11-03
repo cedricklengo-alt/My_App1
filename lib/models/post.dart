@@ -7,6 +7,8 @@
 
 import 'dart:convert';
 
+import 'social.dart';
+
 //───────────────────────────────────────────
 // Enums
 //───────────────────────────────────────────
@@ -94,6 +96,16 @@ class Post {
   final PostVisibilite visibilite;
   final PostOrigine origine;
 
+  /// Personnes mentionnées (@pseudo) : permet d'ouvrir leur profil.
+  final List<Mention> mentionsListe;
+
+  /// Hashtags de cette publication que je suis : le fil les met en avant.
+  final List<String> tagsSuivis;
+
+  /// Pourquoi cette publication remonte dans « Pour toi » (hashtag suivi,
+  /// auteur suivi) — affiché comme explication, jamais comme décoration.
+  final String? raison;
+
   /// Lien public de la publication (`https://…/p/<id>`), fourni par le
   /// serveur. C'est ce lien que l'on copie ou que l'on envoie vers une autre
   /// application (WhatsApp, Facebook, SMS…).
@@ -145,6 +157,9 @@ class Post {
     this.thumbUrl,
     this.partageUrl,
     this.partages = 0,
+    this.mentionsListe = const [],
+    this.tagsSuivis = const [],
+    this.raison,
     this.vues = 0,
     this.tags = const [],
     this.suivi = false,
@@ -204,6 +219,13 @@ class Post {
       partages: (j['partages'] as num?)?.toInt() ??
           (j['shares'] as num?)?.toInt() ??
           0,
+      mentionsListe: ((j['mentions'] as List?) ?? const [])
+          .map((e) => Mention.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList(),
+      tagsSuivis: ((j['tags_suivis'] as List?) ?? const [])
+          .map((e) => '$e')
+          .toList(),
+      raison: j['raison'] as String?,
       vues: (j['vues'] as num?)?.toInt() ?? 0,
       tags: (j['tags'] as List?)?.map((e) => '$e').toList(growable: false) ??
           const [],
@@ -240,6 +262,9 @@ class Post {
     bool? suivi,
     String? thumbUrl,
     int? partages,
+    List<Mention>? mentionsListe,
+    List<String>? tagsSuivis,
+    String? raison,
     PostVisibilite? visibilite,
   }) =>
       Post(
@@ -267,6 +292,9 @@ class Post {
         thumbUrl: thumbUrl ?? this.thumbUrl,
         partageUrl: partageUrl,
         partages: partages ?? this.partages,
+        mentionsListe: mentionsListe ?? this.mentionsListe,
+        tagsSuivis: tagsSuivis ?? this.tagsSuivis,
+        raison: raison ?? this.raison,
         vues: vues ?? this.vues,
         tags: tags,
         suivi: suivi ?? this.suivi,

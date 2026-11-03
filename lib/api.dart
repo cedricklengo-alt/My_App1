@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'config.dart';
 import 'models/post.dart';
+import 'models/social.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -529,6 +530,134 @@ class Api {
         .map((e) => Post.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
   }
+
+  // ── HASHTAGS ────────────────────────────────────────────────────────────
+  // `tri` : recentes | populaires | videos | photos (les onglets de la page).
+
+  /// Page d'un hashtag : en-tête (publications, abonnés, suivi) + publications.
+  Future<Map<String, dynamic>> pageHashtag(String tag, {String tri = 'recentes'}) async {
+    final r = await _send('GET',
+        '/feed/tags/${Uri.encodeComponent(tag)}?tri=${Uri.encodeComponent(tri)}');
+    return Map<String, dynamic>.from(r as Map);
+  }
+
+  /// Autocomplétion pendant la frappe (`#`).
+  Future<List<Hashtag>> suggestionsHashtags({String q = '', int limit = 8}) async {
+    final r = await _send('GET',
+        '/feed/tags/suggest?q=${Uri.encodeComponent(q)}&limit=$limit');
+    return (r['tags'] as List? ?? const [])
+        .map((e) => Hashtag.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  /// Suivre un hashtag.
+  Future<Hashtag> suivreHashtag(String tag) async =>
+      Hashtag.fromJson(Map<String, dynamic>.from(
+          await _send('POST', '/feed/tags/${Uri.encodeComponent(tag)}/follow') as Map));
+
+  /// Ne plus suivre un hashtag.
+  Future<Hashtag> nePlusSuivreHashtag(String tag) async =>
+      Hashtag.fromJson(Map<String, dynamic>.from(
+          await _send('DELETE', '/feed/tags/${Uri.encodeComponent(tag)}/follow') as Map));
+
+  /// Mes hashtags suivis.
+  Future<List<Hashtag>> hashtagsSuivis() async {
+    final r = await _send('GET', '/feed/tags/followed');
+    return (r['tags'] as List? ?? const [])
+        .map((e) => Hashtag.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  /// Tendances détaillées (`ville` pour les hashtags géographiques).
+  Future<List<Hashtag>> tendances({int limit = 15, String? ville}) async {
+    final q = StringBuffer('/feed/tendances?limit=$limit');
+    if (ville != null && ville.trim().isNotEmpty) {
+      q.write('&ville=${Uri.encodeComponent(ville.trim())}');
+    }
+    final r = await _send('GET', q.toString());
+    return (r['tags'] as List? ?? const [])
+        .map((e) => Hashtag.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  // ── MENTIONS ────────────────────────────────────────────────────────────
+
+  /// Personnes à mentionner (`@`) : nom, identifiant, contacts d'abord.
+  Future<List<Personne>> suggestionsMentions({String q = '', int limit = 8}) async {
+    final r = await _send('GET',
+        '/feed/mentions/suggest?q=${Uri.encodeComponent(q)}&limit=$limit');
+    return (r['personnes'] as List? ?? const [])
+        .map((e) => Personne.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  /// Suggestions assistées de hashtags pour un brouillon (prêtes pour l'IA).
+  Future<List<Hashtag>> suggererHashtags(String texte) async {
+    final r = await _send('GET',
+        '/feed/suggestions?texte=${Uri.encodeComponent(texte)}');
+    return (r['hashtags'] as List? ?? const [])
+        .map((e) => Hashtag.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  /// Mes statistiques de mentions.
+  Future<AnalytiqueMentions> analytiqueMentions() async =>
+      AnalytiqueMentions.fromJson(
+          Map<String, dynamic>.from(await _send('GET', '/feed/mentions/analytique') as Map));
+
+  // ── FIL PERSONNALISÉ ────────────────────────────────────────────────────
+
+  /// Fil « Pour toi » : classé par affinité (hashtags suivis, auteurs, ville).
+  ///
+  /// Si le classement n'est pas disponible (serveur plus ancien, réseau), on
+  /// retombe sur le fil chronologique : le fil ne doit jamais rester vide parce
+  /// qu'une amélioration manque à l'appel.
+  Future<FeedPage> filPersonnalise({int offset = 0, int limit = 20}) async {
+    try {
+      final r = await _send('GET', '/feed/pourtoi?offset=$offset&limit=$limit');
+      final list = (r['posts'] as List? ?? const [])
+          .map((e) => Post.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+      final next = r['next'];
+      return FeedPage(
+        posts: list,
+        nextOffset: next is Map ? (next['offset'] as num?)?.toInt() : null,
+      );
+    } catch (_) {
+      if (offset > 0) return const FeedPage(posts: []);
+      return feedPage();
+    }
+  }
+
+  // ── RECHERCHE UNIVERSELLE ───────────────────────────────────────────────
+
+  /// Une seule barre : `#hashtag`, `@personne` ou texte libre.
+  Future<ResultatsRecherche> rechercher(String q) async =>
+      ResultatsRecherche.fromJson(Map<String, dynamic>.from(
+          await _send('GET', '/search?q=${Uri.encodeComponent(q)}') as Map));
+
+  // ── NOTIFICATIONS ───────────────────────────────────────────────────────
+
+  /// Boîte de réception : `{notifications, non_lues, next}`.
+  Future<Map<String, dynamic>> notifications({int? before, int limite = 30}) async {
+    final q = StringBuffer('/notifications?limite=$limite');
+    if (before != null) q.write('&before=$before');
+    return Map<String, dynamic>.from(await _send('GET', q.toString()) as Map);
+  }
+
+  /// Badge de l'en-tête : nombre de notifications non lues.
+  Future<int> notificationsNonLues() async {
+    final r = await _send('GET', '/notifications/count');
+    return (r['non_lues'] as num?)?.toInt() ?? 0;
+  }
+
+  /// Tout marquer comme lu.
+  Future<void> marquerNotificationsLues() async =>
+      await _send('POST', '/notifications/lues');
+
+  /// Marquer une notification.
+  Future<void> marquerNotificationLue(String id) async =>
+      await _send('POST', '/notifications/$id/lue');
 
   /// S'abonner à un auteur. Renvoie `{suivi, abonnes}`.
   Future<Map> followAuthor(String auteurId) async =>

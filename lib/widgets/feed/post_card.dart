@@ -13,6 +13,7 @@ import '../../design.dart';
 import '../../models/post.dart';
 import '../../theme.dart';
 import 'media_view.dart';
+import '../social/texte_social.dart';
 
 class PostCard extends StatelessWidget {
   final Post post;
@@ -30,6 +31,12 @@ class PostCard extends StatelessWidget {
   /// Appui sur un mot-clé : ouvre la découverte filtrée sur ce mot-clé.
   final ValueChanged<String>? onTag;
 
+  /// Appui sur un hashtag écrit dans le texte (clé sans dièse).
+  final ValueChanged<String>? onHashtag;
+
+  /// Appui sur une mention écrite dans le texte (identifiant sans arobase).
+  final ValueChanged<String>? onMention;
+
   /// Mon identifiant : sert à ne jamais afficher « Appeler » sur ma propre
   /// publication, et à proposer la suppression au bon endroit.
   final String? myId;
@@ -46,6 +53,8 @@ class PostCard extends StatelessWidget {
     this.onDelete,
     this.onFollow,
     this.onTag,
+    this.onHashtag,
+    this.onMention,
     this.myId,
     this.dataSaverMode = false,
   });
@@ -72,7 +81,12 @@ class PostCard extends StatelessWidget {
             onFollow: isMine ? null : onFollow,
             onShare: onShare,
           ),
-          _MediaSection(post: post, dataSaverMode: dataSaverMode),
+          _MediaSection(
+            post: post,
+            dataSaverMode: dataSaverMode,
+            onHashtag: onHashtag,
+            onMention: onMention,
+          ),
           if (post.tags.isNotEmpty)
             _MotsCles(tags: post.tags, onTag: onTag),
           _Actions(
@@ -366,14 +380,38 @@ class _OrigineChip extends StatelessWidget {
 class _MediaSection extends StatelessWidget {
   final Post post;
   final bool dataSaverMode;
-  const _MediaSection({required this.post, required this.dataSaverMode});
+  final ValueChanged<String>? onHashtag;
+  final ValueChanged<String>? onMention;
+
+  const _MediaSection({
+    required this.post,
+    required this.dataSaverMode,
+    this.onHashtag,
+    this.onMention,
+  });
+
+  /// Noms affichés des personnes mentionnées, quand le serveur les a fournis :
+  /// « @cedricklengo » s'affiche « @Cédrick Lengo ».
+  Map<String, String>? get nomsParHandle {
+    if (post.mentionsListe.isEmpty) return null;
+    return {
+      for (final m in post.mentionsListe)
+        if (m.handle.isNotEmpty && m.name.isNotEmpty) m.handle.toLowerCase(): m.name,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
     return switch (post.type) {
-      PostType.photo => _PhotoMedia(post: post),
-      PostType.clip => _ClipMedia(post: post, dataSaverMode: dataSaverMode),
-      PostType.texte => _TexteMedia(post: post),
+      PostType.photo => _PhotoMedia(
+          post: post, onHashtag: onHashtag, onMention: onMention,
+          nomsParHandle: nomsParHandle),
+      PostType.clip => _ClipMedia(
+          post: post, dataSaverMode: dataSaverMode, onHashtag: onHashtag,
+          onMention: onMention, nomsParHandle: nomsParHandle),
+      PostType.texte => _TexteMedia(
+          post: post, onHashtag: onHashtag, onMention: onMention,
+          nomsParHandle: nomsParHandle),
       PostType.event => _EventMedia(post: post),
     };
   }
@@ -381,7 +419,16 @@ class _MediaSection extends StatelessWidget {
 
 class _PhotoMedia extends StatelessWidget {
   final Post post;
-  const _PhotoMedia({required this.post});
+  final ValueChanged<String>? onHashtag;
+  final ValueChanged<String>? onMention;
+  final Map<String, String>? nomsParHandle;
+
+  const _PhotoMedia({
+    required this.post,
+    this.onHashtag,
+    this.onMention,
+    this.nomsParHandle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -391,9 +438,12 @@ class _PhotoMedia extends StatelessWidget {
         if (post.texte != null && post.texte!.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-            child: Text(
+            child: TexteSocial(
               post.texte!,
-              style: TextStyle(color: MC.ivoire, fontSize: Tx.label, height: 1.4),
+              fontSize: Tx.label,
+              onHashtag: onHashtag,
+              onMention: onMention,
+              nomsMentions: nomsParHandle,
             ),
           ),
         if (post.mediaUrl != null)
@@ -421,7 +471,17 @@ class _PhotoMedia extends StatelessWidget {
 class _ClipMedia extends StatelessWidget {
   final Post post;
   final bool dataSaverMode;
-  const _ClipMedia({required this.post, required this.dataSaverMode});
+  final ValueChanged<String>? onHashtag;
+  final ValueChanged<String>? onMention;
+  final Map<String, String>? nomsParHandle;
+
+  const _ClipMedia({
+    required this.post,
+    required this.dataSaverMode,
+    this.onHashtag,
+    this.onMention,
+    this.nomsParHandle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -431,9 +491,12 @@ class _ClipMedia extends StatelessWidget {
         if (post.texte != null && post.texte!.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-            child: Text(
+            child: TexteSocial(
               post.texte!,
-              style: TextStyle(color: MC.ivoire, fontSize: Tx.label, height: 1.4),
+              fontSize: Tx.label,
+              onHashtag: onHashtag,
+              onMention: onMention,
+              nomsMentions: nomsParHandle,
             ),
           ),
         if (post.mediaUrl != null)
@@ -524,7 +587,16 @@ class _ClipMedia extends StatelessWidget {
 
 class _TexteMedia extends StatelessWidget {
   final Post post;
-  const _TexteMedia({required this.post});
+  final ValueChanged<String>? onHashtag;
+  final ValueChanged<String>? onMention;
+  final Map<String, String>? nomsParHandle;
+
+  const _TexteMedia({
+    required this.post,
+    this.onHashtag,
+    this.onMention,
+    this.nomsParHandle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -540,9 +612,13 @@ class _TexteMedia extends StatelessWidget {
         borderRadius: BorderRadius.circular(Rd.md),
         border: Border.all(color: MC.ligne),
       ),
-      child: Text(
+      child: TexteSocial(
         post.texte!,
-        style: TextStyle(color: MC.ivoire, fontSize: Tx.body, height: 1.5),
+        fontSize: Tx.body,
+        height: 1.5,
+        onHashtag: onHashtag,
+        onMention: onMention,
+        nomsMentions: nomsParHandle,
       ),
     );
   }

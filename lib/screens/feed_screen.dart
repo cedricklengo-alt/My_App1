@@ -29,6 +29,11 @@ import '../widgets/avatar.dart';
 import '../widgets/feed/media_view.dart';
 import '../widgets/feed/post_card.dart';
 import '../widgets/feed/story_bar.dart';
+import '../widgets/social/champ_social.dart';
+import '../widgets/social/texte_social.dart';
+import 'hashtag_screen.dart';
+import 'notifications_screen.dart';
+import 'recherche_screen.dart';
 import 'call_sheet.dart';
 
 /// Les trois lectures du fil. Elles n'inventent rien : chacune interroge une
@@ -54,6 +59,9 @@ class _FeedScreenState extends State<FeedScreen> {
   List<StoryGroup> _groups = const [];
   int? _nextBefore;
   String? _nextCursor;
+
+  /// Notifications de mention non lues (badge de l'en-tête).
+  int? _nonLues;
 
   bool _loading = true;
   bool _loadingMore = false;
@@ -91,6 +99,7 @@ class _FeedScreenState extends State<FeedScreen> {
     //Lien partagé ouvert depuis l'extérieur : mbote://post/<id>
     Liens.post.addListener(_surLienPartage);
     _load();
+    _chargerBadge();
     _surLienPartage();
   }
 
@@ -123,7 +132,8 @@ class _FeedScreenState extends State<FeedScreen> {
       case _Onglet.tendances:
         return _api.discoverPage(tag: _tagFiltre);
       case _Onglet.pourToi:
-        return _api.feedPage();
+        // Classé par affinité : hashtags suivis, auteurs suivis, ville.
+        return _api.filPersonnalise();
     }
   }
 
@@ -135,6 +145,9 @@ class _FeedScreenState extends State<FeedScreen> {
       case _Onglet.tendances:
         return _api.discoverPage(tag: _tagFiltre, offset: _nextOffset);
       case _Onglet.pourToi:
+        // Le classement par affinité avance par décalage ; s'il n'est pas
+        // disponible, le repli chronologique utilise son curseur de date.
+        if (_nextOffset != null) return _api.filPersonnalise(offset: _nextOffset!);
         return _api.feedPage(before: _nextBefore, cursor: _nextCursor);
     }
   }
@@ -233,11 +246,15 @@ class _FeedScreenState extends State<FeedScreen> {
 
   Future<void> _loadMore() async {
     if (_loadingMore) return;
-    if (_onglet == _Onglet.tendances
-        ? _nextOffset == null
-        : _nextCursor == null) {
-      return;
-    }
+    // « Tendances » avance par décalage, les autres par curseur de date.
+    // « Pour toi » accepte les deux : décalage quand le classement est
+    // disponible, curseur de date en repli.
+    final bloque = switch (_onglet) {
+      _Onglet.tendances => _nextOffset == null,
+      _Onglet.pourToi => _nextOffset == null && _nextCursor == null,
+      _Onglet.abonnements => _nextCursor == null,
+    };
+    if (bloque) return;
     setState(() => _loadingMore = true);
     try {
       final page = await _lirePageSuivante();
@@ -427,6 +444,87 @@ class _FeedScreenState extends State<FeedScreen> {
       if (!mounted) return;
       _toast('Publication indisponible ou réservée à ses contacts');
     }
+  }
+
+  /// #hashtag → page dédiée (publications, abonnés, suivi, onglets).
+  void _ouvrirHashtag(String tag) {
+    if (tag.trim().isEmpty) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => HashtagScreen(tag: tag),
+    ));
+  }
+
+  /// @mention → profil de la personne. Le serveur fournit la correspondance
+  /// identifiant ↔ personne avec chaque publication ; à défaut (identifiant
+  /// inconnu ou compte supprimé), la recherche universelle prend le relais.
+  void _ouvrirMention(Post post, String handle) {
+    final connue = post.mentionsListe
+        .where((m) => m.handle.toLowerCase() == handle.toLowerCase())
+        .toList();
+    if (connue.isNotEmpty) {
+      _ouvrirProfil(connue.first.id, connue.first.name);
+      return;
+    }
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => RechercheScreen(
+        requeteInitiale: '@$handle',
+        onPersonne: (id) => _ouvrirProfil(id, handle),
+      ),
+    ));
+  }
+
+  /// Profil public d'une personne : ce qu'il faut pour décider de la suivre,
+  /// et ses publications visibles.
+  Future<void> _ouvrirProfil(String id, String nom) async {
+    try {
+      final profil = await _api.authorProfile(id);
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (_) => _ProfilPublic(profil: profil, nom: nom, api: _api),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _toast(friendlyError(e));
+    }
+  }
+
+  /// Boîte de réception des mentions.
+  Future<void> _ouvrirNotifications() async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => NotificationsScreen(
+        onOuvrirProfil: (id) => _ouvrirProfil(id, ''),
+        onOuvrirPublication: (postId) => _ouvrirPublicationId(postId),
+      ),
+    ));
+    if (!mounted) return;
+    setState(() => _nonLues = null);
+    _chargerBadge();
+  }
+
+  /// Ouvre une publication depuis son identifiant (notification, recherche).
+  Future<void> _ouvrirPublicationId(String id) async {
+    try {
+      final post = await _api.lirePublication(id);
+      if (!mounted) return;
+      setState(() {
+        if (!_posts.any((p) => p.id == post.id)) _posts = [post, ..._posts];
+      });
+      _scrollToTop();
+    } catch (e) {
+      if (!mounted) return;
+      _toast(friendlyError(e));
+    }
+  }
+
+  /// Badge de l'en-tête : nombre de mentions non lues.
+  void _chargerBadge() {
+    _api.notificationsNonLues().then((n) {
+      if (!mounted) return;
+      setState(() => _nonLues = n);
+    }).catchError((_) {/* indicateur non vital */});
   }
 
   /// Lien de la publication : celui fourni par le serveur, sinon reconstruit
@@ -869,6 +967,18 @@ class _FeedScreenState extends State<FeedScreen> {
                 });
               },
               onQuery: (v) => setState(() => _query = v),
+              nonLues: _nonLues,
+              onNotifications: _ouvrirNotifications,
+              onRechercheUniverselle: () {
+                final q = _search.text.trim();
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => RechercheScreen(
+                    requeteInitiale: q.isEmpty ? null : q,
+                    onPersonne: (id) => _ouvrirProfil(id, ''),
+                    onPublication: _ouvrirPublicationId,
+                  ),
+                ));
+              },
             ),
 
             // Choix de lecture : tout · abonnements · tendances
@@ -952,6 +1062,8 @@ class _FeedScreenState extends State<FeedScreen> {
                     dataSaverMode: _dataSaver,
                     onFollow: mine ? null : () => _basculerSuivi(post),
                     onTag: _ouvrirTag,
+                    onHashtag: _ouvrirHashtag,
+                    onMention: (handle) => _ouvrirMention(post, handle),
                     //Jamais d'appel sur sa propre publication (double
                     // sécurité : la carte le vérifie aussi).
                     onCall: (!mine && post.canCall) ? () => _call(post) : null,
@@ -1022,6 +1134,15 @@ class _FeedAppBar extends StatelessWidget {
   final VoidCallback onToggleSearch;
   final ValueChanged<String> onQuery;
 
+  /// Recherche universelle (hashtags, personnes, publications…).
+  final VoidCallback onRechercheUniverselle;
+
+  /// Boîte de réception des mentions.
+  final VoidCallback onNotifications;
+
+  /// Mentions non lues, affichées en pastille.
+  final int? nonLues;
+
   const _FeedAppBar({
     required this.dataSaver,
     required this.searching,
@@ -1029,6 +1150,9 @@ class _FeedAppBar extends StatelessWidget {
     required this.onToggleDataSaver,
     required this.onToggleSearch,
     required this.onQuery,
+    required this.onRechercheUniverselle,
+    required this.onNotifications,
+    this.nonLues,
   });
 
   @override
@@ -1043,6 +1167,13 @@ class _FeedAppBar extends StatelessWidget {
               controller: searchController,
               autofocus: true,
               onChanged: onQuery,
+              // Valider une recherche depuis la barre ouvre la recherche
+              // universelle : hashtags, personnes, publications, statuts.
+              onSubmitted: (v) {
+                if (v.trim().isEmpty) return;
+                onRechercheUniverselle();
+              },
+              textInputAction: TextInputAction.search,
               style: TextStyle(color: MC.ivoire, fontSize: Tx.bodyLg),
               decoration: InputDecoration(
                 hintText: 'Rechercher dans le fil…',
@@ -1085,6 +1216,39 @@ class _FeedAppBar extends StatelessWidget {
           ),
           tooltip: searching ? 'Fermer la recherche' : 'Rechercher',
           onPressed: onToggleSearch,
+        ),
+        // Cloche : mentions reçues. La pastille ne s'affiche que s'il y a du
+        // nouveau — pas de point rouge permanent.
+        Stack(
+          alignment: Alignment.topRight,
+          children: [
+            IconButton(
+              icon: Icon(Icons.notifications_none_rounded, color: MC.kaki, size: 21),
+              tooltip: 'Notifications',
+              onPressed: onNotifications,
+            ),
+            if ((nonLues ?? 0) > 0)
+              Positioned(
+                right: 6,
+                top: 6,
+                child: IgnorePointer(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: MC.rouge,
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Text(
+                      (nonLues! > 99 ? '99+' : '$nonLues'),
+                      style: TextStyle(
+                          color: MC.ivoire,
+                          fontSize: Tx.caption,
+                          fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
         IconButton(
           icon: Icon(
@@ -1183,6 +1347,116 @@ class _EmptyState extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Profil public d'une personne mentionnée : identité, abonnés, publications.
+/// C'est ce qui s'ouvre quand on appuie sur « @cedrick ».
+class _ProfilPublic extends StatelessWidget {
+  final Map profil;
+  final String nom;
+  final Api api;
+
+  const _ProfilPublic({required this.profil, required this.nom, required this.api});
+
+  @override
+  Widget build(BuildContext context) {
+    final auteur = (profil['auteur'] as Map?) ?? const {};
+    final posts = ((profil['posts'] as List?) ?? const []);
+    final handle = auteur['handle'] as String?;
+    final suivi = auteur['suivi'] == 1 || auteur['suivi'] == true;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: MC.nuit2,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: MC.ligne, borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              MboteAvatar(
+                name: '${auteur['name'] ?? nom}',
+                size: 48,
+                image: (auteur['avatar'] as String?)?.isNotEmpty == true
+                    ? NetworkImage(auteur['avatar'] as String)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${auteur['name'] ?? nom}',
+                      style: TextStyle(
+                          color: MC.ivoire,
+                          fontSize: Tx.subtitle,
+                          fontWeight: FontWeight.w800),
+                    ),
+                    if (handle != null && handle.isNotEmpty)
+                      Text('@$handle',
+                          style: TextStyle(
+                              color: MC.braise,
+                              fontSize: Tx.label,
+                              fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+              if (suivi)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: MC.savane.withValues(alpha: .16),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text('Suivi',
+                      style: TextStyle(
+                          color: MC.savane,
+                          fontSize: Tx.caption,
+                          fontWeight: FontWeight.w700)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '${posts.length} publication(s) visible(s) pour toi',
+            style: TextStyle(color: MC.kaki, fontSize: Tx.caption),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: MC.soleil,
+                side: BorderSide(color: MC.soleil.withValues(alpha: .5)),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => RechercheScreen(
+                    requeteInitiale: handle == null ? null : '@$handle',
+                  ),
+                ));
+              },
+              child: const Text('Voir ses publications'),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2344,12 +2618,13 @@ class _CreateSheetState extends State<_CreateSheet> {
                 const SizedBox(height: 12),
               ],
 
-              // Texte
-              _Field(
+              // Texte : hashtags et mentions proposés pendant la frappe,
+              // compteurs en dessous (10 de chaque, la règle du serveur).
+              ChampSocial(
                 controller: _texte,
                 hint: _type == 'event'
                     ? 'Description (facultatif)'
-                    : 'Quoi de neuf ?',
+                    : 'Quoi de neuf ? Écris #hashtag ou @quelqu’un',
                 maxLines: 4,
                 onChanged: (_) => setState(() {}),
               ),
@@ -2479,13 +2754,11 @@ class _TypeChip extends StatelessWidget {
 class _Field extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
-  final int maxLines;
   final ValueChanged<String>? onChanged;
 
   const _Field({
     required this.controller,
     required this.hint,
-    this.maxLines = 1,
     this.onChanged,
   });
 
@@ -2493,7 +2766,6 @@ class _Field extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
-      maxLines: maxLines,
       onChanged: onChanged,
       style: TextStyle(color: MC.ivoire, fontSize: Tx.body),
       decoration: InputDecoration(
@@ -2667,11 +2939,25 @@ class _StoryViewerState extends State<_StoryViewer> {
               Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
-                  child: Text(
+                  // Hashtags et mentions d'un statut sont cliquables, comme
+                  // dans une publication : c'est le même texte, donc le même
+                  // comportement.
+                  child: TexteSocial(
                     story.texte ?? '',
+                    fontSize: Tx.subtitle,
+                    height: 1.5,
                     textAlign: TextAlign.center,
-                    style:
-                        TextStyle(color: MC.ivoire, fontSize: Tx.subtitle, height: 1.5),
+                    onHashtag: (t) {
+                      Navigator.of(context).pop();
+                      Navigator.of(context)
+                          .push(MaterialPageRoute(builder: (_) => HashtagScreen(tag: t)));
+                    },
+                    onMention: (h) {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => RechercheScreen(requeteInitiale: '@$h'),
+                      ));
+                    },
                   ),
                 ),
               ),
@@ -2749,17 +3035,22 @@ class _StoryViewerState extends State<_StoryViewer> {
                 left: 18,
                 right: 18,
                 bottom: 60,
-                child: Text(
+                child: TexteSocial(
                   story.texte!,
+                  fontSize: Tx.bodyLg,
+                  height: 1.4,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: MC.ivoire,
-                    fontSize: Tx.bodyLg,
-                    height: 1.4,
-                    shadows: const [
-                      Shadow(color: Colors.black, blurRadius: 8),
-                    ],
-                  ),
+                  onHashtag: (t) {
+                    Navigator.of(context).pop();
+                    Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => HashtagScreen(tag: t)));
+                  },
+                  onMention: (h) {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => RechercheScreen(requeteInitiale: '@$h'),
+                    ));
+                  },
                 ),
               ),
           ],
