@@ -452,7 +452,7 @@ class ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendFile() async {
     try {
-      final r = await FilePicker.pickFiles(withData: true);
+      final r = await FilePicker.platform.pickFiles(withData: true);
       if (r == null || r.files.isEmpty) return;
       final f = r.files.first;
       final bytes = f.bytes ??

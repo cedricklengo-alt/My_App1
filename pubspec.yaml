@@ -27,7 +27,14 @@ dependencies:
   audioplayers: ^6.8.1 # 🗣️ Lokota : écoute des notes vocales
   path_provider: ^2.1.5 # fichier temporaire d'enregistrement
   intl: ^0.20.3
-  file_picker: ^11.0.3
+  # ⚠️ Volontairement bloqué en 10.x : à partir de 11.0.0, le build.gradle du
+  # plugin n'applique plus le Kotlin Gradle Plugin dès qu'il voit AGP ≥ 9, en
+  # supposant que le « Built-in Kotlin » d'AGP 9 est actif. Or le gabarit Flutter
+  # 3.47 met `android.builtInKotlin=false` : les sources Kotlin du plugin ne sont
+  # alors jamais compilées et le build Android échoue sur
+  # « cannot find symbol: FilePickerPlugin ». La 10.3.3 applique KGP comme les
+  # autres plugins (firebase_core, share_plus…) et compile sans problème.
+  file_picker: ^10.3.3
 
 dev_dependencies:
   flutter_test:
