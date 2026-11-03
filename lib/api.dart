@@ -542,6 +542,13 @@ class Api {
   Future<Map> authorProfile(String auteurId) async =>
       await _send('GET', '/feed/authors/$auteurId');
 
+  /// Lit une publication précise, par son identifiant. Sert quand un lien
+  /// partagé ramène dans l'application (`mbote://post/<id>`).
+  Future<Post> lirePublication(String id) async {
+    final r = await _send('GET', '/feed/posts/$id');
+    return Post.fromJson(Map<String, dynamic>.from(r['post'] as Map));
+  }
+
   /// Signale un partage (lien copié ou envoi vers une autre application).
   /// Renvoie `{partages, share_url}`.
   Future<Map> markShared(String id) async =>

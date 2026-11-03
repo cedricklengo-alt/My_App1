@@ -55,6 +55,16 @@ class FakeApi extends Api {
         comments: comments,
       );
 
+  /// Erreur éventuelle de lecture d'une publication (lien partagé).
+  String? erreurLecture;
+
+  @override
+  Future<Post> lirePublication(String id) async {
+    calls.add('lirePublication($id)');
+    if (erreurLecture != null) throw Exception(erreurLecture);
+    return FakeApi.post(id, texte: 'Texte de la publication $id');
+  }
+
   @override
   Future<FeedPage> feedPage({int? before, String? cursor}) async {
     calls.add('feedPage($cursor)');

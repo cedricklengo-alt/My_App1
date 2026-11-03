@@ -13,6 +13,7 @@ import 'screens/onboarding.dart';
 import 'screens/shell.dart';
 import 'screens/group_call.dart';
 import 'screens/incoming_call.dart';
+import 'liens.dart';
 import 'rtc.dart';
 
 /// Clé du navigateur racine : permet d'afficher l'écran d'appel entrant
@@ -66,6 +67,8 @@ class _MboteAppState extends State<MboteApp> with WidgetsBindingObserver {
     //Invitations à un appel de groupe (l'écran d'appel de groupe, quand il
     // est ouvert, écoute la même salle de son côté).
     Rtc.addGroupListener(_onGroupMessage);
+    //Liens partagés mbote://post/<id> : la publication s'ouvre dans le fil.
+    Liens.demarrer();
   }
 
   @override

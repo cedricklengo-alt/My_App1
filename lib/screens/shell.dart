@@ -17,6 +17,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n.dart';
+import '../liens.dart';
 import '../state.dart';
 import '../tabs.dart';
 import '../design.dart';
@@ -51,6 +52,24 @@ class ShellScreen extends StatefulWidget {
 
 class _ShellScreenState extends State<ShellScreen> {
   int _tab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Une publication ouverte depuis un lien partagé s'affiche dans le fil.
+    Liens.post.addListener(_surLien);
+  }
+
+  @override
+  void dispose() {
+    Liens.post.removeListener(_surLien);
+    super.dispose();
+  }
+
+  void _surLien() {
+    if (Liens.post.value == null || !mounted) return;
+    if (_tab != 0) setState(() => _tab = 0);
+  }
 
   // Les pages permanentes (IndexedStack) : elles restent vivantes, donc les
   // appels entrants et les messages arrivent même sur un autre onglet.

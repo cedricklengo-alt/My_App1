@@ -39,6 +39,14 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- 🔗 Liens partagés : mbote://post/<id> — « Ouvrir dans MboteCall »
+                 depuis la page publique d'une publication. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="mbote" android:host="post"/>
+            </intent-filter>
         </activity>
         <meta-data
             android:name="flutterEmbedding"

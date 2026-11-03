@@ -23,6 +23,7 @@ import '../state.dart';
 import '../tabs.dart';
 import '../design.dart';
 import '../l10n.dart';
+import '../liens.dart';
 import '../theme.dart';
 import '../widgets/avatar.dart';
 import '../widgets/feed/media_view.dart';
@@ -87,11 +88,15 @@ class _FeedScreenState extends State<FeedScreen> {
     _api = widget.api ?? context.read<AppState>().api;
     _scroll.addListener(_onScroll);
     Tabs.listen(Tabs.feed, _onTabRefresh);
+    //Lien partagé ouvert depuis l'extérieur : mbote://post/<id>
+    Liens.post.addListener(_surLienPartage);
     _load();
+    _surLienPartage();
   }
 
   @override
   void dispose() {
+    Liens.post.removeListener(_surLienPartage);
     Tabs.stopListening(Tabs.feed, _onTabRefresh);
     _scroll.dispose();
     _search.dispose();
@@ -387,6 +392,42 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
  // Partage ───────────────────────────────────────────
+
+  /// Un lien partagé (`mbote://post/<id>`) ramène ici : on charge la
+  /// publication et on l'affiche par-dessus le fil, sans perdre sa place.
+  Future<void> _surLienPartage() async {
+    final id = Liens.post.value;
+    if (id == null || !mounted) return;
+    Liens.post.value = null;
+
+    try {
+      final post = await _api.lirePublication(id);
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (_) => _PublicationPartagee(
+          post: post,
+          myId: _myId,
+          dataSaver: _dataSaver,
+          onLike: () {
+            Navigator.pop(context);
+            _toggleLike(post);
+          },
+          onComment: () {
+            Navigator.pop(context);
+            _openComments(post);
+          },
+          onShare: () => _share(post),
+          onCall: (!post.aMoi && post.canCall) ? () => _call(post) : null,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      _toast('Publication indisponible ou réservée à ses contacts');
+    }
+  }
 
   /// Lien de la publication : celui fourni par le serveur, sinon reconstruit
   /// depuis l'adresse de l'API (le serveur ne fournit `share_url` que s'il
@@ -1140,6 +1181,82 @@ class _EmptyState extends StatelessWidget {
                 label: const Text('Publier quelque chose'),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Publication ouverte depuis un lien partagé : la carte complète, comme dans
+/// le fil, avec un bandeau qui rappelle d'où l'on vient.
+class _PublicationPartagee extends StatelessWidget {
+  final Post post;
+  final String? myId;
+  final bool dataSaver;
+  final VoidCallback onLike;
+  final VoidCallback onComment;
+  final VoidCallback onShare;
+  final VoidCallback? onCall;
+
+  const _PublicationPartagee({
+    required this.post,
+    required this.myId,
+    required this.dataSaver,
+    required this.onLike,
+    required this.onComment,
+    required this.onShare,
+    this.onCall,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: .72,
+      minChildSize: .4,
+      maxChildSize: .95,
+      expand: false,
+      builder: (context, controller) => Container(
+        decoration: BoxDecoration(
+          color: MC.nuit,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: ListView(
+          controller: controller,
+          padding: const EdgeInsets.only(bottom: 24),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 10, 4),
+              child: Row(
+                children: [
+                  Icon(Icons.link_rounded, size: 16, color: MC.soleil),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Publication partagée',
+                      style: TextStyle(
+                          color: MC.ivoire,
+                          fontSize: Tx.label,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    tooltip: 'Fermer',
+                    icon: Icon(Icons.close_rounded, color: MC.kaki, size: 20),
+                  ),
+                ],
+              ),
+            ),
+            PostCard(
+              post: post,
+              myId: myId,
+              dataSaverMode: dataSaver,
+              onLike: onLike,
+              onComment: onComment,
+              onShare: onShare,
+              onCall: onCall,
+            ),
           ],
         ),
       ),
