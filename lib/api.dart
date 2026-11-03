@@ -572,6 +572,7 @@ class Api {
     List<String> eventTags = const [],
     int? clipDureeSeconds,
     String? ville,
+    String? thumbUrl,
     PostVisibilite visibilite = PostVisibilite.public,
     PostOrigine origine = PostOrigine.rdc,
     PostDuree duree = PostDuree.permanent,
@@ -583,6 +584,7 @@ class Api {
       'duree': duree == PostDuree.h24 ? 'h24' : 'permanent',
       if (texte != null && texte.trim().isNotEmpty) 'texte': texte.trim(),
       if (mediaUrl != null) 'media_url': mediaUrl,
+      if (thumbUrl != null && thumbUrl.isNotEmpty) 'thumb_url': thumbUrl,
       if (eventTitle != null) 'event_title': eventTitle,
       if (eventDate != null) 'event_date': eventDate.millisecondsSinceEpoch,
       if (eventLieu != null) 'event_lieu': eventLieu,
@@ -668,7 +670,12 @@ class Api {
   }
 
   /// Envoie un fichier (multipart `file`) et renvoie son URL publique.
-  Future<String> uploadMedia(String filePath) async {
+  /// Envoi d'un fichier, avec la MINIATURE quand le serveur en produit une.
+  ///
+  /// Une vidéo revient avec `thumb_url` : la première image, capturée par le
+  /// serveur au moment de l'envoi. On la transmet ensuite à la publication, ce
+  /// qui permet au fil d'afficher un aperçu sans télécharger la vidéo.
+  Future<UploadResult> uploadMediaFull(String filePath) async {
     final uri = Uri.parse('${Config.apiBase}/upload');
     final req = http.MultipartRequest('POST', uri);
     if (token != null) req.headers['Authorization'] = 'Bearer $token';
@@ -702,11 +709,38 @@ class Api {
     if (url == null || url.isEmpty) {
       throw ApiException('Réponse d’envoi invalide');
     }
-    return url;
+    final thumb = data is Map ? data['thumb_url']?.toString() : null;
+    return UploadResult(
+      url: url,
+      thumbUrl: (thumb == null || thumb.isEmpty) ? null : thumb,
+      estVideo: data is Map && data['type'] == 'video',
+    );
   }
+
+  /// Compatibilité : l'ancien appel ne garde que l'URL du fichier.
+  Future<String> uploadMedia(String filePath) async =>
+      (await uploadMediaFull(filePath)).url;
 }
 
 /// Une page du fil + curseur de continuation.
+/// Résultat d'un envoi de fichier.
+class UploadResult {
+  /// URL du fichier envoyé (photo ou vidéo).
+  final String url;
+
+  /// Miniature produite par le serveur (vidéos uniquement, `null` sinon).
+  final String? thumbUrl;
+
+  /// Le fichier envoyé est-il une vidéo ?
+  final bool estVideo;
+
+  const UploadResult({
+    required this.url,
+    this.thumbUrl,
+    this.estVideo = false,
+  });
+}
+
 class FeedPage {
   final List<Post> posts;
 

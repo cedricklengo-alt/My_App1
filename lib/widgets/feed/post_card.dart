@@ -392,7 +392,12 @@ class _PhotoMedia extends StatelessWidget {
         if (post.mediaUrl != null)
           isVideoUrl(post.mediaUrl)
               // Une « photo » qui pointe en réalité vers une vidéo : on la joue.
-              ? MboteVideo(url: post.mediaUrl!, height: 220)
+              ? MboteVideo(
+                  url: post.mediaUrl!,
+                  height: 220,
+                  posterUrl: post.thumbUrl,
+                  dureeLabel: post.clipDureeLabel,
+                )
               : MboteImage(url: post.mediaUrl!, height: 220)
         else
           Container(
@@ -429,8 +434,15 @@ class _ClipMedia extends StatelessWidget {
             children: [
               //La vidéo démarre au premier appui : aucune donnée consommée
               // avant (important sur une connexion 3G/4G limitée).
-              MboteVideo(url: post.mediaUrl!, height: 220),
-              if (post.clipDureeLabel.isNotEmpty)
+              MboteVideo(
+                url: post.mediaUrl!,
+                height: 220,
+                posterUrl: post.thumbUrl,
+                dureeLabel: post.clipDureeLabel,
+              ),
+              // La durée est déjà affichée par la miniature quand elle existe :
+              // la superposer deux fois ferait doublon sur l'image.
+              if (post.clipDureeLabel.isNotEmpty && post.thumbUrl == null)
                 Positioned(
                   bottom: 8,
                   right: 10,

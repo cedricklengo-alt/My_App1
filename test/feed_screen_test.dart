@@ -127,6 +127,7 @@ class FakeApi extends Api {
     List<String> eventTags = const [],
     int? clipDureeSeconds,
     String? ville,
+    String? thumbUrl,
     PostVisibilite visibilite = PostVisibilite.contacts,
     PostOrigine origine = PostOrigine.rdc,
     PostDuree duree = PostDuree.permanent,

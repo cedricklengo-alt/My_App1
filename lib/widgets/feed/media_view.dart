@@ -126,6 +126,101 @@ class _RetryNetworkImageState extends State<_RetryNetworkImage> {
   }
 }
 
+/// Aperçu d'une vidéo : la miniature capturée par le serveur, un bouton de
+/// lecture par-dessus et la durée en bas à droite.
+///
+/// Si la miniature ne se charge pas (fichier retiré, réseau capricieux), on
+/// retombe proprement sur un fond neutre et le bouton reste utilisable : la
+/// lecture, elle, ne dépend pas de l'image d'aperçu.
+class _PosterVideo extends StatelessWidget {
+  final String url;
+  final double height;
+  final String? dureeLabel;
+  final VoidCallback onPlay;
+
+  const _PosterVideo({
+    required this.url,
+    required this.height,
+    required this.onPlay,
+    this.dureeLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Lire la vidéo${dureeLabel != null ? ' ($dureeLabel)' : ''}',
+      child: SizedBox(
+        height: height,
+        width: double.infinity,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.network(
+              url,
+              fit: BoxFit.cover,
+              excludeFromSemantics: true,
+              errorBuilder: (_, __, ___) => Container(color: MC.nuit3),
+              loadingBuilder: (_, child, progress) =>
+                  progress == null ? child : Container(color: MC.nuit3),
+            ),
+            // Voile sombre : garantit que le bouton reste visible sur une image
+            // claire.
+            Container(color: Colors.black.withValues(alpha: .18)),
+            Center(
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: MC.soleil,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: .35),
+                      blurRadius: 12,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: Icon(Icons.play_arrow_rounded,
+                    color: MC.nuit, size: 34),
+              ),
+            ),
+            if (dureeLabel != null && dureeLabel!.isNotEmpty)
+              Positioned(
+                right: 8,
+                bottom: 8,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: .65),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    dureeLabel!,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: Tx.caption,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            // Le bouton de lecture est aussi une cible tactile explicite.
+            Positioned.fill(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(onTap: onPlay),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 ///Vidéo courte jouée **dans** la carte (pas d'écran intermédiaire).
 ///
 /// Rien n'est téléchargé avant l'appui sur : sur une connexion 3G congolaise,
@@ -136,12 +231,24 @@ class MboteVideo extends StatefulWidget {
   final bool autoPlay;
   final bool loop;
 
+  /// Miniature fournie par le serveur (première image de la vidéo, capturée à
+  /// l'envoi). Quand elle existe, l'aperçu s'affiche **immédiatement** et la
+  /// vidéo n'est téléchargée qu'à l'appui sur la lecture : sur une connexion
+  /// mobile congolaise, c'est la différence entre un fil qui défile et un fil
+  /// qui attend.
+  final String? posterUrl;
+
+  /// Durée affichée sur la miniature (ex. « 0:42 »).
+  final String? dureeLabel;
+
   const MboteVideo({
     super.key,
     required this.url,
     this.height = 220,
     this.autoPlay = false,
     this.loop = true,
+    this.posterUrl,
+    this.dureeLabel,
   });
 
   @override
@@ -233,6 +340,22 @@ class _MboteVideoState extends State<MboteVideo> {
     }
 
     if (!_ready) {
+      // 1. Miniature disponible : on la montre tout de suite, avec le bouton de
+      //    lecture par-dessus. Rien à télécharger avant l'appui.
+      final poster = widget.posterUrl;
+      if (poster != null && poster.isNotEmpty && !_starting) {
+        return GestureDetector(
+          onTap: _start,
+          child: _PosterVideo(
+            url: poster,
+            height: widget.height,
+            dureeLabel: widget.dureeLabel,
+            onPlay: _start,
+          ),
+        );
+      }
+
+      // 2. Pas de miniature : comportement d'origine (cadre + bouton).
       return GestureDetector(
         onTap: _starting ? null : _start,
         child: Container(

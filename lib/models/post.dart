@@ -94,6 +94,10 @@ class Post {
   final PostVisibilite visibilite;
   final PostOrigine origine;
 
+  /// Miniature de la vidéo, capturée par le serveur à l'envoi du fichier.
+  /// `null` pour une photo, un texte ou une vidéo publiée avant les miniatures.
+  final String? thumbUrl;
+
   /// Nombre de lectures (une seule par personne, la vue de l'auteur exclue).
   final int vues;
 
@@ -130,6 +134,7 @@ class Post {
     this.duree = PostDuree.permanent,
     this.visibilite = PostVisibilite.contacts,
     this.origine = PostOrigine.rdc,
+    this.thumbUrl,
     this.vues = 0,
     this.tags = const [],
     this.suivi = false,
@@ -178,6 +183,9 @@ class Post {
       duree: postDureeFrom(j['duree']),
       visibilite: postVisibiliteFrom(j['visibilite']),
       origine: postOrigineFrom(j['origine']),
+      thumbUrl: (j['thumb_url'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : j['thumb_url'] as String,
       vues: (j['vues'] as num?)?.toInt() ?? 0,
       tags: (j['tags'] as List?)?.map((e) => '$e').toList(growable: false) ??
           const [],
@@ -212,6 +220,7 @@ class Post {
     bool? liked,
     int? vues,
     bool? suivi,
+    String? thumbUrl,
     PostVisibilite? visibilite,
   }) =>
       Post(
@@ -236,6 +245,7 @@ class Post {
         duree: duree,
         visibilite: visibilite ?? this.visibilite,
         origine: origine,
+        thumbUrl: thumbUrl ?? this.thumbUrl,
         vues: vues ?? this.vues,
         tags: tags,
         suivi: suivi ?? this.suivi,

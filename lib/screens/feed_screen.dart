@@ -512,6 +512,7 @@ class _FeedScreenState extends State<FeedScreen> {
         eventDate: draft['event_date'] as DateTime?,
         eventLieu: draft['event_lieu'] as String?,
         eventTags: (draft['event_tags'] as List?)?.cast<String>() ?? const [],
+        thumbUrl: draft['thumb_url'] as String?,
         visibilite: postVisibiliteFrom(draft['visibilite'] ?? 'public'),
         ville: draft['ville'] as String?,
       );
@@ -1663,6 +1664,11 @@ class _CreateSheetState extends State<_CreateSheet> {
   // dans leur répertoire — c'est-à-dire, en pratique, par personne.
   String _visibilite = 'public';
   String? _mediaUrl;
+
+  /// Miniature de la vidéo, produite par le serveur au moment de l'envoi du
+  /// fichier. On la transmet avec la publication pour que le fil affiche un
+  /// aperçu immédiat, sans télécharger la vidéo.
+  String? _thumbUrl;
   int? _clipSec; // durée de la vidéo, quand on publie un clip
   String? _ville;
   DateTime? _eventDate;
@@ -1688,10 +1694,11 @@ class _CreateSheetState extends State<_CreateSheet> {
       if (file == null || !mounted) return;
       setState(() => _uploading = true);
       // On envoie la photo au serveur ; l'URL publique sera stockée dans le post.
-      final url = await _apiUpload(file);
+      final envoi = await _apiUpload(file);
       if (!mounted) return;
       setState(() {
-        _mediaUrl = url;
+        _mediaUrl = envoi.url;
+        _thumbUrl = envoi.thumbUrl;
         _uploading = false;
         _type = 'photo';
       });
@@ -1714,10 +1721,12 @@ class _CreateSheetState extends State<_CreateSheet> {
       if (file == null || !mounted) return;
       setState(() => _uploading = true);
       final duree = await _videoSeconds(file.path);
-      final url = await _apiUpload(file);
+      final envoi = await _apiUpload(file);
       if (!mounted) return;
       setState(() {
-        _mediaUrl = url;
+        _mediaUrl = envoi.url;
+        // 🖼️ Aperçu de la vidéo : le serveur l'a capturé pendant l'envoi.
+        _thumbUrl = envoi.thumbUrl;
         _clipSec = duree;
         _uploading = false;
         _type = 'clip';
@@ -1748,9 +1757,9 @@ class _CreateSheetState extends State<_CreateSheet> {
     }
   }
 
-  Future<String> _apiUpload(XFile file) async {
+  Future<UploadResult> _apiUpload(XFile file) async {
     final api = context.read<AppState>().api;
-    return api.uploadMedia(file.path);
+    return api.uploadMediaFull(file.path);
   }
 
   Future<void> _pickDate() async {
@@ -1783,6 +1792,7 @@ class _CreateSheetState extends State<_CreateSheet> {
       'type': _type,
       'texte': _texte.text.trim(),
       'media_url': _mediaUrl,
+      'thumb_url': _thumbUrl,
       'clip_duree_seconds': _clipSec,
       'event_title': _titre.text.trim(),
       'event_date': _eventDate,
@@ -1869,6 +1879,8 @@ class _CreateSheetState extends State<_CreateSheet> {
 
               // Photo / Vidéo
               if (_type == 'photo' || _type == 'clip') ...[
+                // Aperçu : pour une vidéo, la miniature produite par le
+                // serveur (elle existe déjà, autant la montrer tout de suite).
                 if (_mediaUrl == null)
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
@@ -1900,8 +1912,14 @@ class _CreateSheetState extends State<_CreateSheet> {
                     child: Stack(
                       children: [
                         Image.network(
-                          _mediaUrl!,
-                          semanticLabel: L10n.t('photo'),
+                          // Pour une vidéo, la miniature capturée par le
+                          // serveur ; `Image.network` sur un MP4 échouerait.
+                          (_type == 'clip' && _thumbUrl != null)
+                              ? _thumbUrl!
+                              : _mediaUrl!,
+                          semanticLabel: _type == 'clip'
+                              ? 'aperçu de la vidéo'
+                              : L10n.t('photo'),
                           height: 150,
                           width: double.infinity,
                           fit: BoxFit.cover,
@@ -1923,7 +1941,10 @@ class _CreateSheetState extends State<_CreateSheet> {
                               backgroundColor:
                                   Colors.black.withValues(alpha: .55),
                             ),
-                            onPressed: () => setState(() => _mediaUrl = null),
+                            onPressed: () => setState(() {
+                              _mediaUrl = null;
+                              _thumbUrl = null;
+                            }),
                             icon: Icon(Icons.close_rounded,
                                 size: 16, color: MC.ivoire),
                           ),

@@ -210,6 +210,93 @@ void main() {
     await auteur.api.deletePost(p.id);
   });
 
+  test('une vidéo envoyée arrive avec sa miniature dans le fil', () async {
+    final auteur = await login('+2438210$suffix', 'Auteur Vidéo');
+    final lecteur = await login('+2438211$suffix', 'Lecteur Vidéo');
+
+    // 1. Fabrique une vraie vidéo de test (2 s) avec le ffmpeg du backend.
+    final video = File('${Directory.systemTemp.path}/mbote-it-$suffix.mp4');
+    final ffmpeg = Process.runSync(
+      'node',
+      ['-p', 'require("ffmpeg-static")'],
+      workingDirectory: backendDir,
+      stdoutEncoding: const SystemEncoding(),
+    );
+    final binaire = '${ffmpeg.stdout}'.trim();
+    expect(File(binaire).existsSync(), isTrue,
+        reason: 'le backend doit fournir ffmpeg-static');
+    final rendu = Process.runSync(binaire, [
+      '-hide_banner', '-loglevel', 'error', '-y',
+      '-f', 'lavfi', '-i', 'testsrc=size=320x240:rate=15:duration=2',
+      '-pix_fmt', 'yuv420p', '-movflags', '+faststart', video.path,
+    ]);
+    expect(rendu.exitCode, 0, reason: 'fabrication de la vidéo de test');
+
+    // 2. Envoi : le serveur capture la miniature à ce moment-là.
+    final envoi = await auteur.api.uploadMediaFull(video.path);
+    expect(envoi.estVideo, isTrue);
+    expect(envoi.thumbUrl, isNotNull,
+        reason: 'le serveur doit produire une miniature pour la vidéo');
+
+    // 3. Publication du clip avec cette miniature.
+    final clip = await auteur.api.createPost(
+      type: PostType.clip,
+      mediaUrl: envoi.url,
+      thumbUrl: envoi.thumbUrl,
+      clipDureeSeconds: 2,
+    );
+    expect(clip.thumbUrl, envoi.thumbUrl);
+
+    // 4. Un autre utilisateur la reçoit, miniature comprise : le fil peut
+    //    afficher un aperçu sans télécharger la vidéo.
+    final fil = await lecteur.api.feedPage();
+    final relu = fil.posts.firstWhere((p) => p.id == clip.id);
+    expect(relu.thumbUrl, envoi.thumbUrl);
+
+    // 5. La miniature est une vraie image, servie par le serveur.
+    final http = HttpClient();
+    final reponse = await (await http.getUrl(Uri.parse(relu.thumbUrl!))).close();
+    final octets = await reponse.fold<List<int>>(<int>[], (a, b) => a..addAll(b));
+    expect(reponse.statusCode, 200);
+    expect(reponse.headers.contentType?.mimeType, 'image/jpeg');
+    expect(octets.length, greaterThan(500));
+    expect(octets[0], 0xFF); // signature JPEG
+    expect(octets[1], 0xD8);
+    http.close(force: true);
+
+    await auteur.api.deletePost(clip.id);
+    try { video.deleteSync(); } catch (_) {/* déjà parti */}
+  });
+
+  test('un clip publié sans miniature en reçoit une quand même', () async {
+    final auteur = await login('+2438212$suffix', 'Auteur Repli');
+
+    final video = File('${Directory.systemTemp.path}/mbote-it-repli-$suffix.mp4');
+    final ffmpeg = Process.runSync('node', ['-p', 'require("ffmpeg-static")'],
+        workingDirectory: backendDir, stdoutEncoding: const SystemEncoding());
+    final binaire = '${ffmpeg.stdout}'.trim();
+    Process.runSync(binaire, [
+      '-hide_banner', '-loglevel', 'error', '-y',
+      '-f', 'lavfi', '-i', 'testsrc=size=320x240:rate=15:duration=2',
+      '-pix_fmt', 'yuv420p', video.path,
+    ]);
+
+    final envoi = await auteur.api.uploadMediaFull(video.path);
+    // On publie volontairement SANS transmettre la miniature : c'est ce que
+    // fait une application ancienne. Le serveur doit la retrouver seul.
+    final clip = await auteur.api.createPost(
+      type: PostType.clip,
+      mediaUrl: envoi.url,
+      clipDureeSeconds: 2,
+    );
+    expect(clip.thumbUrl, isNotNull,
+        reason: 'le serveur capture la miniature même si l’app ne l’envoie pas');
+    expect(clip.thumbUrl!.endsWith('.jpg'), isTrue);
+
+    await auteur.api.deletePost(clip.id);
+    try { video.deleteSync(); } catch (_) {/* déjà parti */}
+  });
+
   test('les mots-clés alimentent les tendances et le filtrage', () async {
     final auteur = await login('+2438208$suffix', 'Auteur Tags');
     final lecteur = await login('+2438209$suffix', 'Lecteur Tags');
