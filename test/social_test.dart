@@ -119,6 +119,11 @@ class FakeSocial extends Api {
             'texte': n.texte,
             'lu': n.lu ? 1 : 0,
             'created_at': n.createdAt.millisecondsSinceEpoch,
+            'message': n.message,
+            'nb_acteurs': n.nbActeurs,
+            'acteurs': [
+              for (final a in n.acteurs) {'id': a.id, 'name': a.name},
+            ],
             'expediteur': n.expediteur == null
                 ? null
                 : {'id': n.expediteur!.id, 'name': n.expediteur!.name},
@@ -431,7 +436,10 @@ void main() {
     await tester.pumpWidget(wrap(const NotificationsScreen()));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Cédrick Lengo t’a mentionné'), findsOneWidget);
+    // La phrase vient du serveur (`message`) ; le repli local dit « vous a
+    // mentionné ». On vérifie l'auteur et la nature, pas une formulation figée.
+    expect(find.textContaining('Cédrick Lengo'), findsOneWidget);
+    expect(find.textContaining('mentionné'), findsOneWidget);
     expect(find.textContaining('Merci beaucoup'), findsOneWidget);
     expect(find.text('Tout lire'), findsOneWidget);
 
@@ -448,6 +456,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Aucune notification'), findsOneWidget);
-    expect(find.textContaining('@'), findsWidgets);
+    expect(find.textContaining('mentions'), findsWidgets);
   });
 }

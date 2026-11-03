@@ -20,6 +20,7 @@ import '../api.dart';
 import '../config.dart';
 import '../models/post.dart';
 import '../state.dart';
+import '../state/notifs.dart';
 import '../tabs.dart';
 import '../design.dart';
 import '../l10n.dart';
@@ -63,6 +64,9 @@ class _FeedScreenState extends State<FeedScreen> {
   /// Notifications de mention non lues (badge de l'en-tête).
   int? _nonLues;
 
+  /// Suivi partagé des notifications : pastille + page, un seul minuteur.
+  NotifsCtl? _notifs;
+
   bool _loading = true;
   bool _loadingMore = false;
   String? _error;
@@ -99,7 +103,8 @@ class _FeedScreenState extends State<FeedScreen> {
     //Lien partagé ouvert depuis l'extérieur : mbote://post/<id>
     Liens.post.addListener(_surLienPartage);
     _load();
-    _chargerBadge();
+    _notifs = NotifsCtl(_api)..addListener(_surNotifs);
+    _notifs!.demarrer();
     _surLienPartage();
   }
 
@@ -107,6 +112,8 @@ class _FeedScreenState extends State<FeedScreen> {
   void dispose() {
     Liens.post.removeListener(_surLienPartage);
     Tabs.stopListening(Tabs.feed, _onTabRefresh);
+    _notifs?.removeListener(_surNotifs);
+    _notifs?.dispose();
     _scroll.dispose();
     _search.dispose();
     super.dispose();
@@ -115,6 +122,7 @@ class _FeedScreenState extends State<FeedScreen> {
   /// Re-tap sur l'onglet Accueil → on remonte en haut et on recharge.
   void _onTabRefresh() {
     if (!mounted) return;
+    _chargerBadge();
     if (_scroll.hasClients && _scroll.offset > 0) {
       _scroll.animateTo(0,
           duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
@@ -398,13 +406,18 @@ class _FeedScreenState extends State<FeedScreen> {
 
  // Commentaires ──────────────────────────────────────
 
-  Future<void> _openComments(Post post) async {
+  Future<void> _openComments(Post post, {String? focusCommentId}) async {
     final count = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _CommentsSheet(api: _api, post: post),
+      builder: (_) => _CommentsSheet(
+        api: _api,
+        post: post,
+        focusCommentId: focusCommentId,
+      ),
     );
+    // Le fil affiche le nouveau total sans recharger.
     if (count != null) _replace(post.copyWith(comments: count));
   }
 
@@ -491,21 +504,26 @@ class _FeedScreenState extends State<FeedScreen> {
     }
   }
 
-  /// Boîte de réception des mentions.
+  /// Centre de notifications : j'aime, commentaires, réponses, mentions,
+  /// partages. Le contrôleur est partagé avec le fil, donc la pastille de
+  /// l'en-tête suit immédiatement ce qui vient d'être lu.
   Future<void> _ouvrirNotifications() async {
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => NotificationsScreen(
+        controleur: _notifs,
         onOuvrirProfil: (id) => _ouvrirProfil(id, ''),
-        onOuvrirPublication: (postId) => _ouvrirPublicationId(postId),
+        onOuvrirPublication: (postId, {String? commentId}) =>
+            _ouvrirPublicationId(postId, commentId: commentId),
       ),
     ));
     if (!mounted) return;
-    setState(() => _nonLues = null);
-    _chargerBadge();
+    _notifs?.rafraichirBadge();
   }
 
   /// Ouvre une publication depuis son identifiant (notification, recherche).
-  Future<void> _ouvrirPublicationId(String id) async {
+  /// Quand la notification vise un commentaire, on ouvre la feuille de
+  /// commentaires positionnée dessus, surligné.
+  Future<void> _ouvrirPublicationId(String id, {String? commentId}) async {
     try {
       final post = await _api.lirePublication(id);
       if (!mounted) return;
@@ -513,18 +531,29 @@ class _FeedScreenState extends State<FeedScreen> {
         if (!_posts.any((p) => p.id == post.id)) _posts = [post, ..._posts];
       });
       _scrollToTop();
+      if (commentId != null) {
+        // Laisse le fil se poser avant d'ouvrir la feuille par-dessus.
+        await Future<void>.delayed(const Duration(milliseconds: 180));
+        if (mounted) await _openComments(post, focusCommentId: commentId);
+      }
     } catch (e) {
       if (!mounted) return;
       _toast(friendlyError(e));
     }
   }
 
-  /// Badge de l'en-tête : nombre de mentions non lues.
+  /// Le contrôleur a changé d'état (badge, liste) : on redessine l'en-tête.
+  void _surNotifs() {
+    if (!mounted) return;
+    if (_nonLues != _notifs!.nonLues) {
+      setState(() => _nonLues = _notifs!.nonLues);
+    }
+  }
+
+  /// Badge de l'en-tête : nombre de notifications non lues. Appelé à
+  /// l'ouverture, au retour sur l'onglet et au réveil de l'application.
   void _chargerBadge() {
-    _api.notificationsNonLues().then((n) {
-      if (!mounted) return;
-      setState(() => _nonLues = n);
-    }).catchError((_) {/* indicateur non vital */});
+    _notifs?.rafraichirBadge();
   }
 
   /// Lien de la publication : celui fourni par le serveur, sinon reconstruit
@@ -2046,7 +2075,17 @@ class _Fab extends StatelessWidget {
 class _CommentsSheet extends StatefulWidget {
   final Api api;
   final Post post;
-  const _CommentsSheet({required this.api, required this.post});
+
+  /// Commentaire sur lequel se positionner : c'est ce qui rend une
+  /// notification « Patrick a répondu à votre commentaire » utile — on arrive
+  /// directement sur la réponse, surlignée.
+  final String? focusCommentId;
+
+  const _CommentsSheet({
+    required this.api,
+    required this.post,
+    this.focusCommentId,
+  });
 
   @override
   State<_CommentsSheet> createState() => _CommentsSheetState();
@@ -2054,10 +2093,16 @@ class _CommentsSheet extends StatefulWidget {
 
 class _CommentsSheetState extends State<_CommentsSheet> {
   final TextEditingController _input = TextEditingController();
+  final ScrollController _scroll = ScrollController();
+  final Map<String, GlobalKey> _cles = {};
+
   List<Map> _comments = const [];
   bool _loading = true;
   bool _sending = false;
   String? _error;
+
+  /// Commentaire auquel on répond (null : commentaire de premier niveau).
+  Map? _reponseA;
 
   @override
   void initState() {
@@ -2068,6 +2113,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
   @override
   void dispose() {
     _input.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -2079,6 +2125,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
         _comments = list;
         _loading = false;
       });
+      _allerAuFocus();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -2088,17 +2135,43 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     }
   }
 
+  /// Fait défiler jusqu'au commentaire visé par la notification.
+  void _allerAuFocus() {
+    final id = widget.focusCommentId;
+    if (id == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final cle = _cles[id];
+      final ctx = cle?.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(ctx,
+            duration: const Duration(milliseconds: 260),
+            alignment: .35,
+            curve: Curves.easeOut);
+      }
+    });
+  }
+
   Future<void> _send() async {
     final texte = _input.text.trim();
     if (texte.isEmpty || _sending) return;
     setState(() => _sending = true);
     try {
-      final c = await widget.api.addComment(widget.post.id, texte);
+      final c = await widget.api.addComment(widget.post.id, texte,
+          parentId: _reponseA?['id']?.toString());
       if (!mounted) return;
       setState(() {
         _comments = [..._comments, c];
         _sending = false;
+        _reponseA = null;
         _input.clear();
+      });
+      // Le nouveau commentaire est le dernier : on l'amène à l'écran.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scroll.hasClients) {
+          _scroll.animateTo(_scroll.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut);
+        }
       });
     } catch (e) {
       if (!mounted) return;
@@ -2108,11 +2181,36 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     }
   }
 
+  /// Commentaires de premier niveau, chacun suivi de ses réponses.
+  List<Map> get _arbre {
+    final parents = _comments.where((c) => c['parent_id'] == null).toList();
+    final parParent = <String, List<Map>>{};
+    for (final c in _comments) {
+      final p = c['parent_id'];
+      if (p == null) continue;
+      parParent.putIfAbsent(p.toString(), () => []).add(c);
+    }
+    final sortie = <Map>[];
+    for (final p in parents) {
+      sortie.add(p);
+      sortie.addAll(parParent[p['id'].toString()] ?? const []);
+    }
+    // Une réponse dont le parent a disparu ne doit pas être invisible.
+    final orphelins = _comments.where((c) {
+      final p = c['parent_id'];
+      return p != null &&
+          !parents.any((x) => x['id'].toString() == p.toString());
+    });
+    sortie.addAll(orphelins);
+    return sortie;
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final arbre = _arbre;
     return Container(
-      height: MediaQuery.of(context).size.height * .72,
+      height: MediaQuery.of(context).size.height * .78,
       decoration: BoxDecoration(
         color: MC.nuit2,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -2142,7 +2240,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                 ),
                 const Spacer(),
                 Text(
-                  '${_comments.length}',
+                  '$_count',
                   style: TextStyle(color: MC.kaki, fontSize: Tx.label),
                 ),
               ],
@@ -2165,7 +2263,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                           ),
                         ),
                       )
-                    : _comments.isEmpty
+                    : arbre.isEmpty
                         ? Center(
                             child: Text(
                               'Aucun commentaire — sois le premier.',
@@ -2173,52 +2271,36 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                             ),
                           )
                         : ListView.builder(
+                            controller: _scroll,
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: _comments.length,
-                            itemBuilder: (_, i) {
-                              final c = _comments[i];
-                              return Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 8),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    MboteAvatar(
-                                      name: '${c['author_name'] ?? '?'}',
-                                      size: 30,
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            (c['author_name'] ?? 'Compte Mbote')
-                                                .toString(),
-                                            style: TextStyle(
-                                              color: MC.ivoire,
-                                              fontSize: Tx.label,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            (c['texte'] ?? '').toString(),
-                                            style: TextStyle(
-                                                color: MC.sable,
-                                                fontSize: Tx.label,
-                                                height: 1.35),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
+                            itemCount: arbre.length,
+                            itemBuilder: (_, i) => _brique(arbre[i]),
                           ),
           ),
+          if (_reponseA != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Row(
+                children: [
+                  Icon(Icons.reply_rounded, size: 14, color: MC.soleil),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Réponse à ${_reponseA!['author_name'] ?? 'un commentaire'}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: MC.soleil, fontSize: Tx.caption),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => setState(() => _reponseA = null),
+                    tooltip: 'Annuler la réponse',
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(Icons.close_rounded, size: 16, color: MC.kaki),
+                  ),
+                ],
+              ),
+            ),
           SafeArea(
             top: false,
             child: Padding(
@@ -2232,7 +2314,9 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                       onSubmitted: (_) => _send(),
                       style: TextStyle(color: MC.ivoire, fontSize: Tx.body),
                       decoration: InputDecoration(
-                        hintText: 'Écrire un commentaire…',
+                        hintText: _reponseA == null
+                            ? 'Écrire un commentaire…'
+                            : 'Répondre à ${_reponseA!['author_name'] ?? ''}…',
                         hintStyle: TextStyle(color: MC.kaki, fontSize: Tx.label),
                         filled: true,
                         fillColor: MC.nuit3,
@@ -2252,6 +2336,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                       foregroundColor: MC.nuit,
                     ),
                     onPressed: _sending ? null : _send,
+                    tooltip: 'Envoyer',
                     icon: _sending
                         ? const SizedBox(
                             width: 16,
@@ -2262,11 +2347,96 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                   ),
                   const SizedBox(width: 4),
                   TextButton(
-                    onPressed: () => Navigator.pop(context, _comments.length),
+                    onPressed: () => Navigator.pop(context, _count),
                     child: Text('Fermer', style: TextStyle(color: MC.kaki)),
                   ),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  int get _count => _comments.length;
+
+  Widget _brique(Map c) {
+    final id = c['id'].toString();
+    final cle = _cles.putIfAbsent(id, () => GlobalKey());
+    final estReponse = c['parent_id'] != null;
+    final surligne = widget.focusCommentId != null &&
+        widget.focusCommentId.toString() == id;
+    return Container(
+      key: cle,
+      margin: EdgeInsets.only(left: estReponse ? 26 : 0, bottom: 6),
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+      decoration: BoxDecoration(
+        color: surligne ? MC.soleil.withValues(alpha: .07) : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        border: surligne
+            ? Border.all(color: MC.soleil.withValues(alpha: .35), width: 1)
+            : null,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          MboteAvatar(
+            name: '${c['author_name'] ?? '?'}',
+            size: estReponse ? 26 : 30,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    if (estReponse) ...[
+                      Icon(Icons.subdirectory_arrow_right_rounded,
+                          size: 12, color: MC.kaki),
+                      const SizedBox(width: 3),
+                    ],
+                    Flexible(
+                      child: Text(
+                        (c['author_name'] ?? 'Compte Mbote').toString(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: MC.ivoire,
+                          fontSize: Tx.label,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (c['a_moi'] == 1) ...[
+                      const SizedBox(width: 6),
+                      Text('vous',
+                          style: TextStyle(
+                              color: MC.soleil, fontSize: Tx.caption)),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  (c['texte'] ?? '').toString(),
+                  style: TextStyle(
+                      color: MC.sable, fontSize: Tx.label, height: 1.35),
+                ),
+                const SizedBox(height: 2),
+                GestureDetector(
+                  onTap: () => setState(() => _reponseA = c),
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text('Répondre',
+                        style: TextStyle(
+                            color: MC.kaki,
+                            fontSize: Tx.caption,
+                            fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

@@ -122,16 +122,35 @@ class Mention {
 }
 
 /// Élément de la boîte de réception.
+/// NOTIFICATION D'INTERACTION — j'aime, commentaire, réponse, mention,
+/// partage.
+///
+/// Le texte affiché vient du serveur (`message`) : il porte le regroupement
+/// (« Patrick, Junior et 16 autres personnes ont aimé votre publication »),
+/// qui ne peut pas être recalculé sans la liste complète des auteurs. Le client
+/// ne fabrique une phrase qu'en dernier recours, si le serveur est plus ancien
+/// que l'application.
 class NotificationSociale {
   final String id;
-  final String type; // mention
+  final String type; // post_like | comment | comment_reply | mention | share | follow
   final String? postId;
   final String? commentId;
   final String? sourceType; // post | comment | story
   final String texte;
   final bool lu;
   final DateTime createdAt;
+
+  /// Auteur du dernier geste (avatar de la ligne).
   final Personne? expediteur;
+
+  /// Nombre d'auteurs pour les notifications regroupées (1 pour les autres).
+  final int nbActeurs;
+
+  /// Les auteurs connus, du plus récent au plus ancien (bandeau d'avatars).
+  final List<Personne> acteurs;
+
+  /// Phrase prête à afficher, calculée par le serveur.
+  final String message;
 
   const NotificationSociale({
     required this.id,
@@ -143,34 +162,90 @@ class NotificationSociale {
     this.texte = '',
     this.lu = false,
     this.expediteur,
+    this.nbActeurs = 1,
+    this.acteurs = const [],
+    this.message = '',
   });
 
-  factory NotificationSociale.fromJson(Map j) {
-    final exp = j['expediteur'];
-    return NotificationSociale(
-      id: '${j['id'] ?? ''}',
-      type: '${j['type'] ?? 'mention'}',
-      postId: j['post_id'] as String?,
-      commentId: j['comment_id'] as String?,
-      sourceType: j['source_type'] as String?,
-      texte: '${j['texte'] ?? ''}',
-      lu: j['lu'] == 1 || j['lu'] == true,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(
-          (j['created_at'] as num?)?.toInt() ?? 0),
-      expediteur: exp is Map ? Personne.fromJson(exp) : null,
-    );
+  factory NotificationSociale.fromJson(Map j) => NotificationSociale(
+        id: '${j['id'] ?? ''}',
+        type: '${j['type'] ?? 'mention'}',
+        postId: j['post_id'] as String?,
+        commentId: j['comment_id'] as String?,
+        sourceType: j['source_type'] as String?,
+        texte: '${j['texte'] ?? ''}',
+        lu: j['lu'] == 1 || j['lu'] == true,
+        createdAt: DateTime.fromMillisecondsSinceEpoch(
+            (j['created_at'] as num?)?.toInt() ?? 0),
+        expediteur:
+            j['expediteur'] is Map ? Personne.fromJson(j['expediteur'] as Map) : null,
+        nbActeurs: (j['nb_acteurs'] as num?)?.toInt() ?? 1,
+        acteurs: ((j['acteurs'] as List?) ?? const [])
+            .map((e) => Personne.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList(),
+        message: '${j['message'] ?? ''}',
+      );
+
+  NotificationSociale copyWith({bool? lu}) => NotificationSociale(
+        id: id,
+        type: type,
+        createdAt: createdAt,
+        postId: postId,
+        commentId: commentId,
+        sourceType: sourceType,
+        texte: texte,
+        lu: lu ?? this.lu,
+        expediteur: expediteur,
+        nbActeurs: nbActeurs,
+        acteurs: acteurs,
+        message: message,
+      );
+
+  /// Vrai si la notification concerne un j'aime ou un partage (regroupables).
+  bool get estGroupee => nbActeurs > 1;
+
+  /// Phrase affichée : celle du serveur, sinon une phrase de repli par type.
+  String get resume {
+    if (message.isNotEmpty) return message;
+    final qui = expediteur?.name.isNotEmpty == true ? expediteur!.name : 'Quelqu’un';
+    return switch (type) {
+      'post_like' => '$qui a aimé votre publication',
+      'comment' => '$qui a commenté votre publication',
+      'comment_reply' => '$qui a répondu à votre commentaire',
+      'share' => '$qui a partagé votre publication',
+      'follow' => '$qui vous suit maintenant',
+      _ => switch (sourceType) {
+          'comment' => '$qui vous a mentionné dans un commentaire',
+          'story' => '$qui vous a mentionné dans un statut',
+          _ => '$qui vous a mentionné dans une publication',
+        },
+    };
   }
 
-  /// Phrase affichée dans la liste, sans emoji.
-  String get resume {
-    final qui = expediteur?.name.isNotEmpty == true ? expediteur!.name : 'Quelqu’un';
-    final ou = switch (sourceType) {
-      'comment' => 'dans un commentaire',
-      'story' => 'dans un statut',
-      _ => 'dans une publication',
-    };
-    return '$qui t’a mentionné $ou';
-  }
+  /// Compte rendu court pour l'accessibilité et l'infobulle.
+  String get nature => switch (type) {
+        'post_like' => 'J’aime',
+        'comment' => 'Commentaire',
+        'comment_reply' => 'Réponse',
+        'share' => 'Partage',
+        'follow' => 'Abonnement',
+        _ => 'Mention',
+      };
+
+  /// Les types qui ouvrent une publication.
+  bool get aUnePublication => postId != null && postId!.isNotEmpty;
+}
+
+/// Tranche horaire d'une notification : c'est le découpage demandé par le
+/// centre de notifications (Aujourd'hui / Cette semaine / Plus anciennes).
+enum TrancheNotifs { aujourdhui, semaine, anciennes }
+
+TrancheNotifs trancheDe(DateTime t, {DateTime? maintenant}) {
+  final now = maintenant ?? DateTime.now();
+  final debutJour = DateTime(now.year, now.month, now.day);
+  if (!t.isBefore(debutJour)) return TrancheNotifs.aujourdhui;
+  if (now.difference(t).inDays < 7) return TrancheNotifs.semaine;
+  return TrancheNotifs.anciennes;
 }
 
 /// Résultat groupé de la recherche universelle.

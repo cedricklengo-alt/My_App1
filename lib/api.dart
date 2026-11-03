@@ -651,6 +651,18 @@ class Api {
     return (r['non_lues'] as num?)?.toInt() ?? 0;
   }
 
+  /// Statistiques d'engagement : `{engagement: {likes, commentaires,
+  /// partages, taux, top[]}, hashtags_suivis[], mentions{}}`.
+  ///
+  /// Le champ `engagement` vient d'être ajouté au serveur ; l'application lit
+  /// donc aussi l'ancienne forme pour rester compatible avec un backend qui
+  /// n'aurait pas encore été redéployé.
+  Future<Map<String, dynamic>> analytiqueEngagement() async {
+    final r = Map<String, dynamic>.from(await _send('GET', '/feed/analytique') as Map);
+    r['engagement'] ??= <String, dynamic>{};
+    return r;
+  }
+
   /// Tout marquer comme lu.
   Future<void> marquerNotificationsLues() async =>
       await _send('POST', '/notifications/lues');
@@ -766,8 +778,14 @@ class Api {
         .toList();
   }
 
-  Future<Map> addComment(String id, String texte) async {
-    final r = await _send('POST', '/feed/posts/$id/comments', {'texte': texte});
+  /// [parentId] rattache le commentaire à un autre : c'est ce qui fait une
+  /// réponse, et c'est le serveur qui en déduit la notification
+  /// « a répondu à votre commentaire ».
+  Future<Map> addComment(String id, String texte, {String? parentId}) async {
+    final r = await _send('POST', '/feed/posts/$id/comments', {
+      'texte': texte,
+      if (parentId != null) 'parent_id': parentId,
+    });
     return Map<String, dynamic>.from(r['comment'] as Map);
   }
 

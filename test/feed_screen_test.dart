@@ -121,7 +121,7 @@ class FakeApi extends Api {
   }
 
   @override
-  Future<Map> addComment(String id, String texte) async {
+  Future<Map> addComment(String id, String texte, {String? parentId}) async {
     calls.add('addComment($id,$texte)');
     return {'id': 'c2', 'author_name': 'Moi', 'texte': texte};
   }
