@@ -542,6 +542,11 @@ class Api {
   Future<Map> authorProfile(String auteurId) async =>
       await _send('GET', '/feed/authors/$auteurId');
 
+  /// Signale un partage (lien copié ou envoi vers une autre application).
+  /// Renvoie `{partages, share_url}`.
+  Future<Map> markShared(String id) async =>
+      await _send('POST', '/feed/posts/$id/share');
+
   /// Compte une vue. Le serveur ignore un second appel du même lecteur et la
   /// vue de l'auteur : le chiffre ne peut donc pas être gonflé.
   Future<Map> viewPost(String id) async =>

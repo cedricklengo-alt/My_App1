@@ -13,9 +13,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 
 import '../api.dart';
+import '../config.dart';
 import '../models/post.dart';
 import '../state.dart';
 import '../tabs.dart';
@@ -386,14 +388,79 @@ class _FeedScreenState extends State<FeedScreen> {
 
  // Partage ───────────────────────────────────────────
 
+  /// Lien de la publication : celui fourni par le serveur, sinon reconstruit
+  /// depuis l'adresse de l'API (le serveur ne fournit `share_url` que s'il
+  /// connaît sa propre adresse publique).
+  String _lienDe(Post post) {
+    final fourni = post.partageUrl;
+    if (fourni != null && fourni.isNotEmpty) return fourni;
+    final base = Config.apiBase.replaceAll(RegExp(r'/api/?$'), '');
+    return '$base/p/${post.id}';
+  }
+
+  /// Texte prêt à coller dans une conversation : ce qui donne envie d'ouvrir,
+  /// puis le lien. C'est la forme qu'attendent WhatsApp et compagnie.
+  String _textePartage(Post post) {
+    final contenu = (post.texte ?? post.eventTitle ?? '').trim();
+    final morceau = contenu.length > 220 ? '${contenu.substring(0, 220)}…' : contenu;
+    return [
+      '${post.authorName} sur MboteCall',
+      if (morceau.isNotEmpty) morceau,
+      _lienDe(post),
+    ].join('\n');
+  }
+
+  /// PARTAGE — le cycle complet, comme dans les autres applications sociales :
+  ///   1. copier le lien (pour le coller où l'on veut) ;
+  ///   2. envoyer vers une autre application (WhatsApp, SMS, e-mail…).
+  /// Chaque envoi réel incrémente le compteur côté serveur.
   Future<void> _share(Post post) async {
-    final text = [
-      post.authorName,
-      if ((post.texte ?? '').isNotEmpty) post.texte!,
-      if ((post.eventTitle ?? '').isNotEmpty) post.eventTitle!,
-    ].join(' — ');
-    await Clipboard.setData(ClipboardData(text: text));
-    _toast('Publication copiée — colle-la où tu veux');
+    HapticFeedback.selectionClick();
+    final choix = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _FeuillePartage(
+        post: post,
+        lien: _lienDe(post),
+        onCopier: () => Navigator.pop(context, 'copier'),
+        onPartager: () => Navigator.pop(context, 'partager'),
+      ),
+    );
+    if (choix == null || !mounted) return;
+
+    if (choix == 'copier') {
+      // Le presse-papiers peut être refusé par certains appareils : on informe
+      // quand même l'utilisateur, le lien restant affiché dans la feuille.
+      try {
+        await Clipboard.setData(ClipboardData(text: _textePartage(post)));
+      } catch (_) {/* presse-papiers indisponible */}
+      if (!mounted) return;
+      _toast('Lien copié — colle-le où tu veux');
+      _compterPartage(post);
+      return;
+    }
+
+    if (choix == 'partager') {
+      try {
+        await Share.share(_textePartage(post), subject: 'Publication MboteCall');
+        _compterPartage(post);
+      } catch (e) {
+        if (!mounted) return;
+        _toast('Partage impossible sur cet appareil');
+      }
+    }
+  }
+
+  /// Enregistre le partage côté serveur (sans bloquer l'utilisateur).
+  void _compterPartage(Post post) {
+    _api.markShared(post.id).then((r) {
+      if (!mounted) return;
+      final n = (r['partages'] as num?)?.toInt();
+      if (n == null) return;
+      final i = _posts.indexWhere((p) => p.id == post.id);
+      if (i == -1) return;
+      setState(() => _posts[i] = _posts[i].copyWith(partages: n));
+    }).catchError((_) {/* le compteur n'est pas vital */});
   }
 
  // Appel ─────────────────────────────────────────────
@@ -1074,6 +1141,182 @@ class _EmptyState extends StatelessWidget {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Feuille de partage : aperçu du lien, deux actions réelles.
+///
+/// Rien de décoratif : « Copier le lien » copie le texte complet (auteur,
+/// extrait, lien) et « Partager vers une autre application » ouvre le partage
+/// du système, donc WhatsApp, Telegram, les SMS, l'e-mail… Le lien lui-même est
+/// montré en clair, ce qui permet de le lire à voix haute ou de le recopier.
+class _FeuillePartage extends StatelessWidget {
+  final Post post;
+  final String lien;
+  final VoidCallback onCopier;
+  final VoidCallback onPartager;
+
+  const _FeuillePartage({
+    required this.post,
+    required this.lien,
+    required this.onCopier,
+    required this.onPartager,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: MC.nuit2,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
+      // Défilement interne : sur un petit écran (ou en mode paysage), une
+      // feuille trop haute débordait et la dernière action devenait inatteignable.
+      child: SingleChildScrollView(
+        child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: MC.ligne,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Partager cette publication',
+            style: TextStyle(
+                color: MC.ivoire, fontSize: Tx.bodyLg, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Toute personne qui reçoit le lien verra un aperçu de la publication.',
+            style: TextStyle(color: MC.kaki, fontSize: Tx.caption, height: 1.35),
+          ),
+          const SizedBox(height: 14),
+
+          // Le lien en clair
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: MC.nuit3,
+              borderRadius: BorderRadius.circular(Rd.md),
+              border: Border.all(color: MC.ligne),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.link_rounded, size: 15, color: MC.kaki),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    lien,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: MC.ivoire, fontSize: Tx.caption),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          _ActionPartage(
+            icon: Icons.copy_all_rounded,
+            titre: 'Copier le lien',
+            detail: 'Pour le coller dans une conversation ou une publication',
+            onTap: onCopier,
+          ),
+          const SizedBox(height: 8),
+          _ActionPartage(
+            icon: Icons.ios_share_rounded,
+            titre: 'Partager vers une autre application',
+            detail: 'WhatsApp, Telegram, SMS, e-mail…',
+            onTap: onPartager,
+          ),
+          const SizedBox(height: 6),
+        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionPartage extends StatelessWidget {
+  final IconData icon;
+  final String titre;
+  final String detail;
+  final VoidCallback onTap;
+
+  const _ActionPartage({
+    required this.icon,
+    required this.titre,
+    required this.detail,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: titre,
+      // GestureDetector plutôt qu'InkWell : la feuille de partage est une
+      // surface transparente sans `Material` au-dessus, où l'effet d'encre ne
+      // s'applique pas et où l'appui pouvait ne rien déclencher.
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 60),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            color: MC.nuit3,
+            borderRadius: BorderRadius.circular(Rd.md),
+            border: Border.all(color: MC.ligne),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: MC.soleil.withValues(alpha: .16),
+                  borderRadius: BorderRadius.circular(Rd.sm),
+                ),
+                child: Icon(icon, color: MC.soleil, size: 19),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(titre,
+                        style: TextStyle(
+                            color: MC.ivoire,
+                            fontSize: Tx.label,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text(detail,
+                        style:
+                            TextStyle(color: MC.kaki, fontSize: Tx.caption)),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: MC.kaki, size: 18),
+            ],
+          ),
         ),
       ),
     );

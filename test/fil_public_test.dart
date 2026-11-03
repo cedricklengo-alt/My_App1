@@ -5,6 +5,7 @@
 // Aucun réseau : l'API est remplacée par un faux serveur.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
@@ -32,6 +33,8 @@ class FakeApi extends Api {
     bool suivi = false,
     List<String> tags = const [],
     int vues = 0,
+    String? partageUrl,
+    int partages = 0,
   }) =>
       Post(
         id: id,
@@ -45,6 +48,8 @@ class FakeApi extends Api {
         suivi: suivi,
         tags: tags,
         vues: vues,
+        partageUrl: partageUrl,
+        partages: partages,
       );
 
   @override
@@ -93,6 +98,15 @@ class FakeApi extends Api {
     return {'suivi': false, 'abonnes': 0};
   }
 
+  int partages = 0;
+
+  @override
+  Future<Map> markShared(String id) async {
+    calls.add('markShared($id)');
+    partages += 1;
+    return {'partages': partages, 'share_url': 'https://exemple.cd/p/$id'};
+  }
+
   @override
   Future<Map> setAllPostsVisibility(PostVisibilite v) async {
     calls.add('setAllPostsVisibility(${postVisibiliteToApi(v)})');
@@ -111,6 +125,15 @@ Widget wrap(FeedScreen screen) {
 }
 
 void main() {
+  /// Le presse-papiers est un canal de plateforme : en test, il faut fournir
+  /// une réponse, sinon l'action « copier » reste bloquée sans effet.
+  void simulerPressePapiers(WidgetTester tester) {
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async => null,
+    );
+  }
+
   testWidgets('les trois lectures du fil sont proposées', (tester) async {
     final api = FakeApi()..fil = [FakeApi.post('p1', texte: 'Salut Kin')];
     await tester.pumpWidget(wrap(FeedScreen(api: api)));
@@ -263,7 +286,70 @@ void main() {
     expect(find.text('Tout le monde'), findsOneWidget);
   });
 
+  testWidgets('le partage propose « copier le lien » et « envoyer ailleurs »',
+      (tester) async {
+    final api = FakeApi()
+      ..fil = [
+        FakeApi.post('p1',
+            texte: 'Concert ce soir',
+            partageUrl: 'https://exemple.cd/p/p1'),
+      ];
+
+    await tester.pumpWidget(wrap(FeedScreen(api: api)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.share_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partager cette publication'), findsOneWidget);
+    expect(find.text('Copier le lien'), findsOneWidget);
+    expect(find.text('Partager vers une autre application'), findsOneWidget);
+    // Le lien est montré en clair.
+    expect(find.text('https://exemple.cd/p/p1'), findsOneWidget);
+  });
+
+  testWidgets('copier le lien compte le partage côté serveur', (tester) async {
+    simulerPressePapiers(tester);
+    final api = FakeApi()
+      ..fil = [
+        FakeApi.post('p1', texte: 'À partager', partageUrl: 'https://exemple.cd/p/p1'),
+      ];
+
+    await tester.pumpWidget(wrap(FeedScreen(api: api)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.share_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Copier le lien'));
+    await tester.pumpAndSettle();
+
+    expect(api.calls, contains('markShared(p1)'));
+    expect(find.textContaining('Lien copié'), findsOneWidget);
+  });
+
+  testWidgets('le lien est reconstruit si le serveur n’en fournit pas',
+      (tester) async {
+    final api = FakeApi()..fil = [FakeApi.post('p2')];
+    await tester.pumpWidget(wrap(FeedScreen(api: api)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.share_rounded));
+    await tester.pumpAndSettle();
+
+    // Un lien reste proposé : l'utilisateur n'est jamais laissé sans action.
+    expect(find.textContaining('/p/p2'), findsWidgets);
+  });
+
+  testWidgets('le compteur de partages est affiché', (tester) async {
+    final api = FakeApi()..fil = [FakeApi.post('p1', partages: 7)];
+    await tester.pumpWidget(wrap(FeedScreen(api: api)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('7'), findsOneWidget);
+  });
+
   testWidgets('la pastille d’audience n’apparaît que sur mes publications',
+      
       (tester) async {
     final api = FakeApi()
       ..fil = [

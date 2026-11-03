@@ -70,6 +70,7 @@ class PostCard extends StatelessWidget {
             isMine: isMine,
             onDelete: onDelete,
             onFollow: isMine ? null : onFollow,
+            onShare: onShare,
           ),
           _MediaSection(post: post, dataSaverMode: dataSaverMode),
           if (post.tags.isNotEmpty)
@@ -96,6 +97,7 @@ class _Header extends StatelessWidget {
   final bool isMine;
   final VoidCallback? onDelete;
   final VoidCallback? onFollow;
+  final VoidCallback? onShare;
 
   final Post post;
   const _Header({
@@ -103,6 +105,7 @@ class _Header extends StatelessWidget {
     this.isMine = false,
     this.onDelete,
     this.onFollow,
+    this.onShare,
   });
 
   @override
@@ -240,6 +243,10 @@ class _Header extends StatelessWidget {
                 await Clipboard.setData(ClipboardData(text: text));
               } else if (value == 'delete') {
                 onDelete?.call();
+              } else if (value == 'share') {
+                // Avant, cette entrée ne faisait rien du tout : le menu se
+                // fermait et l'utilisateur restait sans réponse.
+                onShare?.call();
               }
             },
             itemBuilder: (_) => [
@@ -729,7 +736,10 @@ class _Actions extends StatelessWidget {
             ),
           _ActBtn(
             icon: Icons.share_rounded,
-            semanticLabel: 'Partager',
+            count: post.partages,
+            semanticLabel: post.partages > 0
+                ? 'Partager (${post.partages} partage(s))'
+                : 'Partager',
             onTap: onShare,
           ),
           const Spacer(),

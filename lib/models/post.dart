@@ -94,6 +94,14 @@ class Post {
   final PostVisibilite visibilite;
   final PostOrigine origine;
 
+  /// Lien public de la publication (`https://…/p/<id>`), fourni par le
+  /// serveur. C'est ce lien que l'on copie ou que l'on envoie vers une autre
+  /// application (WhatsApp, Facebook, SMS…).
+  final String? partageUrl;
+
+  /// Nombre de fois que cette publication a été partagée.
+  final int partages;
+
   /// Miniature de la vidéo, capturée par le serveur à l'envoi du fichier.
   /// `null` pour une photo, un texte ou une vidéo publiée avant les miniatures.
   final String? thumbUrl;
@@ -135,6 +143,8 @@ class Post {
     this.visibilite = PostVisibilite.contacts,
     this.origine = PostOrigine.rdc,
     this.thumbUrl,
+    this.partageUrl,
+    this.partages = 0,
     this.vues = 0,
     this.tags = const [],
     this.suivi = false,
@@ -186,6 +196,14 @@ class Post {
       thumbUrl: (j['thumb_url'] as String?)?.trim().isEmpty ?? true
           ? null
           : j['thumb_url'] as String,
+      partageUrl: (j['share_url'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : j['share_url'] as String,
+      // Le serveur nomme le compteur `partages` ; `shares` est l'ancien nom
+      // de colonne, accepté par prudence.
+      partages: (j['partages'] as num?)?.toInt() ??
+          (j['shares'] as num?)?.toInt() ??
+          0,
       vues: (j['vues'] as num?)?.toInt() ?? 0,
       tags: (j['tags'] as List?)?.map((e) => '$e').toList(growable: false) ??
           const [],
@@ -221,6 +239,7 @@ class Post {
     int? vues,
     bool? suivi,
     String? thumbUrl,
+    int? partages,
     PostVisibilite? visibilite,
   }) =>
       Post(
@@ -246,6 +265,8 @@ class Post {
         visibilite: visibilite ?? this.visibilite,
         origine: origine,
         thumbUrl: thumbUrl ?? this.thumbUrl,
+        partageUrl: partageUrl,
+        partages: partages ?? this.partages,
         vues: vues ?? this.vues,
         tags: tags,
         suivi: suivi ?? this.suivi,

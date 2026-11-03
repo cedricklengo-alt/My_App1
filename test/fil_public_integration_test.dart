@@ -297,6 +297,62 @@ void main() {
     try { video.deleteSync(); } catch (_) {/* déjà parti */}
   });
 
+  test('le lien de partage s’ouvre en dehors de l’application', () async {
+    final auteur = await login('+2438213$suffix', 'Auteur Partage');
+    final ami = await login('+2438214$suffix', 'Ami Partage');
+
+    final post = await auteur.api.createPost(
+      type: PostType.texte,
+      texte: 'Invitation concert $suffix',
+    );
+
+    // 1. L'application reçoit un lien prêt à partager.
+    expect(post.partageUrl, isNotNull,
+        reason: 'le serveur doit fournir share_url dans le fil');
+
+    // 2. Ce lien s'ouvre dans un navigateur, sans jeton : c'est ce que fait
+    //    WhatsApp quand il fabrique l'aperçu.
+    final http = HttpClient();
+    final page = await (await http.getUrl(Uri.parse(post.partageUrl!))).close();
+    final html = await page.transform(const SystemEncoding().decoder).join();
+    expect(page.statusCode, 200);
+    expect(html, contains('og:title'));
+    expect(html, contains('og:description'));
+    expect(html, contains('og:url'));
+    expect(html, contains('Invitation concert'));
+    expect(html, contains('Ouvrir dans MboteCall'));
+    http.close(force: true);
+
+    // 3. Le compteur de partages avance quand quelqu'un partage réellement.
+    final avant = post.partages;
+    final r1 = await ami.api.markShared(post.id);
+    expect(r1['partages'], avant + 1);
+    expect(r1['share_url'], post.partageUrl);
+
+    // 4. Le compteur se relit dans le fil.
+    final fil = await ami.api.feedPage();
+    final relu = fil.posts.firstWhere((p) => p.id == post.id);
+    expect(relu.partages, avant + 1);
+
+    // 5. Une publication réservée aux contacts n'ouvre pas de page publique :
+    //    partager ne doit jamais devenir une fuite.
+    final prive = await auteur.api.createPost(
+      type: PostType.texte,
+      texte: 'Privé $suffix',
+      visibilite: PostVisibilite.contacts,
+    );
+    final http2 = HttpClient();
+    final refus = await (await http2.getUrl(Uri.parse(
+      '${post.partageUrl!.replaceFirst(RegExp(r'/p/.*$'), '')}/p/${prive.id}',
+    ))).close();
+    await refus.drain<void>();
+    expect(refus.statusCode, 404);
+    http2.close(force: true);
+
+    await auteur.api.deletePost(post.id);
+    await auteur.api.deletePost(prive.id);
+  });
+
   test('les mots-clés alimentent les tendances et le filtrage', () async {
     final auteur = await login('+2438208$suffix', 'Auteur Tags');
     final lecteur = await login('+2438209$suffix', 'Lecteur Tags');
