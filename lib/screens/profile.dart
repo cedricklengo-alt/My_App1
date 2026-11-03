@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../api.dart';
 import '../state.dart';
+import '../design.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import '../pin.dart';
@@ -15,7 +16,10 @@ import '../prefs.dart';
 
 /// Profil : infos compte, grille des tarifs, sécurité PIN, déconnexion.
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  /// Ouvre directement la feuille « Paramètres » (langue, thème, police).
+  final bool startWithSettings;
+
+  const ProfileScreen({super.key, this.startWithSettings = false});
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
@@ -29,6 +33,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Pin.isSet().then((v) {
       if (mounted) setState(() => pinSet = v);
     });
+    if (widget.startWithSettings) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openSettings(context);
+      });
+    }
   }
 
   @override
@@ -44,7 +53,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Expanded(
                 child: Text(L10n.t('profile'),
                     style: TextStyle(
-                        fontSize: 24,
+                        fontSize: Tx.headline,
                         fontWeight: FontWeight.w800,
                         color: MC.ivoire)),
               ),
@@ -75,14 +84,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             width: 86,
                             height: 86,
                             fit: BoxFit.cover,
+                            excludeFromSemantics: true,
                             gaplessPlayback: true,
                           )
                         : Text(
-                            st.name.isNotEmpty
-                                ? st.name[0].toUpperCase()
-                                : '?',
+                            st.name.isNotEmpty ? st.name[0].toUpperCase() : '?',
                             style: TextStyle(
-                                fontSize: 34,
+                                fontSize: Tx.display,
                                 fontWeight: FontWeight.w800,
                                 color: MC.onAccent),
                           ),
@@ -110,11 +118,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Center(
             child: Text(st.name.isEmpty ? 'Sans nom' : st.name,
                 style: TextStyle(
-                    fontSize: 19, fontWeight: FontWeight.w800, color: MC.ivoire)),
+                    fontSize: Tx.title,
+                    fontWeight: FontWeight.w800,
+                    color: MC.ivoire)),
           ),
           Center(
-            child:
-                Text(st.phone, style: TextStyle(color: MC.kaki)),
+            child: Text(st.phone, style: TextStyle(color: MC.kaki)),
           ),
           const SizedBox(height: 24),
           _tile(Icons.edit_rounded, L10n.t('edit_name'),
@@ -122,38 +131,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _tile(Icons.public_rounded, L10n.t('rates_by_dest'),
               () => _showRates(context)),
           // 💚 Inviter tes proches — carte dorée bien visible
-          Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              gradient: MC.degrade,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                    color: MC.soleil.withOpacity(.25),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4)),
-              ],
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Material(
+              color: Colors.transparent,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(Rd.md)),
+              child: Ink(
+                decoration: BoxDecoration(
+                  gradient: MC.degrade,
+                  borderRadius: BorderRadius.circular(Rd.md),
+                ),
+                child: ListTile(
+                  leading:
+                      Icon(Icons.favorite_rounded, color: MC.onAccent),
+                  title: Text(L10n.t('invite'),
+                      style: TextStyle(
+                          color: MC.onAccent,
+                          fontSize: Tx.bodyLg,
+                          fontWeight: FontWeight.w800)),
+                  subtitle: Text(L10n.t('invite_sub'),
+                      style: TextStyle(
+                          color: MC.onAccent.withValues(alpha: .85),
+                          fontSize: Tx.label)),
+                  trailing:
+                      Icon(Icons.chevron_right_rounded, color: MC.onAccent),
+                  onTap: () => _showReferral(context),
             ),
-            child: ListTile(
-              leading: Icon(Icons.favorite_rounded, color: MC.onAccent),
-              title: Text(L10n.t('invite'),
-                  style: TextStyle(
-                      color: MC.onAccent,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800)),
-              subtitle: Text(L10n.t('invite_sub'),
-                  style: TextStyle(
-                      color: MC.onAccent.withOpacity(.85), fontSize: 12)),
-              trailing:
-                  Icon(Icons.chevron_right_rounded, color: MC.onAccent),
-              onTap: () => _showReferral(context),
+              ),
             ),
           ),
           _tile(
               Icons.lock_rounded,
-              pinSet
-                  ? '${L10n.t('pin_title')} · activé ✅'
-                  : L10n.t('pin_set'),
+              pinSet ? '${L10n.t('pin_title')} · activé ✅' : L10n.t('pin_set'),
               () => _managePin(context)),
           _tile(Icons.support_agent_rounded, 'Support (bientôt)', null),
           const SizedBox(height: 14),
@@ -162,12 +173,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               side: BorderSide(color: MC.rouge),
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
+                  borderRadius: BorderRadius.circular(Rd.md)),
             ),
             onPressed: () => st.logout(),
             child: Text(L10n.t('logout'),
-                style: TextStyle(
-                    color: MC.rouge, fontWeight: FontWeight.w700)),
+                style: TextStyle(color: MC.rouge, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -189,16 +199,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Text(L10n.t('settings'),
                 style: TextStyle(
-                    fontSize: 19,
+                    fontSize: Tx.title,
                     fontWeight: FontWeight.w800,
                     color: MC.ivoire)),
             const SizedBox(height: 10),
             ListTile(
               leading: Icon(Icons.translate_rounded, color: MC.soleil),
               title: Text(L10n.t('language'),
-                  style: TextStyle(color: MC.ivoire, fontSize: 15)),
+                  style: TextStyle(color: MC.ivoire, fontSize: Tx.bodyLg)),
               subtitle: Text(L10n.langs[L10n.lang] ?? '',
-                  style: TextStyle(color: MC.kaki, fontSize: 12)),
+                  style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
               onTap: () {
                 Navigator.pop(ctx);
                 _pickLanguage(context);
@@ -207,9 +217,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ListTile(
               leading: Icon(Icons.palette_rounded, color: MC.soleil),
               title: Text(L10n.t('theme_label'),
-                  style: TextStyle(color: MC.ivoire, fontSize: 15)),
+                  style: TextStyle(color: MC.ivoire, fontSize: Tx.bodyLg)),
               subtitle: Text(ThemeCtl.themes[ThemeCtl.theme] ?? '',
-                  style: TextStyle(color: MC.kaki, fontSize: 12)),
+                  style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
               onTap: () {
                 Navigator.pop(ctx);
                 _pickTheme(context);
@@ -218,21 +228,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ListTile(
               leading: Icon(Icons.text_fields_rounded, color: MC.soleil),
               title: Text(L10n.t('font_label'),
-                  style: TextStyle(color: MC.ivoire, fontSize: 15)),
+                  style: TextStyle(color: MC.ivoire, fontSize: Tx.bodyLg)),
               subtitle: Text(ThemeCtl.fonts[ThemeCtl.font] ?? '',
-                  style: TextStyle(color: MC.kaki, fontSize: 12)),
+                  style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
               onTap: () {
                 Navigator.pop(ctx);
                 _pickFont(context);
               },
             ),
             ListTile(
-              leading: Icon(Icons.notifications_active_rounded,
-                  color: MC.soleil),
+              leading:
+                  Icon(Icons.notifications_active_rounded, color: MC.soleil),
               title: Text(L10n.t('ring_settings'),
-                  style: TextStyle(color: MC.ivoire, fontSize: 15)),
+                  style: TextStyle(color: MC.ivoire, fontSize: Tx.bodyLg)),
               subtitle: Text(_ringName(CallPrefs.ringtone),
-                  style: TextStyle(color: MC.kaki, fontSize: 12)),
+                  style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
               onTap: () {
                 Navigator.pop(ctx);
                 _pickRingtone(context);
@@ -241,7 +251,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ListTile(
               leading: Icon(Icons.info_outline_rounded, color: MC.soleil),
               title: Text(L10n.t('about'),
-                  style: TextStyle(color: MC.ivoire, fontSize: 15)),
+                  style: TextStyle(color: MC.ivoire, fontSize: Tx.bodyLg)),
               onTap: () {
                 Navigator.pop(ctx);
                 _showAbout(context);
@@ -299,12 +309,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Text(L10n.t('ring_settings'),
                   style: TextStyle(
-                      fontSize: 19,
+                      fontSize: Tx.title,
                       fontWeight: FontWeight.w800,
                       color: MC.ivoire)),
               const SizedBox(height: 4),
               Text(L10n.t('ring_hint'),
-                  style: TextStyle(color: MC.kaki, fontSize: 12.5)),
+                  style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
               const SizedBox(height: 10),
               ...[
                 ('classique', Icons.ring_volume_rounded, 'ring_classic'),
@@ -313,13 +323,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ('silencieux', Icons.notifications_off_rounded, 'ring_silent'),
               ].map((o) => ListTile(
                     leading: Icon(o.$2,
-                        color: CallPrefs.ringtone == o.$1
-                            ? MC.soleil
-                            : MC.kaki),
+                        color:
+                            CallPrefs.ringtone == o.$1 ? MC.soleil : MC.kaki),
                     title: Text(L10n.t(o.$3),
                         style: TextStyle(
                             color: MC.ivoire,
-                            fontSize: 14.5,
+                            fontSize: Tx.body,
                             fontWeight: FontWeight.w600)),
                     trailing: CallPrefs.ringtone == o.$1
                         ? Icon(Icons.check_circle_rounded, color: MC.soleil)
@@ -332,13 +341,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   )),
               SwitchListTile(
                 value: CallPrefs.vibration,
-                activeColor: MC.soleil,
+                activeThumbColor: MC.soleil,
                 secondary: Icon(Icons.vibration_rounded,
                     color: CallPrefs.vibration ? MC.soleil : MC.kaki),
                 title: Text(L10n.t('vibration'),
                     style: TextStyle(
                         color: MC.ivoire,
-                        fontSize: 14.5,
+                        fontSize: Tx.body,
                         fontWeight: FontWeight.w600)),
                 onChanged: (v) async {
                   await CallPrefs.setVibration(v);
@@ -372,7 +381,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Text(L10n.t('theme_label'),
                 style: TextStyle(
-                    fontSize: 19,
+                    fontSize: Tx.title,
                     fontWeight: FontWeight.w800,
                     color: MC.ivoire)),
             const SizedBox(height: 12),
@@ -384,15 +393,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   height: 34,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                        colors: [pal.accent, pal.accent2]),
+                    gradient: LinearGradient(colors: [pal.accent, pal.accent2]),
                     border: Border.all(color: pal.nuit3, width: 2),
                   ),
                 ),
                 title: Text(e.value,
                     style: TextStyle(
                         color: MC.ivoire,
-                        fontSize: 15,
+                        fontSize: Tx.bodyLg,
                         fontWeight: FontWeight.w600)),
                 trailing: ThemeCtl.theme == e.key
                     ? Icon(Icons.check_circle_rounded, color: MC.soleil)
@@ -425,7 +433,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Text(L10n.t('font_label'),
                 style: TextStyle(
-                    fontSize: 19,
+                    fontSize: Tx.title,
                     fontWeight: FontWeight.w800,
                     color: MC.ivoire)),
             const SizedBox(height: 12),
@@ -433,7 +441,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   title: Text(e.value,
                       style: TextStyle(
                         color: MC.ivoire,
-                        fontSize: 15,
+                        fontSize: Tx.bodyLg,
                         fontWeight: FontWeight.w600,
                         fontFamily: switch (e.key) {
                           'serif' => 'serif',
@@ -466,13 +474,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: Row(children: [
           ClipOval(
             child: Image.asset('assets/icon/icon_small.png',
-                width: 34, height: 34),
+                width: 34, height: 34, excludeFromSemantics: true),
           ),
           const SizedBox(width: 10),
           Text('MboteCall', style: TextStyle(color: MC.ivoire)),
         ]),
         content: Text(L10n.t('about_text'),
-            style: TextStyle(color: MC.sable, fontSize: 13.5, height: 1.5)),
+            style: TextStyle(color: MC.sable, fontSize: Tx.label, height: 1.5)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -482,22 +490,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _tile(IconData icon, String label, VoidCallback? onTap) => Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        decoration: BoxDecoration(
-            color: MC.nuit2, borderRadius: BorderRadius.circular(16)),
-        child: ListTile(
-          leading: Icon(icon,
-              color: onTap == null ? MC.kaki : MC.soleil, size: 22),
+  // Audit a11y/UI : un ListTile posé sur un DecoratedBox opaque masque son
+  // fond d'encre (ripple) — Flutter lève une assertion et l'utilisateur ne
+  // voit aucun retour au toucher. On peint donc la surface avec un `Material`,
+  // qui sert d'ancêtre d'encre ET porte le fond.
+  Widget _tile(IconData icon, String label, VoidCallback? onTap) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Material(
+          color: MC.nuit2,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Rd.md)),
+          child: ListTile(
+          leading:
+              Icon(icon, color: onTap == null ? MC.kaki : MC.soleil, size: 22),
           title: Text(label,
               style: TextStyle(
                   color: onTap == null ? MC.kaki : MC.ivoire,
-                  fontSize: 14.5,
+                  fontSize: Tx.body,
                   fontWeight: FontWeight.w600)),
           trailing: onTap == null
               ? null
               : Icon(Icons.chevron_right_rounded, color: MC.kaki),
           onTap: onTap,
+        ),
         ),
       );
 
@@ -517,7 +533,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (bytes.length > 300 * 1024) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('Photo trop lourde, choisis-en une autre'),
+              content: const Text('Photo trop lourde, choisis-en une autre'),
               backgroundColor: MC.rouge));
         }
         return;
@@ -527,7 +543,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await st.refresh();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Photo de profil mise à jour 📷'),
+            content: const Text('Photo de profil mise à jour 📷'),
             backgroundColor: MC.savane));
       }
     } catch (e) {
@@ -546,21 +562,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: MC.nuit2,
         title: Text('Mon nom', style: TextStyle(color: MC.ivoire)),
-        content: TextField(
-            controller: ctrl, style: TextStyle(color: MC.ivoire)),
+        content:
+            TextField(controller: ctrl, style: TextStyle(color: MC.ivoire)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child:
-                  Text('Annuler', style: TextStyle(color: MC.kaki))),
+              child: Text('Annuler', style: TextStyle(color: MC.kaki))),
           TextButton(
             onPressed: () async {
               await st.api.updateName(ctrl.text.trim());
               await st.refresh();
               if (ctx.mounted) Navigator.pop(ctx);
             },
-            child: Text('Enregistrer',
-                style: TextStyle(color: MC.soleil)),
+            child: Text('Enregistrer', style: TextStyle(color: MC.soleil)),
           ),
         ],
       ),
@@ -586,33 +600,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               width: 52,
               height: 52,
-              decoration: BoxDecoration(
-                  gradient: MC.degrade, shape: BoxShape.circle),
+              decoration:
+                  BoxDecoration(gradient: MC.degrade, shape: BoxShape.circle),
               child: Icon(Icons.card_giftcard_rounded,
                   color: MC.onAccent, size: 26),
             ),
             const SizedBox(height: 12),
             Text(L10n.t('referral_title'),
                 style: TextStyle(
-                    fontSize: 20,
+                    fontSize: Tx.title,
                     fontWeight: FontWeight.w800,
                     color: MC.ivoire)),
             const SizedBox(height: 8),
             Text(L10n.t('referral_body'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: MC.sable, fontSize: 13.5, height: 1.5)),
+                style: TextStyle(color: MC.sable, fontSize: Tx.label, height: 1.5)),
             const SizedBox(height: 18),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
               decoration: BoxDecoration(
                 gradient: MC.degrade,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(Rd.md),
               ),
               child: Text(r['code'] ?? '…',
                   style: TextStyle(
-                      fontSize: 24,
+                      fontSize: Tx.headline,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 2,
                       color: MC.onAccent)),
@@ -620,7 +632,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 10),
             Text(
                 '${r['filleuls']} ${L10n.t('referral_stats')} ${fmtMoney(r['earned_cents'] ?? 0)}',
-                style: TextStyle(color: MC.kaki, fontSize: 12.5)),
+                style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
             const SizedBox(height: 16),
             // 📲 Partage riche : message complet prêt pour WhatsApp
             MboteButton(
@@ -638,7 +650,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 13),
                 minimumSize: const Size.fromHeight(48),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(Rd.md)),
               ),
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: r['code'] ?? ''));
@@ -650,8 +662,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }
               },
               child: Text('📋 ${L10n.t('copy')}',
-                  style: TextStyle(
-                      color: MC.soleil, fontWeight: FontWeight.w700)),
+                  style:
+                      TextStyle(color: MC.soleil, fontWeight: FontWeight.w700)),
             ),
           ],
         ),
@@ -695,7 +707,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Text(L10n.t('pin_title'),
                 style: TextStyle(
-                    fontSize: 19,
+                    fontSize: Tx.title,
                     fontWeight: FontWeight.w800,
                     color: MC.ivoire)),
             const SizedBox(height: 12),
@@ -704,7 +716,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               title: Text(L10n.t('pin_change'),
                   style: TextStyle(
                       color: MC.ivoire,
-                      fontSize: 15,
+                      fontSize: Tx.bodyLg,
                       fontWeight: FontWeight.w600)),
               onTap: () {
                 Navigator.pop(ctx);
@@ -716,10 +728,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         setup: true,
                         onSuccess: () {
                           Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text(L10n.t('pin_saved')),
-                                  backgroundColor: MC.savane));
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(L10n.t('pin_saved')),
+                              backgroundColor: MC.savane));
                         },
                       ),
                     ),
@@ -732,15 +743,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
               title: Text(L10n.t('pin_off'),
                   style: TextStyle(
                       color: MC.rouge,
-                      fontSize: 15,
+                      fontSize: Tx.bodyLg,
                       fontWeight: FontWeight.w600)),
               onTap: () {
                 Navigator.pop(ctx);
+                final messenger = ScaffoldMessenger.of(context);
                 _verifyThen(() async {
                   await Pin.remove();
                   if (!mounted) return;
                   setState(() => pinSet = false);
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  messenger.showSnackBar(SnackBar(
                       content: Text(L10n.t('pin_removed')),
                       backgroundColor: MC.nuit3));
                 });
@@ -753,10 +765,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               title: Text(L10n.t('pin_forgot'),
                   style: TextStyle(
                       color: MC.ivoire,
-                      fontSize: 15,
+                      fontSize: Tx.bodyLg,
                       fontWeight: FontWeight.w600)),
               subtitle: Text('SMS → ${st0.phone}',
-                  style: TextStyle(color: MC.kaki, fontSize: 12)),
+                  style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
               onTap: () async {
                 Navigator.pop(ctx);
                 final ok = await resetPinBySms(context);
@@ -800,7 +812,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Text(L10n.t('language'),
                 style: TextStyle(
-                    fontSize: 19,
+                    fontSize: Tx.title,
                     fontWeight: FontWeight.w800,
                     color: MC.ivoire)),
             const SizedBox(height: 12),
@@ -808,11 +820,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   title: Text(e.value,
                       style: TextStyle(
                           color: MC.ivoire,
-                          fontSize: 15,
+                          fontSize: Tx.bodyLg,
                           fontWeight: FontWeight.w600)),
                   trailing: L10n.lang == e.key
-                      ? Icon(Icons.check_circle_rounded,
-                          color: MC.soleil)
+                      ? Icon(Icons.check_circle_rounded, color: MC.soleil)
                       : null,
                   onTap: () async {
                     await L10n.setLang(e.key);
@@ -826,7 +837,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               title: Text(L10n.t('lang_more'),
                   style: TextStyle(
                       color: MC.savane,
-                      fontSize: 14.5,
+                      fontSize: Tx.body,
                       fontWeight: FontWeight.w700)),
               onTap: () {
                 Navigator.pop(ctx);
@@ -847,9 +858,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       available = await st.api.availableLangs();
     } catch (_) {}
-    final newOnes = available
-        .where((l) => !L10n.langs.containsKey(l['code']))
-        .toList();
+    final newOnes =
+        available.where((l) => !L10n.langs.containsKey(l['code'])).toList();
     if (!context.mounted) return;
     showModalBottomSheet(
       context: context,
@@ -864,7 +874,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Text(L10n.t('lang_more'),
                 style: TextStyle(
-                    fontSize: 19,
+                    fontSize: Tx.title,
                     fontWeight: FontWeight.w800,
                     color: MC.ivoire)),
             const SizedBox(height: 12),
@@ -872,14 +882,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 child: Text('✓ Toutes les langues disponibles sont installées',
-                    style: TextStyle(color: MC.kaki, fontSize: 13.5)),
+                    style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
               ),
             ...newOnes.map((l) => ListTile(
                   leading: Icon(Icons.language_rounded, color: MC.soleil),
                   title: Text(l['name'],
                       style: TextStyle(
                           color: MC.ivoire,
-                          fontSize: 15,
+                          fontSize: Tx.bodyLg,
                           fontWeight: FontWeight.w600)),
                   trailing: Icon(Icons.download_rounded, color: MC.savane),
                   onTap: () async {
@@ -888,9 +898,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         duration: const Duration(seconds: 1)));
                     try {
                       final pack = await st.api.langPack(l['code']);
-                      await L10n.install(
-                          l['code'],
-                          pack['name'],
+                      await L10n.install(l['code'], pack['name'],
                           Map<String, String>.from(pack['strings']));
                       await L10n.setLang(l['code']);
                       if (ctx.mounted) Navigator.pop(ctx);
@@ -929,25 +937,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Text('Tarifs par destination',
               style: TextStyle(
-                  fontSize: 19, fontWeight: FontWeight.w800, color: MC.ivoire)),
+                  fontSize: Tx.title, fontWeight: FontWeight.w800, color: MC.ivoire)),
           const SizedBox(height: 12),
           ...rates.map((r) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 7),
                 child: Row(
                   children: [
-                    Text('${r['flag']} ',
-                        style: const TextStyle(fontSize: 16)),
+                    Text('${r['flag']} ', style: const TextStyle(fontSize: Tx.subtitle)),
                     Expanded(
                       child: Text(r['destination'],
-                          style: TextStyle(
-                              color: MC.ivoire, fontSize: 14)),
+                          style: TextStyle(color: MC.ivoire, fontSize: Tx.body)),
                     ),
                     Text(
                         '${(r['price_per_min_cents'] / 100).toStringAsFixed(2)} \$/min',
                         style: TextStyle(
                             color: MC.soleil,
                             fontWeight: FontWeight.w700,
-                            fontSize: 13.5)),
+                            fontSize: Tx.label)),
                   ],
                 ),
               )),

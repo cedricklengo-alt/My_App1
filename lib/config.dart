@@ -1,11 +1,30 @@
 /// Configuration de l'application.
 ///
-/// ✅ URL configurée sur VOTRE serveur public Render (production).
+/// L'URL du backend est lisible depuis les variables de compilation :
 ///
-/// Pour le développement local, remplacez par :
-///  - Émulateur Android  : http://10.0.2.2:4000/api
-///  - Téléphone physique : `adb reverse tcp:4000 tcp:4000` puis
-///                         http://127.0.0.1:4000/api
+/// ```bash
+/// flutter run --dart-define=MBOTE_API=http://10.0.2.2:4000/api
+/// ```
+///
+/// Sans `--dart-define`, on vise le serveur public Render (production).
+///
+/// `apiBase` est **modifiable à l'exécution** (et non plus `const`) : les tests
+/// d'intégration le pointent vers un serveur local lancé à la volée.
 class Config {
-  static const String apiBase = 'https://mbote-backend-1.onrender.com/api';
+  /// Production par défaut.
+  static const String defaultApi = 'https://mbote-backend-1.onrender.com/api';
+
+  /// Surchargeable à la compilation : `--dart-define=MBOTE_API=…`
+  static const String _fromEnv =
+      String.fromEnvironment('MBOTE_API', defaultValue: '');
+
+  /// Base effective des appels HTTP (sans slash final).
+  static String apiBase = _fromEnv.isEmpty ? defaultApi : _fromEnv;
+
+  /// Remet la configuration de production.
+  static void reset() => apiBase = _fromEnv.isEmpty ? defaultApi : _fromEnv;
+
+  /// Base du canal temps réel : https://…/api → wss://…/ws
+  static String get wsUrl =>
+      '$apiBase/ws'.replaceFirst('/api/ws', '/ws').replaceFirst('http', 'ws');
 }

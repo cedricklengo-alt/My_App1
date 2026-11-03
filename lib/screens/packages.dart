@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../api.dart';
 import '../state.dart';
+import '../design.dart';
 import '../theme.dart';
 import '../l10n.dart';
 
@@ -72,35 +73,38 @@ class _PackagesScreenState extends State<PackagesScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(L10n.t('packages_title'))),
       body: loading
-          ? Center(child: CircularProgressIndicator(color: MC.soleil))
+          ? const Center(child: Chargement())
           : RefreshIndicator(
               color: MC.soleil,
               onRefresh: _load,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
+                padding: const EdgeInsets.fromLTRB(Sp.x4, Sp.x2, Sp.x4, Sp.x6),
                 children: [
                   Text(L10n.t('packages_sub'),
                       style: TextStyle(
-                          color: MC.sable, fontSize: 13.5, height: 1.5)),
+                          color: MC.sable, fontSize: Tx.label, height: 1.5)),
                   const SizedBox(height: 18),
 
                   // ---- Mes forfaits actifs ----
                   if (mine.isNotEmpty) ...[
                     Text(L10n.t('my_packages'),
                         style: TextStyle(
-                            color: MC.kaki, fontSize: 12, letterSpacing: 1.4)),
+                            color: MC.kaki,
+                            fontSize: Tx.label,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.2)),
                     const SizedBox(height: 8),
                     ...mine.map((p) => Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(16),
+                          margin: const EdgeInsets.only(bottom: Sp.x2),
+                          padding: const EdgeInsets.all(Sp.x4),
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(18),
-                            border:
-                                Border.all(color: MC.savane.withOpacity(.5)),
-                            color: MC.savane.withOpacity(.08),
+                            borderRadius: BorderRadius.circular(Rd.md),
+                            border: Border.all(
+                                color: MC.savane.withValues(alpha: .55)),
+                            color: MC.savane.withValues(alpha: .08),
                           ),
                           child: Row(children: [
-                            const Text('📦 ', style: TextStyle(fontSize: 22)),
+                            const Text('📦 ', style: TextStyle(fontSize: Tx.headline)),
                             const SizedBox(width: 6),
                             Expanded(
                               child: Column(
@@ -110,12 +114,12 @@ class _PackagesScreenState extends State<PackagesScreen> {
                                       style: TextStyle(
                                           color: MC.ivoire,
                                           fontWeight: FontWeight.w800,
-                                          fontSize: 15)),
+                                          fontSize: Tx.bodyLg)),
                                   const SizedBox(height: 2),
                                   Text(
                                       '${L10n.t('expires')} ${_expiry(p['expires_at'])}',
                                       style: TextStyle(
-                                          color: MC.kaki, fontSize: 12)),
+                                          color: MC.kaki, fontSize: Tx.label)),
                                 ],
                               ),
                             ),
@@ -127,7 +131,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
                                 style: TextStyle(
                                     color: MC.savane,
                                     fontWeight: FontWeight.w800,
-                                    fontSize: 13,
+                                    fontSize: Tx.label,
                                     height: 1.3)),
                           ]),
                         )),
@@ -137,7 +141,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
                   // ---- Catalogue ----
                   Text(L10n.t('catalog'),
                       style: TextStyle(
-                          color: MC.kaki, fontSize: 12, letterSpacing: 1.4)),
+                          color: MC.kaki, fontSize: Tx.label, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
                   const SizedBox(height: 8),
                   ...catalog.map((p) {
                     final unlimited = p['minutes'] == 0;
@@ -148,10 +152,10 @@ class _PackagesScreenState extends State<PackagesScreen> {
                       padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
                         color: MC.nuit2,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(Rd.lg),
                         border: Border.all(
                             color: unlimited
-                                ? MC.soleil.withOpacity(.55)
+                                ? MC.soleil.withValues(alpha: .55)
                                 : MC.ligne),
                       ),
                       child: Column(
@@ -163,19 +167,18 @@ class _PackagesScreenState extends State<PackagesScreen> {
                                   style: TextStyle(
                                       color: MC.ivoire,
                                       fontWeight: FontWeight.w800,
-                                      fontSize: 16)),
+                                      fontSize: Tx.subtitle)),
                             ),
                             Text(fmtMoney(p['price_cents']),
                                 style: TextStyle(
                                     color: MC.soleil,
                                     fontWeight: FontWeight.w800,
-                                    fontSize: 18)),
+                                    fontSize: Tx.subtitle)),
                           ]),
                           const SizedBox(height: 6),
                           Text(
                             '${unlimited ? '∞ ${L10n.t('unlimited')}' : '${p['minutes']} min'} · ${p['days']} jours · ${(p['prefix'] ?? '').toString().isEmpty ? '🌍' : '+${p['prefix']}…'}',
-                            style: TextStyle(
-                                color: MC.kaki, fontSize: 12.5),
+                            style: TextStyle(color: MC.kaki, fontSize: Tx.label),
                           ),
                           const SizedBox(height: 12),
                           MboteButton(
@@ -193,10 +196,10 @@ class _PackagesScreenState extends State<PackagesScreen> {
                   }),
                   if (catalog.isEmpty)
                     Padding(
-                      padding: EdgeInsets.symmetric(vertical: 30),
+                      padding: const EdgeInsets.symmetric(vertical: 30),
                       child: Center(
                         child: Text('Aucun forfait disponible pour le moment',
-                            style: TextStyle(color: MC.kaki, fontSize: 13.5)),
+                            style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
                       ),
                     ),
                 ],

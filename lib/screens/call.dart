@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:provider/provider.dart';
 import '../api.dart';
 import '../state.dart';
+import '../design.dart';
 import '../theme.dart';
+import '../widgets/avatar.dart';
 import '../l10n.dart';
 import '../rtc.dart';
 
@@ -23,8 +26,16 @@ class CallScreen extends StatefulWidget {
   /// 📲 Si non nul : on est l'APPELÉ (offre WebRTC reçue, on décroche)
   final Map? incomingOffer;
 
-  const CallScreen(
-      {super.key, required this.to, this.displayName, this.incomingOffer});
+  /// 📹 Appel vidéo (caméra + micro). Sinon appel audio classique.
+  final bool video;
+
+  const CallScreen({
+    super.key,
+    required this.to,
+    this.displayName,
+    this.incomingOffer,
+    this.video = false,
+  });
 
   @override
   State<CallScreen> createState() => _CallScreenState();
@@ -32,13 +43,33 @@ class CallScreen extends StatefulWidget {
 
 class _CallScreenState extends State<CallScreen>
     with SingleTickerProviderStateMixin {
-  // 💫 Pulsation douce de l'anneau pendant la sonnerie (design fluide)
+  // 💫 Pulsation douce de l'anneau pendant la sonnerie (design fluide).
+  // Elle ne démarre PAS d'emblée : on interroge d'abord le réglage système
+  // « Réduire les animations » (WCAG 2.3.3 / réglages Android &
+  // Accessibilité iOS). Une animation qui pulse en boucle peut provoquer un
+  // malaise chez les personnes sensibles au mouvement.
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1300),
     lowerBound: 0.97,
     upperBound: 1.05,
-  )..repeat(reverse: true);
+  );
+  /// Dernier état connu du réglage « Réduire les animations ».
+  bool? _mouvementReduit;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduit = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (reduit == _mouvementReduit) return;
+    _mouvementReduit = reduit;
+    if (reduit) {
+      _pulse.stop();
+      _pulse.value = 1.0;
+    } else {
+      _pulse.repeat(reverse: true);
+    }
+  }
 
   String? callId;
   String status = 'connexion'; // connexion | ringing | answered | ended | error
@@ -53,6 +84,15 @@ class _CallScreenState extends State<CallScreen>
   String? error;
   bool muted = false;
   bool speaker = false;
+  bool cameraOn = false; // 📹 caméra active (appels vidéo)
+
+  // 📹 Moteurs d'affichage (créés à la première image reçue)
+  RTCVideoRenderer? _localRender;
+  RTCVideoRenderer? _remoteRender;
+
+  /// Cet appel est-il un appel vidéo ? (demandé, ou annoncé par l'appelant)
+  bool get isVideoCall =>
+      widget.video || widget.incomingOffer?['video'] == true;
   bool pushSent = false; // 📲 l'appelé est prévenu par notification
   Timer? poll;
 
@@ -62,12 +102,39 @@ class _CallScreenState extends State<CallScreen>
   Timer? chrono;
   Timer? rtcTimeout; // ⏱️ garde-fou : injoignable si pas de réponse
 
+  /// 📹 Relie les flux de la session aux moteurs d'affichage.
+  void _attachVideo(RtcSession s) {
+    if (!isVideoCall) return;
+    cameraOn = true;
+    s.onLocalStream = (stream) async {
+      var r = _localRender;
+      if (r == null) {
+        r = RTCVideoRenderer();
+        await r.initialize();
+        _localRender = r;
+      }
+      r.srcObject = stream;
+      if (mounted) setState(() {});
+    };
+    s.onRemoteStream = (stream) async {
+      var r = _remoteRender;
+      if (r == null) {
+        r = RTCVideoRenderer();
+        await r.initialize();
+        _remoteRender = r;
+      }
+      r.srcObject = stream;
+      if (mounted) setState(() {});
+    };
+  }
+
   bool get isMbote => freeReason == 'mbote';
   bool get isCallee => widget.incomingOffer != null;
 
   @override
   void initState() {
     super.initState();
+    cameraOn = isVideoCall; // 📹 un appel vidéo démarre caméra allumée
     if (isCallee) {
       _answerIncoming();
     } else {
@@ -84,9 +151,14 @@ class _CallScreenState extends State<CallScreen>
     calleeName = offer['from_name']?.toString();
     calleeAvatar = offer['from_avatar']?.toString();
     Rtc.onSignal = _onSignal;
-    rtc = RtcSession(peer: widget.to, callId: callId!);
+    rtc = RtcSession(
+      peer: widget.to,
+      callId: callId!,
+      video: isVideoCall,
+    );
     rtc!.onConnected = _onVoiceConnected;
     rtc!.onEnded = () => _endRtc(remote: true);
+    _attachVideo(rtc!);
     try {
       await rtc!.answer(Map.from(offer['sdp']));
       // 🧊 Rejoue les candidats réseau arrivés pendant la sonnerie
@@ -107,9 +179,14 @@ class _CallScreenState extends State<CallScreen>
   /// 🎙️ Côté appelant : lance la vraie voix après /calls/start
   Future<void> _startRtc() async {
     Rtc.onSignal = _onSignal;
-    rtc = RtcSession(peer: widget.to, callId: callId!);
+    rtc = RtcSession(
+      peer: widget.to,
+      callId: callId!,
+      video: isVideoCall,
+    );
     rtc!.onConnected = _onVoiceConnected;
     rtc!.onEnded = () => _endRtc(remote: true);
+    _attachVideo(rtc!);
     // ⏱️ Si rien ne se passe en 25 s → le téléphone d'en face est injoignable
     rtcTimeout = Timer(const Duration(seconds: 25), () {
       if (status != 'answered') _endRtc(remote: true, unreachable: true);
@@ -174,6 +251,9 @@ class _CallScreenState extends State<CallScreen>
       bool rejected = false,
       bool unreachable = false}) async {
     if (status == 'ended') return;
+    // On lit l'état AVANT les `await` : après, le widget peut avoir été
+    // démonté et `context` ne doit plus être utilisé.
+    final appState = context.read<AppState>();
     chrono?.cancel();
     rtcTimeout?.cancel();
     Rtc.onSignal = null;
@@ -184,12 +264,12 @@ class _CallScreenState extends State<CallScreen>
     if (isCallee) {
       // 📥 L'appelé journalise l'appel reçu (répondu si durée > 0)
       try {
-        await context.read<AppState>().api.logIncoming(widget.to, elapsed);
+        await appState.api.logIncoming(widget.to, elapsed);
       } catch (_) {}
     } else if (callId != null) {
       // L'appelant clôt son enregistrement côté serveur (gratuit)
       try {
-        await context.read<AppState>().api.hangup(callId!);
+        await appState.api.hangup(callId!);
       } catch (_) {}
     }
     if (mounted) {
@@ -210,6 +290,9 @@ class _CallScreenState extends State<CallScreen>
     final st = context.read<AppState>();
     try {
       final r = await st.api.startCall(widget.to);
+      // L'utilisateur a pu quitter l'écran pendant la requête : on ne touche
+      // plus à l'état dans ce cas (sinon « setState() called after dispose »).
+      if (!mounted) return;
       callId = r['call_id'];
       destination = '${r['flag']} ${r['destination']}';
       priceMin = r['price_per_min_cents'];
@@ -226,6 +309,7 @@ class _CallScreenState extends State<CallScreen>
         poll = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         status = 'error';
         error = friendlyError(e);
@@ -278,6 +362,8 @@ class _CallScreenState extends State<CallScreen>
     rtcTimeout?.cancel();
     if (Rtc.onSignal == _onSignal) Rtc.onSignal = null;
     rtc?.close();
+    _localRender?.dispose();
+    _remoteRender?.dispose();
     super.dispose();
   }
 
@@ -308,7 +394,7 @@ class _CallScreenState extends State<CallScreen>
       body: Container(
         decoration: BoxDecoration(
           gradient: RadialGradient(
-            center: Alignment(0, -.6),
+            center: const Alignment(0, -.6),
             radius: 1.2,
             colors: [MC.halo, MC.nuit],
           ),
@@ -316,7 +402,11 @@ class _CallScreenState extends State<CallScreen>
         child: SafeArea(
           child: Column(
             children: [
-              const Spacer(flex: 2),
+              // 📹 En vidéo, l'image prend la place : pas de grands blancs.
+              if (!isVideoCall)
+                const Spacer(flex: 2)
+              else
+                const SizedBox(height: 6),
               // Statut discret — masqué pendant la conversation MboteCall → MboteCall
               SizedBox(
                 height: 18,
@@ -327,75 +417,76 @@ class _CallScreenState extends State<CallScreen>
                       : Text(statusLabel,
                           key: ValueKey('$statusLabel$pushSent'),
                           style: TextStyle(
-                              color: status == 'answered'
-                                  ? MC.savane
-                                  : MC.sable,
-                              fontSize: 13,
+                              color:
+                                  status == 'answered' ? MC.savane : MC.sable,
+                              fontSize: Tx.label,
                               letterSpacing: 2)),
                 ),
               ),
               const SizedBox(height: 26),
-              // 📷 Avatar : anneau dégradé doré + halo, photo ou initiale
-              // 💫 … qui pulse doucement tant que ça sonne
-              ScaleTransition(
-                scale: _pulse,
-                child: Container(
-                width: 128,
-                height: 128,
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: SweepGradient(
-                      colors: [MC.soleil, MC.braise, MC.terre, MC.soleil]),
-                  boxShadow: [
-                    BoxShadow(
-                        color: MC.soleil.withOpacity(.22),
-                        blurRadius: 36,
-                        spreadRadius: 6),
-                  ],
-                ),
-                child: Container(
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                      shape: BoxShape.circle, color: MC.nuit2),
-                  child: hasPhoto
-                      ? Image.memory(
-                          base64Decode(calleeAvatar!.split(',').last),
-                          fit: BoxFit.cover,
-                          gaplessPlayback: true,
-                        )
-                        : Center(
-                          child: Text(initial,
-                              style: TextStyle(
-                                  fontSize: 44,
-                                  fontWeight: FontWeight.w800,
-                                  color: MC.soleil)),
-                        ),
-                ),
-              ),
-              ), // fin ScaleTransition 💫
+              // 📹 Appel vidéo : l'image de l'autre (ou l'avatar en attendant)
+              // 📷 Appel audio : anneau dégradé doré + halo, photo ou initiale
+              if (isVideoCall)
+                Expanded(child: _videoArea(name, initial, hasPhoto))
+              else
+                ScaleTransition(
+                  scale: _pulse,
+                  // Identité « Fleuve Congo » : plus d'anneau lumineux, un
+                  // cadre net de 2 px — l'avatar est un carré arrondi, comme
+                  // partout dans l'application.
+                  child: Container(
+                    width: 140,
+                    height: 140,
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(Rd.lg),
+                      border: Border.all(color: MC.soleil, width: 2),
+                    ),
+                    child: Container(
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(Rd.lg - 2),
+                          color: MC.nuit2),
+                      child: hasPhoto
+                          ? Image.memory(
+                              base64Decode(calleeAvatar!.split(',').last),
+                              fit: BoxFit.cover,
+                              excludeFromSemantics: true,
+                              gaplessPlayback: true,
+                            )
+                          : Center(
+                              child: Text(initial,
+                                  style: TextStyle(
+                                      fontSize: Tx.display + 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: MC.soleil)),
+                            ),
+                    ),
+                  ),
+                ), // fin ScaleTransition 💫
               const SizedBox(height: 18),
               Text(name,
                   style: TextStyle(
-                      fontSize: 23,
+                      fontSize: Tx.headline,
                       fontWeight: FontWeight.w800,
+                      letterSpacing: -.4,
                       color: MC.ivoire)),
               // Numéro + destination : masqués pour un appel MboteCall → MboteCall
               if (!isMbote) ...[
                 if (widget.displayName != null)
                   Text(widget.to,
-                      style: TextStyle(color: MC.kaki, fontSize: 13)),
+                      style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
                 Text(destination,
-                    style: TextStyle(color: MC.kaki, fontSize: 12.5)),
+                    style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
               ],
               const SizedBox(height: 14),
               // Chrono doré
               Text(fmtDur(elapsed),
                   style: TextStyle(
-                      fontSize: 38,
+                      fontSize: Tx.display,
                       fontWeight: FontWeight.w800,
                       color: MC.soleil,
-                      fontFeatures: [FontFeature.tabularFigures()])),
+                      fontFeatures: const [FontFeature.tabularFigures()])),
               const SizedBox(height: 12),
               // 💚 MboteCall → MboteCall : l'icône officielle, sans texte
               if (isMbote)
@@ -404,14 +495,17 @@ class _CallScreenState extends State<CallScreen>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                          color: MC.soleil.withOpacity(.3),
+                          color: MC.soleil.withValues(alpha: .3),
                           blurRadius: 22,
                           spreadRadius: 2),
                     ],
                   ),
                   child: ClipOval(
                     child: Image.asset('assets/icon/icon_small.png',
-                        width: 52, height: 52, fit: BoxFit.cover),
+                        width: 52,
+                        height: 52,
+                        fit: BoxFit.cover,
+                        excludeFromSemantics: true),
                   ),
                 )
               else if (priceMin == 0 && freeReason == 'package')
@@ -419,22 +513,29 @@ class _CallScreenState extends State<CallScreen>
                     style: TextStyle(
                         color: MC.savane,
                         fontWeight: FontWeight.w800,
-                        fontSize: 13))
+                        fontSize: Tx.label))
               else
                 Text(
                   status == 'ended'
                       ? 'Total : ${fmtMoney(cost)} · ${fmtDur(elapsed)}'
                       : 'Coût : ${fmtMoney(cost)} · ${(priceMin / 100).toStringAsFixed(2)} \$/min',
-                  style: TextStyle(color: MC.sable, fontSize: 12.5),
+                  style: TextStyle(color: MC.sable, fontSize: Tx.label),
                 ),
+              if (!isVideoCall)
+                const Spacer(flex: 2)
+              else
+                const SizedBox(height: 10),
               if (status == 'error')
                 Padding(
                   padding: const EdgeInsets.all(18),
                   child: Text(error ?? '',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: MC.rouge, fontSize: 14)),
+                      style: TextStyle(color: MC.rouge, fontSize: Tx.body)),
                 ),
-              const Spacer(flex: 2),
+              if (!isVideoCall)
+                const Spacer(flex: 2)
+              else
+                const SizedBox(height: 12),
               // Commandes : micro · raccrocher · haut-parleur (maquette validée)
               if (status == 'ended' || status == 'error')
                 Padding(
@@ -446,8 +547,7 @@ class _CallScreenState extends State<CallScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _round(
-                        muted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                    _round(muted ? Icons.mic_off_rounded : Icons.mic_rounded,
                         muted, () {
                       setState(() => muted = !muted);
                       rtc?.setMuted(muted); // 🎤 coupe réellement le micro
@@ -459,24 +559,34 @@ class _CallScreenState extends State<CallScreen>
                         width: 74,
                         height: 74,
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: MC.rouge,
-                          boxShadow: [
-                            BoxShadow(
-                                color: MC.rouge.withOpacity(.4),
-                                blurRadius: 26,
-                                offset: const Offset(0, 8)),
-                          ],
+                          borderRadius: BorderRadius.circular(Rd.lg),
+                          color: Semantique.raccrocher,
                         ),
                         child: const Icon(Icons.call_end_rounded,
                             color: Colors.white, size: 32),
                       ),
                     ),
                     const SizedBox(width: 26),
-                    _round(Icons.volume_up_rounded, speaker, () {
-                      setState(() => speaker = !speaker);
-                      rtc?.setSpeaker(speaker); // 🔊 vrai haut-parleur
-                    }),
+                    if (isVideoCall) ...[
+                      _round(
+                        cameraOn
+                            ? Icons.videocam_rounded
+                            : Icons.videocam_off_rounded,
+                        !cameraOn,
+                        () {
+                          setState(() => cameraOn = !cameraOn);
+                          rtc?.setVideoEnabled(cameraOn);
+                        },
+                      ),
+                      const SizedBox(width: 26),
+                      _round(Icons.flip_camera_ios_rounded, false, () {
+                        rtc?.switchCamera();
+                      }),
+                    ] else
+                      _round(Icons.volume_up_rounded, speaker, () {
+                        setState(() => speaker = !speaker);
+                        rtc?.setSpeaker(speaker); // 🔊 vrai haut-parleur
+                      }),
                   ],
                 ),
               const SizedBox(height: 46),
@@ -487,18 +597,113 @@ class _CallScreenState extends State<CallScreen>
     );
   }
 
+  /// 📹 Zone vidéo : image du correspondant + mon aperçu en petit.
+  Widget _videoArea(String name, String initial, bool hasPhoto) {
+    final remote = _remoteRender;
+    final showRemote = remote != null && remote.srcObject != null;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+      child: AspectRatio(
+        aspectRatio: 3 / 4,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(Rd.lg),
+              child: Container(
+                color: MC.nuit2,
+                child: showRemote
+                    ? FittedBox(
+                        fit: BoxFit.cover,
+                        child: SizedBox(
+                          width: remote.videoWidth == 0
+                              ? 360
+                              : remote.videoWidth.toDouble(),
+                          height: remote.videoHeight == 0
+                              ? 640
+                              : remote.videoHeight.toDouble(),
+                          child: RTCVideoView(remote),
+                        ),
+                      )
+                    : Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            MboteAvatar(
+                              name: name,
+                              size: 88,
+                              image: hasPhoto
+                                  ? MemoryImage(
+                                      base64Decode(calleeAvatar!.split(',').last))
+                                  : null,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              isCallee
+                                  ? 'Connexion vidéo…'
+                                  : 'En attente de sa caméra…',
+                              style: TextStyle(color: MC.kaki, fontSize: Tx.label),
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+            ),
+            // Mon aperçu (petit, en bas à droite)
+            if (_localRender != null && _localRender!.srcObject != null)
+              Positioned(
+                right: 10,
+                bottom: 10,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(Rd.md),
+                  child: SizedBox(
+                    width: 78,
+                    height: 108,
+                    child: RTCVideoView(_localRender!, mirror: true),
+                  ),
+                ),
+              ),
+            if (!cameraOn)
+              Positioned(
+                left: 10,
+                bottom: 10,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: .55),
+                    borderRadius: BorderRadius.circular(Rd.sm),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.videocam_off_rounded,
+                          size: 12, color: MC.rouge),
+                      const SizedBox(width: 4),
+                      Text('Caméra coupée',
+                          style: TextStyle(color: MC.sable, fontSize: Tx.caption)),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _round(IconData icon, bool active, VoidCallback onTap) =>
       GestureDetector(
         onTap: onTap,
         child: Container(
-          width: 56,
-          height: 56,
+          width: Tap.confort,
+          height: Tap.confort,
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: active ? MC.soleil : MC.nuit3,
+            borderRadius: BorderRadius.circular(Rd.md),
+            color: active ? MC.soleil : MC.nuit2,
+            border: Border.all(color: active ? MC.soleil : MC.ligne),
           ),
-          child: Icon(icon,
-              color: active ? MC.onAccent : MC.sable, size: 22),
+          child: Icon(icon, color: active ? MC.onAccent : MC.sable, size: 22),
         ),
       );
 }

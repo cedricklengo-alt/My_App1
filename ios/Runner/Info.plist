@@ -4,6 +4,10 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>MboteCall utilise la caméra pour les appels vidéo (individuels et de groupe).</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>MboteCall utilise le micro pour les appels voix et vidéo.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../design.dart';
 import '../theme.dart';
 import 'login.dart';
 
@@ -14,7 +15,7 @@ class OnboardingScreen extends StatelessWidget {
             colors: [MC.halo, MC.nuit],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            stops: [0, .8],
+            stops: const [0, .8],
           ),
         ),
         child: SafeArea(
@@ -32,26 +33,24 @@ class OnboardingScreen extends StatelessWidget {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                          color: MC.soleil.withOpacity(.3),
+                          color: MC.soleil.withValues(alpha: .3),
                           blurRadius: 80,
                           spreadRadius: 18),
                     ],
                   ),
-                  child: Icon(Icons.call_rounded,
-                      size: 64, color: MC.onAccent),
+                  child: Icon(Icons.call_rounded, size: 64, color: MC.onAccent),
                 ),
                 const Spacer(),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text.rich(
                     TextSpan(children: [
-                      TextSpan(text: 'Appelle le pays,\ncomme si tu y '),
+                      const TextSpan(text: 'Appelle le pays,\ncomme si tu y '),
                       TextSpan(
-                          text: 'étais.',
-                          style: TextStyle(color: MC.soleil)),
+                          text: 'étais.', style: TextStyle(color: MC.soleil)),
                     ]),
                     style: TextStyle(
-                        fontSize: 30,
+                        fontSize: Tx.display,
                         height: 1.25,
                         fontWeight: FontWeight.w800,
                         color: MC.ivoire),
@@ -62,7 +61,7 @@ class OnboardingScreen extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     "Des appels nets et pas chers vers tous les GSM d'Afrique — même si ton correspondant n'a pas Internet ni l'application.",
-                    style: TextStyle(color: MC.sable, fontSize: 14.5),
+                    style: TextStyle(color: MC.sable, fontSize: Tx.body),
                   ),
                 ),
                 const SizedBox(height: 28),

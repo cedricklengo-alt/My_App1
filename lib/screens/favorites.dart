@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../api.dart';
 import '../state.dart';
+import '../design.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import 'call.dart';
@@ -25,7 +26,7 @@ class FavoritesScreen extends StatelessWidget {
             child: Text(L10n.t('add'),
                 style: TextStyle(
                     color: MC.soleil,
-                    fontSize: 14,
+                    fontSize: Tx.body,
                     fontWeight: FontWeight.w700)),
           ),
         ],
@@ -36,7 +37,7 @@ class FavoritesScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(40),
                 child: Text(L10n.t('empty_fav'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: MC.kaki, fontSize: 13.5)),
+                    style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
               ),
             )
           : ListView(
@@ -66,21 +67,24 @@ class FavoritesScreen extends StatelessWidget {
           children: [
             Text(L10n.t('favorites'),
                 style: TextStyle(
-                    fontSize: 19,
+                    fontSize: Tx.title,
                     fontWeight: FontWeight.w800,
                     color: MC.ivoire)),
             const SizedBox(height: 16),
             TextField(
                 controller: name,
                 style: TextStyle(color: MC.ivoire),
-                decoration: const InputDecoration(hintText: 'Nom (ex: Maman)')),
+                decoration: InputDecoration(
+                    labelText: L10n.t('label_name'),
+                    hintText: 'Maman, Papa, Chef…')),
             const SizedBox(height: 10),
             TextField(
                 controller: phone,
                 keyboardType: TextInputType.phone,
                 style: TextStyle(color: MC.ivoire),
-                decoration:
-                    const InputDecoration(hintText: 'Numéro (+243…)')),
+                decoration: InputDecoration(
+                    labelText: L10n.t('label_phone'),
+                    hintText: '+243…')),
             const SizedBox(height: 18),
             MboteButton(
               label: L10n.t('add'),
@@ -91,6 +95,7 @@ class FavoritesScreen extends StatelessWidget {
                   await st.refresh();
                   if (ctx.mounted) Navigator.pop(ctx);
                 } catch (e) {
+                  if (!ctx.mounted) return;
                   ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
                       content: Text(friendlyError(e)),
                       backgroundColor: MC.rouge));
@@ -113,32 +118,34 @@ class _FavoriteTile extends StatelessWidget {
     final name = contact['name'] as String;
     final color = FavoritesScreen
         .colors[name.hashCode.abs() % FavoritesScreen.colors.length];
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
         color: MC.nuit2,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: ListTile(
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Rd.md)),
+        child: ListTile(
         onLongPress: () => _confirmDelete(context),
         leading: Container(
           width: 42,
           height: 42,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-              color: color, borderRadius: BorderRadius.circular(14)),
+              color: color, borderRadius: BorderRadius.circular(Rd.md)),
           child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
               style: TextStyle(
                   color: MC.onAccent,
                   fontWeight: FontWeight.w800,
-                  fontSize: 16)),
+                  fontSize: Tx.subtitle)),
         ),
         title: Text(name,
             style: TextStyle(
-                color: MC.ivoire, fontWeight: FontWeight.w600, fontSize: 15)),
+                color: MC.ivoire, fontWeight: FontWeight.w600, fontSize: Tx.bodyLg)),
         subtitle: Text(contact['phone'],
-            style: TextStyle(color: MC.kaki, fontSize: 12)),
+            style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
         trailing: IconButton(
+          tooltip: L10n.t('chat_call_audio'),
           icon: Icon(Icons.call_rounded, color: MC.savane),
           onPressed: () => Navigator.push(
             context,
@@ -146,6 +153,7 @@ class _FavoriteTile extends StatelessWidget {
                 builder: (_) => CallScreen(
                     to: contact['phone'], displayName: contact['name'])),
           ),
+        ),
         ),
       ),
     );

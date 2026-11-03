@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../state.dart';
+import '../design.dart';
 import '../theme.dart';
+import '../widgets/floating_choice.dart';
 import '../l10n.dart';
 import '../rtc.dart';
 import 'call.dart';
@@ -35,9 +37,18 @@ class _KeypadScreenState extends State<KeypadScreen> {
     _lookupTarif();
   }
 
+  @override
+  void dispose() {
+    // Sans cette annulation, un appui suivi d'un retour arrière immédiat
+    // laissait un minuteur vivant appeler setState sur un écran détruit.
+    _debounce?.cancel();
+    super.dispose();
+  }
+
   void _lookupTarif() {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 450), () async {
+      if (!mounted) return;
       if (number.length < 8) {
         setState(() {
           tarif = '';
@@ -75,139 +86,182 @@ class _KeypadScreenState extends State<KeypadScreen> {
   @override
   Widget build(BuildContext context) {
     const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '0', '⌫'];
+
+    // 📐 Le clavier s'adapte : sur un petit téléphone il défile au lieu de
+    // déborder (l'ancienne version fixe débordait de 372 px en 800×600).
     return SafeArea(
-      child: Column(
-        children: [
-          // Titre + accès rapides : ⭐ Favoris et 📒 Contacts (en haut à droite)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 8, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(L10n.t('nav_keypad'),
-                      style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          color: MC.ivoire)),
-                ),
-                // 🟢 Voyant temps réel : vert = prêt pour la vraie voix
-                ValueListenableBuilder<bool>(
-                  valueListenable: Rtc.connected,
-                  builder: (_, ok, __) => Tooltip(
-                    message: ok
-                        ? 'Prêt à recevoir des appels'
-                        : 'Connexion au serveur…',
-                    child: Icon(Icons.circle,
-                        size: 10, color: ok ? MC.savane : MC.kaki),
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 430),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _header(),
+                      const SizedBox(height: 12),
+                      // Le numéro composé
+                      Text(number.isEmpty ? ' ' : number,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: Tx.headline,
+                              letterSpacing: 1.5,
+                              fontWeight: FontWeight.w600,
+                              color: MC.ivoire)),
+                      SizedBox(
+                        height: 22,
+                        child: Text(tarif,
+                            style: TextStyle(
+                                color: free ? MC.savane : MC.sable,
+                                fontWeight:
+                                    free ? FontWeight.w800 : FontWeight.w400,
+                                fontSize: Tx.label)),
+                      ),
+                      const SizedBox(height: 8),
+                      // ---- Pavé ----
+                      GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: 1.75,
+                        children: keys
+                            .map((k) => Material(
+                                  color: MC.nuit3,
+                                  borderRadius: BorderRadius.circular(Rd.md),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(Rd.md),
+                                    onTap: () =>
+                                        k == '⌫' ? _erase() : _press(k),
+                                    onLongPress: k == '⌫'
+                                        ? () {
+                                            setState(() => number = '');
+                                            _lookupTarif();
+                                          }
+                                        : null,
+                                    child: Center(
+                                      child: Text(k,
+                                          style: TextStyle(
+                                              fontSize: Tx.headline,
+                                              fontWeight: FontWeight.w600,
+                                              color: MC.ivoire)),
+                                    ),
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 18),
+                      // ---- Appel audio · appel vidéo (côte à côte) ----
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _callButton(
+                            icon: Icons.call_rounded,
+                            size: 68,
+                            gradient: true,
+                            tooltip: L10n.t('chat_call_audio'),
+                            video: false,
+                          ),
+                          const SizedBox(width: 22),
+                          _callButton(
+                            icon: Icons.videocam_rounded,
+                            size: 56,
+                            gradient: false,
+                            tooltip: L10n.t('chat_call_video'),
+                            video: true,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                   ),
                 ),
-                IconButton(
-                  tooltip: L10n.t('favorites'),
-                  icon: Icon(Icons.star_rounded, color: MC.soleil, size: 26),
-                  onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const FavoritesScreen())),
-                ),
-                IconButton(
-                  tooltip: L10n.t('contacts_title'),
-                  icon: Icon(Icons.contacts_rounded,
-                      color: MC.sable, size: 23),
-                  onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const ContactsScreen())),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          Text(number.isEmpty ? ' ' : number,
-              style: TextStyle(
-                  fontSize: 28,
-                  letterSpacing: 1.5,
-                  fontWeight: FontWeight.w600,
-                  color: MC.ivoire)),
-          const SizedBox(height: 6),
-          SizedBox(
-            height: 20,
-            child: Text(tarif,
-                style: TextStyle(
-                    color: free ? MC.savane : MC.sable,
-                    fontWeight: free ? FontWeight.w800 : FontWeight.w400,
-                    fontSize: 12.5)),
-          ),
-          const SizedBox(height: 10),
-          // ---- Pavé ----
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 34),
-            child: GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 3,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.55,
-              children: keys
-                  .map((k) => Material(
-                        color: MC.nuit3,
-                        borderRadius: BorderRadius.circular(16),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: () => k == '⌫' ? _erase() : _press(k),
-                          onLongPress: k == '⌫'
-                              ? () {
-                                  setState(() => number = '');
-                                  _lookupTarif();
-                                }
-                              : null,
-                          child: Center(
-                            child: Text(k,
-                                style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w600,
-                                    color: MC.ivoire)),
-                          ),
-                        ),
-                      ))
-                  .toList(),
-            ),
-          ),
-          const SizedBox(height: 18),
-          // ---- Bouton appel ----
-          GestureDetector(
-            onTap: () {
-              final clean = number.replaceAll(RegExp(r'[\s.\-()]'), '');
-              if (!RegExp(r'^\+\d{8,15}$').hasMatch(clean)) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('Numéro invalide — format +243…'),
-                    backgroundColor: MC.rouge));
-                return;
-              }
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => CallScreen(to: clean)));
-            },
-            child: Container(
-              width: 68,
-              height: 68,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                    colors: [Color(0xFF3BC684), MC.savane]),
-                boxShadow: [
-                  BoxShadow(
-                      color: MC.savane.withOpacity(.4),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8)),
-                ],
               ),
-              child: const Icon(Icons.call_rounded,
-                  color: Colors.white, size: 30),
             ),
           ),
-          const Spacer(),
+        ),
+      ),
+    );
+  }
+
+  /// En-tête : titre, voyant temps réel, favoris et contacts.
+  Widget _header() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 0, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(L10n.t('nav_keypad'),
+                style: TextStyle(
+                    fontSize: Tx.headline,
+                    fontWeight: FontWeight.w800,
+                    color: MC.ivoire)),
+          ),
+          // 🟢 Voyant temps réel : vert = prêt pour la vraie voix
+          ValueListenableBuilder<bool>(
+            valueListenable: Rtc.connected,
+            builder: (_, ok, __) => Tooltip(
+              message: ok ? L10n.t('keypad_ready') : L10n.t('keypad_connecting'),
+              child: Icon(Icons.circle,
+                  size: 10, color: ok ? MC.savane : MC.kaki),
+            ),
+          ),
+          IconButton(
+            tooltip: L10n.t('favorites'),
+            icon: Icon(Icons.star_rounded, color: MC.soleil, size: 26),
+            onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const FavoritesScreen())),
+          ),
+          IconButton(
+            tooltip: L10n.t('contacts_title'),
+            icon: Icon(Icons.contacts_rounded, color: MC.sable, size: 23),
+            onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const ContactsScreen())),
+          ),
         ],
       ),
+    );
+  }
+
+  /// Bouton d'appel (audio ou vidéo) — refuse un numéro invalide.
+  ///
+  /// Même vocabulaire que la fiche d'appel : bouton flottant, icône seule,
+  /// couleur porteuse de sens (vert = voix, sable = vidéo).
+  Widget _callButton({
+    required IconData icon,
+    required double size,
+    required bool gradient,
+    required String tooltip,
+    required bool video,
+  }) {
+    return FloatingChoice(
+      icon: icon,
+      color: gradient ? MC.savane : MC.soleil,
+      label: tooltip,
+      size: size,
+      outlined: !gradient,
+      onTap: () {
+        final clean = number.replaceAll(RegExp(r'[\s.\-()]'), '');
+        if (!RegExp(r'^\+\d{8,15}$').hasMatch(clean)) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(L10n.t('keypad_invalid')),
+              backgroundColor: MC.rouge));
+          return;
+        }
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => CallScreen(to: clean, video: video)));
+      },
     );
   }
 }

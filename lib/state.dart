@@ -6,9 +6,11 @@ import 'rtc.dart';
 
 /// État global de l'application (session, solde, contacts).
 class AppState extends ChangeNotifier {
-  final Api api = Api();
+  /// Remplaçable par un faux serveur dans les tests d'interface.
+  Api api = Api();
 
   String? token;
+  String? id; // identifiant serveur (pour « mon statut » dans le fil)
   String name = '';
   String phone = '';
   String? avatar; // 📷 data-URI de la photo de profil
@@ -37,6 +39,7 @@ class AppState extends ChangeNotifier {
   Future<void> onLoggedIn(String tk, Map user, int balance) async {
     token = tk;
     api.token = tk;
+    id = user['id']?.toString();
     name = user['name'] ?? '';
     phone = user['phone'] ?? '';
     avatar = user['avatar'];
@@ -61,6 +64,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> refresh() async {
     final m = await api.me();
+    id = m['user']['id']?.toString();
     name = m['user']['name'] ?? '';
     phone = m['user']['phone'] ?? '';
     avatar = m['user']['avatar'];
@@ -81,6 +85,7 @@ class AppState extends ChangeNotifier {
   Future<void> logout() async {
     Rtc.disconnect(); // ferme le canal temps réel
     token = null;
+    id = null;
     api.token = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'design.dart';
+
 /// 🎨 Une palette = un thème complet de MboteCall.
 class Palette {
   final Color nuit, nuit2, nuit3; // fonds (écran, carte, carte claire)
@@ -26,8 +28,28 @@ class Palette {
   });
 }
 
-/// Les 4 thèmes de MboteCall.
+/// Les thèmes de MboteCall. « Fleuve Congo » est l'identité par défaut.
 const Map<String, Palette> kPalettes = {
+  // 🌊 L'identité de référence — « Fleuve Congo »
+  //    Bleu-vert profond du fleuve, sable des berges, corail des pirogues.
+  //    Contraste vérifié : 21 paires texte/fond conformes WCAG AA
+  //    (voir `test/design_test.dart`).
+  'fleuve': Palette(
+    nuit: Color(0xFF0B1518),
+    nuit2: Color(0xFF132124),
+    nuit3: Color(0xFF1C2E31),
+    accent: Color(0xFFE9C27C),
+    accent2: Color(0xFFE2664A),
+    terre: Color(0xFF2E8077),
+    savane: Color(0xFF4FB477),
+    rouge: Color(0xFFEE6459),
+    ivoire: Color(0xFFF2F7F6),
+    sable: Color(0xFFC4D4D2),
+    kaki: Color(0xFF93A8A6),
+    ligne: Color(0xFF274043),
+    onAccent: Color(0xFF10201F),
+    halo: Color(0xFF1B3034),
+  ),
   // 🌅 L'identité originale « Soleil de Kin »
   'kin': Palette(
     nuit: Color(0xFF14100E),
@@ -37,7 +59,7 @@ const Map<String, Palette> kPalettes = {
     accent2: Color(0xFFE85D2A),
     terre: Color(0xFFB4532A),
     savane: Color(0xFF2EA06B),
-    rouge: Color(0xFFD94436),
+    rouge: Color(0xFFD94C3E),
     ivoire: Color(0xFFFBF3E4),
     sable: Color(0xFFE8D5B5),
     kaki: Color(0xFF9C8A70),
@@ -51,8 +73,8 @@ const Map<String, Palette> kPalettes = {
     nuit2: Color(0xFF111B21),
     nuit3: Color(0xFF202C33),
     accent: Color(0xFF25D366),
-    accent2: Color(0xFF128C7E),
-    terre: Color(0xFF075E54),
+    accent2: Color(0xFF129C8E),
+    terre: Color(0xFF078278),
     savane: Color(0xFF25D366),
     rouge: Color(0xFFEF5350),
     ivoire: Color(0xFFE9EDEF),
@@ -68,8 +90,8 @@ const Map<String, Palette> kPalettes = {
     nuit2: Color(0xFF1E2226),
     nuit3: Color(0xFF2C3237),
     accent: Color(0xFF70B5F9),
-    accent2: Color(0xFF0A66C2),
-    terre: Color(0xFF0A66C2),
+    accent2: Color(0xFF0B80F5),
+    terre: Color(0xFF0A79E8),
     savane: Color(0xFF57A863),
     rouge: Color(0xFFE06055),
     ivoire: Color(0xFFF3F6F8),
@@ -80,20 +102,23 @@ const Map<String, Palette> kPalettes = {
     halo: Color(0xFF1C2630),
   ),
   // 👥 Bleu Nuit — inspiré de Facebook
+  //    ⚠️ `onAccent` est volontairement SOMBRE : l'accent bleu clair
+  //    (#318AFF) n'offre que ~5,5:1 avec du blanc, qui échoue en AA sur
+  //    les petits textes. Un texte presque noir y monte à ~7:1.
   'bleu': Palette(
     nuit: Color(0xFF18191A),
     nuit2: Color(0xFF242526),
     nuit3: Color(0xFF3A3B3C),
-    accent: Color(0xFF2D88FF),
-    accent2: Color(0xFF1877F2),
-    terre: Color(0xFF1877F2),
+    accent: Color(0xFF318AFF),
+    accent2: Color(0xFF1C79F2),
+    terre: Color(0xFF3083F2),
     savane: Color(0xFF45BD62),
-    rouge: Color(0xFFF02849),
+    rouge: Color(0xFFF14161),
     ivoire: Color(0xFFE4E6EB),
     sable: Color(0xFFB0B3B8),
-    kaki: Color(0xFF8A8D91),
+    kaki: Color(0xFFA2A5A9),
     ligne: Color(0xFF3A3B3C),
-    onAccent: Color(0xFFFFFFFF),
+    onAccent: Color(0xFF06121F),
     halo: Color(0xFF1F2533),
   ),
 };
@@ -101,20 +126,20 @@ const Map<String, Palette> kPalettes = {
 /// Couleurs actives de l'app — mises à jour quand on change de thème.
 /// (les noms historiques « soleil/braise » = accent/accent2 du thème actif)
 class MC {
-  static Color nuit = const Color(0xFF14100E);
-  static Color nuit2 = const Color(0xFF201915);
-  static Color nuit3 = const Color(0xFF2C231D);
-  static Color soleil = const Color(0xFFF5A623);
-  static Color braise = const Color(0xFFE85D2A);
-  static Color terre = const Color(0xFFB4532A);
-  static Color savane = const Color(0xFF2EA06B);
-  static Color rouge = const Color(0xFFD94436);
-  static Color ivoire = const Color(0xFFFBF3E4);
-  static Color sable = const Color(0xFFE8D5B5);
-  static Color kaki = const Color(0xFF9C8A70);
-  static Color ligne = const Color(0xFF39302A);
-  static Color onAccent = const Color(0xFF241204);
-  static Color halo = const Color(0xFF33210F);
+  static Color nuit = const Color(0xFF0B1518);
+  static Color nuit2 = const Color(0xFF132124);
+  static Color nuit3 = const Color(0xFF1C2E31);
+  static Color soleil = const Color(0xFFE9C27C);
+  static Color braise = const Color(0xFFE2664A);
+  static Color terre = const Color(0xFF2E8077);
+  static Color savane = const Color(0xFF4FB477);
+  static Color rouge = const Color(0xFFEE6459);
+  static Color ivoire = const Color(0xFFF2F7F6);
+  static Color sable = const Color(0xFFC4D4D2);
+  static Color kaki = const Color(0xFF93A8A6);
+  static Color ligne = const Color(0xFF274043);
+  static Color onAccent = const Color(0xFF10201F);
+  static Color halo = const Color(0xFF1B3034);
 
   static LinearGradient get degrade => LinearGradient(
         colors: [soleil, braise],
@@ -142,11 +167,12 @@ class MC {
 
 /// 🎛️ Thème + police choisis par l'utilisateur (persistés).
 class ThemeCtl {
-  static String theme = 'kin';
+  static String theme = 'fleuve';
   static String font = 'standard';
   static final ValueNotifier<int> version = ValueNotifier(0);
 
   static const themes = {
+    'fleuve': 'Fleuve Congo 🌊',
     'kin': 'Soleil de Kin 🌅',
     'emeraude': 'Émeraude 💬',
     'ocean': 'Océan 💼',
@@ -161,15 +187,15 @@ class ThemeCtl {
 
   static Future<void> load() async {
     final p = await SharedPreferences.getInstance();
-    theme = p.getString('theme') ?? 'kin';
+    theme = p.getString('theme') ?? 'fleuve';
     font = p.getString('font') ?? 'standard';
-    MC.apply(kPalettes[theme] ?? kPalettes['kin']!);
+    MC.apply(kPalettes[theme] ?? kPalettes['fleuve']!);
     version.value++;
   }
 
   static Future<void> setTheme(String t) async {
     theme = t;
-    MC.apply(kPalettes[t] ?? kPalettes['kin']!);
+    MC.apply(kPalettes[t] ?? kPalettes['fleuve']!);
     (await SharedPreferences.getInstance()).setString('theme', t);
     version.value++;
   }
@@ -206,7 +232,7 @@ ThemeData mboteTheme() {
       centerTitle: false,
       titleTextStyle: TextStyle(
           color: MC.ivoire,
-          fontSize: 21,
+          fontSize: Tx.title,
           fontWeight: FontWeight.w800,
           fontFamily: fam),
     ),
@@ -219,11 +245,11 @@ ThemeData mboteTheme() {
       fillColor: MC.nuit3,
       hintStyle: TextStyle(color: MC.kaki),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(Rd.md),
         borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(Rd.md),
         borderSide: BorderSide(color: MC.soleil, width: 1.6),
       ),
     ),
@@ -231,6 +257,118 @@ ThemeData mboteTheme() {
       backgroundColor: MC.nuit3,
       contentTextStyle: TextStyle(color: MC.ivoire),
       behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Rd.md)),
+    ),
+    // ── Le reste de l'application suit la même identité « Fleuve Congo » :
+    //    bords nets, surfaces franches, filets fins, aucune ombre lourde.
+    dividerTheme: DividerThemeData(
+      color: MC.ligne,
+      thickness: Densite.separateur,
+      space: Densite.separateur,
+    ),
+    cardTheme: CardThemeData(
+      color: MC.nuit2,
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Rd.md),
+        side: BorderSide(color: MC.ligne),
+      ),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: MC.nuit2,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Rd.lg),
+        side: BorderSide(color: MC.ligne),
+      ),
+      titleTextStyle: TextStyle(
+          color: MC.ivoire,
+          fontSize: Tx.subtitle,
+          fontWeight: FontWeight.w800,
+          fontFamily: fam),
+      contentTextStyle: TextStyle(color: MC.sable, fontSize: Tx.body),
+    ),
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: MC.nuit2,
+      modalBackgroundColor: MC.nuit2,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(Rd.lg)),
+        side: BorderSide(color: MC.ligne),
+      ),
+      showDragHandle: true,
+      dragHandleColor: MC.ligne,
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: MC.soleil,
+        foregroundColor: MC.onAccent,
+        minimumSize: const Size(0, 48),
+        textStyle: const TextStyle(
+            fontSize: Tx.bodyLg, fontWeight: FontWeight.w700),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Rd.md)),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: MC.soleil,
+        textStyle: const TextStyle(
+            fontSize: Tx.body, fontWeight: FontWeight.w700),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: MC.soleil,
+        minimumSize: const Size(0, 48),
+        side: BorderSide(color: MC.soleil.withValues(alpha: .55)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Rd.md)),
+      ),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(foregroundColor: MC.sable),
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: MC.nuit3,
+      side: BorderSide(color: MC.ligne),
+      labelStyle: TextStyle(color: MC.sable, fontSize: Tx.label),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Rd.pill)),
+    ),
+    listTileTheme: ListTileThemeData(
+      iconColor: MC.kaki,
+      textColor: MC.ivoire,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Rd.md)),
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: MC.soleil,
+      linearTrackColor: MC.nuit3,
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith(
+          (e) => e.contains(WidgetState.selected) ? MC.onAccent : MC.kaki),
+      trackColor: WidgetStateProperty.resolveWith(
+          (e) => e.contains(WidgetState.selected) ? MC.soleil : MC.nuit3),
+    ),
+    tooltipTheme: TooltipThemeData(
+      decoration: BoxDecoration(
+        color: MC.nuit3,
+        borderRadius: BorderRadius.circular(Rd.sm),
+        border: Border.all(color: MC.ligne),
+      ),
+      textStyle: TextStyle(color: MC.ivoire, fontSize: Tx.label),
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: MC.nuit2,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Rd.md),
+        side: BorderSide(color: MC.ligne),
+      ),
+      textStyle: TextStyle(color: MC.ivoire, fontSize: Tx.body),
     ),
   );
 }
@@ -256,14 +394,14 @@ class MboteButton extends StatelessWidget {
     return GestureDetector(
       onTap: loading ? null : onTap,
       child: Container(
-        height: 54,
+        height: Tap.confort,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           gradient: MC.degrade,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(Rd.md),
           boxShadow: [
             BoxShadow(
-                color: MC.braise.withOpacity(.35),
+                color: MC.braise.withValues(alpha: .35),
                 blurRadius: 20,
                 offset: const Offset(0, 8)),
           ],
@@ -277,7 +415,7 @@ class MboteButton extends StatelessWidget {
             : Text(label,
                 style: TextStyle(
                     color: MC.onAccent,
-                    fontSize: 16,
+                    fontSize: Tx.subtitle,
                     fontWeight: FontWeight.w800)),
       ),
     );

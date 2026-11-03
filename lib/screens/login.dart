@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../api.dart';
 import '../state.dart';
+import '../design.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import 'shell.dart';
@@ -60,8 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _snack('🎁 Bienvenue ! 0,50 \$ offerts pour tester.');
       }
       Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const ShellScreen()),
-          (_) => false);
+          MaterialPageRoute(builder: (_) => const ShellScreen()), (_) => false);
     } catch (e) {
       _snack(friendlyError(e), error: true);
     } finally {
@@ -81,23 +81,25 @@ class _LoginScreenState extends State<LoginScreen> {
             Text(
               otpSent ? 'Entre le code reçu 📲' : 'Ton numéro de téléphone',
               style: TextStyle(
-                  fontSize: 23, fontWeight: FontWeight.w800, color: MC.ivoire),
+                  fontSize: Tx.headline, fontWeight: FontWeight.w800, color: MC.ivoire),
             ),
             const SizedBox(height: 8),
             Text(
               otpSent
                   ? 'Un code à 6 chiffres a été envoyé au ${phoneCtrl.text}'
                   : 'On t\'envoie un code par SMS pour vérifier que c\'est bien toi.',
-              style: TextStyle(color: MC.sable, fontSize: 14),
+              style: TextStyle(color: MC.sable, fontSize: Tx.body),
             ),
             const SizedBox(height: 26),
             if (!otpSent)
               TextField(
                 controller: phoneCtrl,
                 keyboardType: TextInputType.phone,
-                style: TextStyle(
-                    fontSize: 20, color: MC.ivoire, letterSpacing: 1),
-                decoration: const InputDecoration(hintText: '+243 81 234 5678'),
+                style:
+                    TextStyle(fontSize: Tx.title, color: MC.ivoire, letterSpacing: 1),
+                decoration: InputDecoration(
+                    labelText: L10n.t('label_phone'),
+                    hintText: '+243 81 234 5678'),
               )
             else ...[
               TextField(
@@ -106,16 +108,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 maxLength: 6,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    fontSize: 28, color: MC.ivoire, letterSpacing: 10),
+                    fontSize: Tx.headline, color: MC.ivoire, letterSpacing: 10),
                 decoration:
-                    const InputDecoration(hintText: '······', counterText: ''),
+                    InputDecoration(
+                        labelText: L10n.t('label_code'),
+                        hintText: '······',
+                        counterText: ''),
               ),
               if (demoCode != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text('Mode démo — code : $demoCode',
-                      style:
-                          TextStyle(color: MC.savane, fontSize: 12.5)),
+                      style: TextStyle(color: MC.savane, fontSize: Tx.label)),
                 ),
               const SizedBox(height: 12),
               // 🎁 Code parrain (facultatif) — 1 $ offert au 1er appel
@@ -123,17 +127,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 GestureDetector(
                   onTap: () => setState(() => showReferral = true),
                   child: Text(L10n.t('have_code'),
-                      style: TextStyle(
-                          color: MC.soleil, fontSize: 13.5)),
+                      style: TextStyle(color: MC.soleil, fontSize: Tx.label)),
                 )
               else
                 TextField(
                   controller: referralCtrl,
                   textCapitalization: TextCapitalization.characters,
                   style: TextStyle(
-                      fontSize: 16, color: MC.ivoire, letterSpacing: 2),
-                  decoration:
-                      const InputDecoration(hintText: 'MBOTE-XXXX'),
+                      fontSize: Tx.subtitle, color: MC.ivoire, letterSpacing: 2),
+                  decoration: InputDecoration(
+                      labelText: L10n.t('label_invite'),
+                      hintText: 'MBOTE-XXXX'),
                 ),
             ],
             const SizedBox(height: 26),

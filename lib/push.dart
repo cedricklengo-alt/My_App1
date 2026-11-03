@@ -18,11 +18,20 @@ class Push {
     if (_done) return;
     try {
       final fm = FirebaseMessaging.instance;
-      await fm.requestPermission(); // Android 13+ : « Autoriser les notifications ? »
+      await fm
+          .requestPermission(); // Android 13+ : « Autoriser les notifications ? »
+      // ⚠️ `getToken()` est marqué déprécié au profit de `register()`/
+      // `onRegistered`, MAIS ces derniers renvoient l'identifiant
+      // d'installation Firebase (FID), pas le jeton d'envoi FCM. Le serveur
+      // envoie des notifications HTTP v1 à `message.token` : c'est donc bien
+      // le jeton FCM qu'il faut transmettre, sinon plus aucune notification
+      // n'arrive. On conserve l'API historique et on l'assume ici.
+      // ignore: deprecated_member_use
       final token = await fm.getToken();
       if (token == null) return;
       await api.sendFcmToken(token);
       // Le jeton peut changer (réinstallation…) → on tient le serveur à jour
+      // ignore: deprecated_member_use
       fm.onTokenRefresh.listen((t) {
         api.sendFcmToken(t).catchError((_) {});
       });

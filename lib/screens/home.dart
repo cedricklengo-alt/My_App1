@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../state.dart';
+import '../design.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import 'airtime.dart';
@@ -44,27 +45,27 @@ class _HomeScreenState extends State<HomeScreen> {
           await _loadPromos();
         },
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+          padding: const EdgeInsets.fromLTRB(Sp.x4, Sp.x3, Sp.x4, Sp.x5),
           children: [
-            Text(st.name.isEmpty ? st.phone : st.name,
+            Text(L10n.t('wallet'),
                 style: TextStyle(
-                    fontSize: 24,
+                    fontSize: Tx.headline,
                     fontWeight: FontWeight.w800,
+                    letterSpacing: -.6,
                     color: MC.ivoire)),
+            const SizedBox(height: 2),
+            Text(st.name.isEmpty ? st.phone : st.name,
+                style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
             const SizedBox(height: 16),
 
             // ---- Carte solde ----
+            // Identité « Fleuve Congo » : la carte solde est un aplat de
+            // sable, comme mes bulles de conversation. Pas d'ombre : un filet.
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(Sp.x5),
               decoration: BoxDecoration(
-                gradient: MC.degrade,
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                      color: MC.braise.withOpacity(.3),
-                      blurRadius: 26,
-                      offset: const Offset(0, 10)),
-                ],
+                color: MC.soleil,
+                borderRadius: BorderRadius.circular(Rd.lg),
               ),
               child: Row(
                 children: [
@@ -72,23 +73,26 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(L10n.t('my_credit'),
+                        Text(L10n.t('my_credit').toUpperCase(),
                             style: TextStyle(
-                                fontSize: 11,
+                                fontSize: Tx.caption,
                                 letterSpacing: 1.4,
-                                fontWeight: FontWeight.w700,
-                                color: MC.onAccent.withOpacity(.7))),
-                        const SizedBox(height: 4),
-                        Text(fmtMoney(st.balanceCents),
-                            style: TextStyle(
-                                fontSize: 30,
                                 fontWeight: FontWeight.w800,
                                 color: MC.onAccent)),
+                        const SizedBox(height: Sp.x1),
+                        Text(fmtMoney(st.balanceCents),
+                            style: TextStyle(
+                                fontSize: Tx.display,
+                                fontWeight: FontWeight.w800,
+                                color: MC.onAccent,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures()
+                                ])),
                         Text(
                             '≈ ${st.balanceCents ~/ 9} ${L10n.t('min_to_drc')}',
                             style: TextStyle(
-                                fontSize: 12,
-                                color: MC.onAccent.withOpacity(.8))),
+                                fontSize: Tx.label,
+                                color: MC.onAccent.withValues(alpha: .75))),
                       ],
                     ),
                   ),
@@ -97,15 +101,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         MaterialPageRoute(builder: (_) => const TopupScreen())),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
+                          horizontal: Sp.x4, vertical: Sp.x3),
                       decoration: BoxDecoration(
                         color: MC.onAccent,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(Rd.md),
                       ),
                       child: Text(L10n.t('topup'),
                           style: TextStyle(
                               color: MC.soleil,
-                              fontSize: 13,
+                              fontSize: Tx.label,
                               fontWeight: FontWeight.w800)),
                     ),
                   ),
@@ -121,17 +125,13 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [MC.nuit2, MC.nuit3],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: MC.soleil.withOpacity(.45)),
+                  color: MC.nuit2,
+                  borderRadius: BorderRadius.circular(Rd.md),
+                  border: Border.all(color: MC.ligne),
                 ),
                 child: Row(
                   children: [
-                    const Text('🗣️', style: TextStyle(fontSize: 30)),
+                    const Text('🗣️', style: TextStyle(fontSize: Tx.display)),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -141,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               Text(L10n.t('lokota_home_title'),
                                   style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: Tx.subtitle,
                                       fontWeight: FontWeight.w800,
                                       color: MC.ivoire)),
                               const SizedBox(width: 8),
@@ -149,14 +149,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 7, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: MC.soleil.withOpacity(.16),
+                                  color: MC.soleil.withValues(alpha: .16),
                                   borderRadius: BorderRadius.circular(999),
                                   border: Border.all(color: MC.soleil),
                                 ),
                                 child: Text(L10n.t('lokota_pilot'),
                                     style: TextStyle(
                                         color: MC.soleil,
-                                        fontSize: 9.5,
+                                        fontSize: Tx.caption,
                                         fontWeight: FontWeight.w800)),
                               ),
                             ],
@@ -164,7 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SizedBox(height: 3),
                           Text(L10n.t('lokota_home_sub'),
                               style: TextStyle(
-                                  fontSize: 11.5,
+                                  fontSize: Tx.label,
                                   height: 1.35,
                                   color: MC.kaki)),
                         ],
@@ -216,8 +216,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                 decoration: BoxDecoration(
                   color: MC.nuit2,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: MC.soleil.withOpacity(.35)),
+                  borderRadius: BorderRadius.circular(Rd.md),
+                  border: Border.all(color: MC.ligne),
                 ),
                 child: Row(
                   children: [
@@ -229,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           style: TextStyle(
                               color: MC.ivoire,
                               fontWeight: FontWeight.w700,
-                              fontSize: 14)),
+                              fontSize: Tx.body)),
                     ),
                     Icon(Icons.chevron_right_rounded, color: MC.kaki),
                   ],
@@ -244,16 +244,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: MC.rouge.withOpacity(.12),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: MC.rouge.withOpacity(.4)),
+                  color: MC.rouge.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(Rd.md),
+                  border: Border.all(color: MC.rouge.withValues(alpha: .55)),
                 ),
                 child: Row(children: [
-                  const Text('⚠️ ', style: TextStyle(fontSize: 16)),
+                  const Text('⚠️ ', style: TextStyle(fontSize: Tx.subtitle)),
                   Expanded(
                     child: Text(L10n.t('low_credit'),
                         style: TextStyle(
-                            color: MC.ivoire, fontSize: 12.5, height: 1.4)),
+                            color: MC.ivoire, fontSize: Tx.label, height: 1.4)),
                   ),
                 ]),
               ),
@@ -261,22 +261,21 @@ class _HomeScreenState extends State<HomeScreen> {
             // ---- 🎉 Bannière Happy Hour ----
             ...promos.map((p) => Container(
                   margin: const EdgeInsets.only(top: 10),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
-                    color: MC.soleil.withOpacity(.1),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: MC.soleil.withOpacity(.45)),
+                    color: MC.soleil.withValues(alpha: .1),
+                    borderRadius: BorderRadius.circular(Rd.md),
+                    border: Border.all(color: MC.soleil.withValues(alpha: .55)),
                   ),
                   child: Row(children: [
-                    const Text('🎉 ', style: TextStyle(fontSize: 16)),
+                    const Text('🎉 ', style: TextStyle(fontSize: Tx.subtitle)),
                     Expanded(
-                      child: Text(
-                          '${p['title']} — ${L10n.t('promo_until')}',
+                      child: Text('${p['title']} — ${L10n.t('promo_until')}',
                           style: TextStyle(
                               color: MC.soleil,
                               fontWeight: FontWeight.w700,
-                              fontSize: 12.5)),
+                              fontSize: Tx.label)),
                     ),
                   ]),
                 )),
@@ -302,11 +301,16 @@ class _ActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
+        // Audit a11y : la carte mesurait 47 px de haut, à un pixel du minimum
+        // Material de 48 dp. `minHeight` garantit la cible quelle que soit
+        // la taille du texte.
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+          constraints: const BoxConstraints(minHeight: Tap.min),
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: MC.nuit2,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(Rd.md),
             border: Border.all(color: MC.ligne),
           ),
           child: Row(
@@ -320,7 +324,7 @@ class _ActionCard extends StatelessWidget {
                     style: TextStyle(
                         color: MC.ivoire,
                         fontWeight: FontWeight.w700,
-                        fontSize: 12.5,
+                        fontSize: Tx.label,
                         height: 1.25)),
               ),
             ],

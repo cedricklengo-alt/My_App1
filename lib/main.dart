@@ -1,13 +1,17 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'state.dart';
+import 'design.dart';
 import 'theme.dart';
 import 'l10n.dart';
 import 'pin.dart';
 import 'prefs.dart';
 import 'screens/onboarding.dart';
 import 'screens/shell.dart';
+import 'screens/group_call.dart';
 import 'screens/incoming_call.dart';
 import 'rtc.dart';
 
@@ -21,6 +25,11 @@ void main() async {
   try {
     await Firebase.initializeApp();
   } catch (_) {/* google-services.json absent : l'app marche sans push */}
+  // 📅 Données de langue pour les dates en français (« 7 déc. 2024 · 09h00 »).
+  // Sans cet appel, DateFormat('…', 'fr_FR') lève une LocaleDataException.
+  try {
+    await initializeDateFormatting('fr_FR', null);
+  } catch (_) {/* format de repli numérique */}
   await L10n.load(); // 🗣️ langue sauvegardée (+ langues téléchargées)
   await ThemeCtl.load(); // 🎨 thème + police sauvegardés
   await CallPrefs.load(); // 🔔 sonnerie + vibration choisies
@@ -44,6 +53,7 @@ class MboteApp extends StatefulWidget {
 class _MboteAppState extends State<MboteApp> with WidgetsBindingObserver {
   late bool locked = widget.locked;
   bool _callShown = false; // évite d'empiler deux écrans d'appel
+  bool _groupShown = false; // idem pour les invitations de groupe
 
   @override
   void initState() {
@@ -52,12 +62,16 @@ class _MboteAppState extends State<MboteApp> with WidgetsBindingObserver {
     // 📞 Branche les appels entrants : sans cette ligne, les offres reçues
     // par le canal temps réel n'ont aucun écran où s'afficher.
     Rtc.onOffer = _onOffer;
+    // 👥 Invitations à un appel de groupe (l'écran d'appel de groupe, quand il
+    // est ouvert, écoute la même salle de son côté).
+    Rtc.addGroupListener(_onGroupMessage);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     if (Rtc.onOffer == _onOffer) Rtc.onOffer = null;
+    Rtc.removeGroupListener(_onGroupMessage);
     super.dispose();
   }
 
@@ -89,6 +103,21 @@ class _MboteAppState extends State<MboteApp> with WidgetsBindingObserver {
         .whenComplete(() => _callShown = false);
   }
 
+  /// 👥 Invitation de groupe reçue alors qu'aucun appel de groupe n'est ouvert.
+  void _onGroupMessage(Map msg) {
+    if ('${msg['type']}' != 'group_invite') return;
+    if (_groupShown) return;
+    final nav = appNavigatorKey.currentState;
+    if (nav == null) return;
+    _groupShown = true;
+    nav
+        .push(MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => IncomingGroupScreen(invite: msg),
+        ))
+        .whenComplete(() => _groupShown = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final st = context.watch<AppState>();
@@ -98,6 +127,14 @@ class _MboteAppState extends State<MboteApp> with WidgetsBindingObserver {
       builder: (_, __) => MaterialApp(
         title: 'MboteCall',
         navigatorKey: appNavigatorKey,
+        // 🇫🇷 Interface en français (sélecteurs de date, copier/coller, etc.)
+        locale: const Locale('fr'),
+        supportedLocales: const [Locale('fr'), Locale('en')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
         debugShowCheckedModeBanner: false,
         theme: mboteTheme(),
         home: !st.ready
@@ -129,7 +166,7 @@ class _Splash extends StatelessWidget {
             const SizedBox(height: 18),
             Text('MboteCall',
                 style: TextStyle(
-                    fontSize: 30,
+                    fontSize: Tx.display,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.5,
                     color: MC.ivoire)),

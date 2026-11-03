@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:provider/provider.dart';
 import '../state.dart';
+import '../design.dart';
 import '../theme.dart';
 import '../rtc.dart';
 import '../prefs.dart';
@@ -24,7 +25,8 @@ class IncomingCallScreen extends StatefulWidget {
 class _IncomingCallScreenState extends State<IncomingCallScreen> {
   Timer? vibre;
   bool done = false; // évite double pop / double journal
-  final List<Map> earlyIce = []; // 🧊 candidats réseau arrivés pendant la sonnerie
+  final List<Map> earlyIce =
+      []; // 🧊 candidats réseau arrivés pendant la sonnerie
 
   @override
   void initState() {
@@ -123,38 +125,33 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
               const Spacer(flex: 2),
               Text('🔔 APPEL ENTRANT',
                   style: TextStyle(
-                      color: MC.sable, fontSize: 13, letterSpacing: 2)),
+                      color: MC.sable, fontSize: Tx.label, letterSpacing: 2)),
               const SizedBox(height: 26),
               // 📷 Même anneau doré que l'écran d'appel
               Container(
                 width: 128,
-                height: 128,
-                padding: const EdgeInsets.all(4),
+                height: 140,
+                padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: SweepGradient(
-                      colors: [MC.soleil, MC.braise, MC.terre, MC.soleil]),
-                  boxShadow: [
-                    BoxShadow(
-                        color: MC.soleil.withOpacity(.22),
-                        blurRadius: 36,
-                        spreadRadius: 6),
-                  ],
+                  borderRadius: BorderRadius.circular(Rd.lg),
+                  border: Border.all(color: MC.soleil, width: 2),
                 ),
                 child: Container(
                   clipBehavior: Clip.antiAlias,
-                  decoration:
-                      BoxDecoration(shape: BoxShape.circle, color: MC.nuit2),
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(Rd.lg - 2),
+                      color: MC.nuit2),
                   child: hasPhoto
                       ? Image.memory(
                           base64Decode(avatar.split(',').last),
                           fit: BoxFit.cover,
+                          excludeFromSemantics: true,
                           gaplessPlayback: true,
                         )
                       : Center(
                           child: Text(initial,
                               style: TextStyle(
-                                  fontSize: 44,
+                                  fontSize: Tx.display,
                                   fontWeight: FontWeight.w800,
                                   color: MC.soleil)),
                         ),
@@ -163,24 +160,41 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
               const SizedBox(height: 18),
               Text(name,
                   style: TextStyle(
-                      fontSize: 23,
+                      fontSize: Tx.headline,
                       fontWeight: FontWeight.w800,
                       color: MC.ivoire)),
               const SizedBox(height: 14),
+              // 📹 Précise le type d'appel entrant
+              if (widget.offer['video'] == true)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.videocam_rounded, size: 15, color: MC.soleil),
+                      const SizedBox(width: 6),
+                      Text('Appel vidéo entrant',
+                          style: TextStyle(color: MC.soleil, fontSize: Tx.label)),
+                    ],
+                  ),
+                ),
               // 💚 Icône officielle : c'est un appel MboteCall gratuit
               Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                        color: MC.soleil.withOpacity(.3),
+                        color: MC.soleil.withValues(alpha: .3),
                         blurRadius: 22,
                         spreadRadius: 2),
                   ],
                 ),
                 child: ClipOval(
                   child: Image.asset('assets/icon/icon_small.png',
-                      width: 52, height: 52, fit: BoxFit.cover),
+                      width: 52,
+                      height: 52,
+                      fit: BoxFit.cover,
+                      excludeFromSemantics: true),
                 ),
               ),
               const Spacer(flex: 2),
@@ -207,6 +221,8 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                         builder: (_) => CallScreen(
                           to: offer['from'],
                           displayName: offer['from_name']?.toString(),
+                          // 📹 l'appelant a demandé la vidéo → on l'ouvre en vidéo
+                          video: offer['video'] == true,
                           incomingOffer: {...offer, 'early_ice': earlyIce},
                         ),
                       ),
@@ -233,7 +249,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
             color: color,
             boxShadow: [
               BoxShadow(
-                  color: color.withOpacity(.4),
+                  color: color.withValues(alpha: .4),
                   blurRadius: 26,
                   offset: const Offset(0, 8)),
             ],

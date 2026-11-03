@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../api.dart';
 import '../state.dart';
+import '../design.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import 'contacts.dart';
@@ -36,8 +37,8 @@ class _TransferScreenState extends State<TransferScreen> {
       ));
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(friendlyError(e)), backgroundColor: MC.rouge));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: MC.rouge));
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -49,21 +50,24 @@ class _TransferScreenState extends State<TransferScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(L10n.t('transfer_title'))),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(Sp.x4),
         children: [
           Text(L10n.t('transfer_sub'),
-              style: TextStyle(color: MC.sable, fontSize: 14)),
+              style: TextStyle(color: MC.sable, fontSize: Tx.body)),
           const SizedBox(height: 20),
           Text(L10n.t('recipient').toUpperCase(),
               style: TextStyle(
-                  color: MC.kaki, fontSize: 12, letterSpacing: 1.4)),
+                  color: MC.kaki,
+                  fontSize: Tx.label,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2)),
           const SizedBox(height: 8),
           TextField(
             controller: phoneCtrl,
             keyboardType: TextInputType.phone,
-            style: TextStyle(
-                fontSize: 19, color: MC.ivoire, letterSpacing: 1),
+            style: TextStyle(fontSize: Tx.title, color: MC.ivoire, letterSpacing: 1),
             decoration: InputDecoration(
+              labelText: L10n.t('label_phone'),
               hintText: '+243 81 234 5678',
               suffixIcon: IconButton(
                 tooltip: L10n.t('pick_contact'),
@@ -92,10 +96,13 @@ class _TransferScreenState extends State<TransferScreen> {
                           padding: const EdgeInsets.only(right: 8),
                           child: ActionChip(
                             label: Text(c['name'],
-                                style: TextStyle(
-                                    color: MC.sable, fontSize: 12.5)),
-                            backgroundColor: MC.nuit3,
-                            side: BorderSide.none,
+                                style:
+                                    TextStyle(color: MC.sable, fontSize: Tx.label)),
+                            backgroundColor: MC.nuit2,
+                            side: BorderSide(color: MC.ligne),
+                            shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(Rd.pill)),
                             onPressed: () =>
                                 setState(() => phoneCtrl.text = c['phone']),
                           ),
@@ -106,7 +113,10 @@ class _TransferScreenState extends State<TransferScreen> {
           const SizedBox(height: 22),
           Text(L10n.t('amount').toUpperCase(),
               style: TextStyle(
-                  color: MC.kaki, fontSize: 12, letterSpacing: 1.4)),
+                  color: MC.kaki,
+                  fontSize: Tx.label,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2)),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -116,21 +126,22 @@ class _TransferScreenState extends State<TransferScreen> {
                       selected: amountCents == a,
                       onSelected: (_) => setState(() => amountCents = a),
                       selectedColor: MC.soleil,
-                      backgroundColor: MC.nuit3,
+                      backgroundColor: MC.nuit2,
+                      showCheckmark: false,
                       labelStyle: TextStyle(
-                          color: amountCents == a
-                              ? MC.onAccent
-                              : MC.sable,
-                          fontWeight: FontWeight.w700),
+                          color: amountCents == a ? MC.onAccent : MC.sable,
+                          fontWeight: FontWeight.w700,
+                          fontSize: Tx.body),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide.none),
+                          borderRadius: BorderRadius.circular(Rd.sm),
+                          side: BorderSide(
+                              color: amountCents == a ? MC.soleil : MC.ligne)),
                     ))
                 .toList(),
           ),
           const SizedBox(height: 8),
           Text('Solde disponible : ${fmtMoney(st.balanceCents)}',
-              style: TextStyle(color: MC.kaki, fontSize: 12.5)),
+              style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
           const SizedBox(height: 24),
           MboteButton(
             label:

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../api.dart';
 import '../state.dart';
+import '../design.dart';
 import '../theme.dart';
 
 /// Recharge du compte — Mobile Money en premier (maquette 04).
@@ -19,10 +20,10 @@ class _TopupScreenState extends State<TopupScreen> {
 
   static const amounts = [200, 500, 1000, 2000];
   static const methods = [
-    ('mpesa', 'M-Pesa', 'Vodacom', Color(0xFFE2231A)),
-    ('orange', 'Orange Money', 'Orange', Color(0xFFFF7900)),
-    ('airtel', 'Airtel Money', 'Airtel', Color(0xFFD6001C)),
-    ('card', 'Carte bancaire', 'Visa · Mastercard', Color(0xFF1A3C8B)),
+    ('mpesa', 'M-Pesa', 'Vodacom', Marques.mpesa),
+    ('orange', 'Orange Money', 'Orange', Marques.orangeMoney),
+    ('airtel', 'Airtel Money', 'Airtel', Marques.airtelMoney),
+    ('card', 'Carte bancaire', 'Visa · Mastercard', Marques.carteBancaire),
   ];
 
   Future<void> _pay() async {
@@ -59,8 +60,8 @@ class _TopupScreenState extends State<TopupScreen> {
         ));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(friendlyError(e)), backgroundColor: MC.rouge));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: MC.rouge));
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -77,7 +78,7 @@ class _TopupScreenState extends State<TopupScreen> {
       enableDrag: false,
       backgroundColor: MC.nuit2,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(Rd.lg))),
       builder: (sheetCtx) {
         Timer? timer;
         int ticks = 0;
@@ -111,7 +112,7 @@ class _TopupScreenState extends State<TopupScreen> {
                 Text('Confirmez sur votre téléphone 📲',
                     style: TextStyle(
                         color: MC.ivoire,
-                        fontSize: 17,
+                        fontSize: Tx.subtitle,
                         fontWeight: FontWeight.w800)),
                 const SizedBox(height: 10),
                 Text(
@@ -119,8 +120,8 @@ class _TopupScreenState extends State<TopupScreen> {
                       ? message
                       : 'Une demande de paiement vient d\'être envoyée. Tapez votre code PIN Mobile Money pour valider.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                      color: MC.sable, fontSize: 13.5, height: 1.5),
+                  style:
+                      TextStyle(color: MC.sable, fontSize: Tx.label, height: 1.5),
                 ),
                 const SizedBox(height: 18),
                 TextButton(
@@ -128,8 +129,7 @@ class _TopupScreenState extends State<TopupScreen> {
                     timer?.cancel();
                     Navigator.pop(sheetCtx, null);
                   },
-                  child: Text('Annuler',
-                      style: TextStyle(color: MC.kaki)),
+                  child: Text('Annuler', style: TextStyle(color: MC.kaki)),
                 ),
               ],
             ),
@@ -144,11 +144,14 @@ class _TopupScreenState extends State<TopupScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Recharger 💰')),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(Sp.x4),
         children: [
           Text('MONTANT',
-              style:
-                  TextStyle(color: MC.kaki, fontSize: 12, letterSpacing: 1.4)),
+              style: TextStyle(
+                  color: MC.kaki,
+                  fontSize: Tx.label,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2)),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -158,53 +161,58 @@ class _TopupScreenState extends State<TopupScreen> {
                       selected: amountCents == a,
                       onSelected: (_) => setState(() => amountCents = a),
                       selectedColor: MC.soleil,
-                      backgroundColor: MC.nuit3,
+                      backgroundColor: MC.nuit2,
+                      showCheckmark: false,
                       labelStyle: TextStyle(
-                          color: amountCents == a
-                              ? MC.onAccent
-                              : MC.sable,
-                          fontWeight: FontWeight.w700),
+                          color: amountCents == a ? MC.onAccent : MC.sable,
+                          fontWeight: FontWeight.w700,
+                          fontSize: Tx.body),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide.none),
+                          borderRadius: BorderRadius.circular(Rd.sm),
+                          side: BorderSide(
+                              color: amountCents == a ? MC.soleil : MC.ligne)),
                     ))
                 .toList(),
           ),
           const SizedBox(height: 8),
           Text('🎁 +10% offerts dès 10 \$',
-              style: TextStyle(color: MC.savane, fontSize: 12.5)),
+              style: TextStyle(color: MC.savane, fontSize: Tx.label)),
           const SizedBox(height: 24),
           Text('MOYEN DE PAIEMENT',
-              style:
-                  TextStyle(color: MC.kaki, fontSize: 12, letterSpacing: 1.4)),
+              style: TextStyle(
+                  color: MC.kaki,
+                  fontSize: Tx.label,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2)),
           const SizedBox(height: 10),
           ...methods.map((m) {
             final selected = method == m.$1;
             return GestureDetector(
               onTap: () => setState(() => method = m.$1),
               child: Container(
-                margin: const EdgeInsets.only(bottom: 9),
+                margin: const EdgeInsets.only(bottom: Sp.x2),
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                    const EdgeInsets.symmetric(horizontal: Sp.x3, vertical: Sp.x3),
                 decoration: BoxDecoration(
-                  color: selected ? const Color(0xFF2E2213) : MC.nuit3,
-                  borderRadius: BorderRadius.circular(16),
+                  color: selected ? MC.halo : MC.nuit2,
+                  borderRadius: BorderRadius.circular(Rd.md),
                   border: Border.all(
                       color: selected ? MC.soleil : MC.ligne,
-                      width: 1.5),
+                      width: selected ? 1.5 : 1),
                 ),
                 child: Row(
                   children: [
                     Container(
-                      width: 38,
-                      height: 38,
+                      width: 40,
+                      height: 40,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                           color: m.$4,
-                          borderRadius: BorderRadius.circular(10)),
+                          borderRadius: BorderRadius.circular(Rd.sm)),
                       child: Text(m.$2[0],
                           style: const TextStyle(
                               color: Colors.white,
+                              fontSize: Tx.bodyLg,
                               fontWeight: FontWeight.w800)),
                     ),
                     const SizedBox(width: 12),
@@ -216,10 +224,9 @@ class _TopupScreenState extends State<TopupScreen> {
                               style: TextStyle(
                                   color: MC.ivoire,
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 14.5)),
+                                  fontSize: Tx.body)),
                           Text(m.$3,
-                              style: TextStyle(
-                                  color: MC.kaki, fontSize: 11.5)),
+                              style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
                         ],
                       ),
                     ),
@@ -227,7 +234,7 @@ class _TopupScreenState extends State<TopupScreen> {
                         selected
                             ? Icons.radio_button_checked
                             : Icons.radio_button_off,
-                        color: selected ? MC.soleil : const Color(0xFF453526),
+                        color: selected ? MC.soleil : MC.kaki,
                         size: 20),
                   ],
                 ),
@@ -246,7 +253,7 @@ class _TopupScreenState extends State<TopupScreen> {
             child: Text(
                 'Vous recevrez une demande de confirmation sur votre téléphone (code PIN)',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: MC.kaki, fontSize: 11.5)),
+                style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
           ),
         ],
       ),

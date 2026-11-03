@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:provider/provider.dart';
 import '../state.dart';
+import '../design.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import 'call.dart';
+import 'call_sheet.dart';
 
 /// 📒 Contacts du téléphone, avec badge 💚 pour ceux qui ont déjà MboteCall.
 /// - mode normal : toucher un contact → l'appeler (gratuit si MboteCall).
@@ -75,7 +77,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
         entries.add(_Entry(name, raw, e164));
       }
     }
-    entries.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    entries
+        .sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     if (mounted) {
       setState(() {
         all = entries;
@@ -91,8 +94,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     try {
       for (var i = 0; i < entries.length; i += 300) {
         final batch = entries.skip(i).take(300).toList();
-        final found =
-            await api.checkMbote(batch.map((e) => e.e164).toList());
+        final found = await api.checkMbote(batch.map((e) => e.e164).toList());
         if (!mounted) return;
         setState(() {
           for (final e in batch) {
@@ -123,6 +125,13 @@ class _ContactsScreenState extends State<ContactsScreen> {
     }
   }
 
+  /// 📹 Appui long : choisir entre audio, vidéo et appel de groupe.
+  void _onLongPress(_Entry e) {
+    if (widget.pick) return;
+    final phone = e.mbotePhone ?? e.e164;
+    showCallModeSheet(context, phone, name: e.name);
+  }
+
   @override
   Widget build(BuildContext context) {
     final q = query.toLowerCase();
@@ -141,7 +150,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
             widget.pick ? L10n.t('pick_contact') : L10n.t('contacts_title')),
       ),
       body: loading
-          ? Center(child: CircularProgressIndicator(color: MC.soleil))
+          ? const Center(child: Chargement())
           : denied
               ? _PermissionAsk(onRetry: () {
                   setState(() {
@@ -159,8 +168,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
                         style: TextStyle(color: MC.ivoire),
                         decoration: InputDecoration(
                           hintText: L10n.t('contacts_search'),
-                          prefixIcon: Icon(Icons.search_rounded,
-                              color: MC.kaki),
+                          prefixIcon:
+                              Icon(Icons.search_rounded, color: MC.kaki),
                         ),
                       ),
                     ),
@@ -169,29 +178,32 @@ class _ContactsScreenState extends State<ContactsScreen> {
                           ? Center(
                               child: Text(L10n.t('contacts_empty'),
                                   style: TextStyle(
-                                      color: MC.kaki, fontSize: 13.5)))
+                                      color: MC.kaki, fontSize: Tx.label)))
                           : ListView.builder(
-                              padding:
-                                  const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                               itemCount: visible.length,
                               itemBuilder: (_, i) {
                                 final e = visible[i];
                                 final isMbote = e.mbotePhone != null;
                                 final color = colors[
                                     e.name.hashCode.abs() % colors.length];
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  decoration: BoxDecoration(
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Material(
                                     color: MC.nuit2,
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: isMbote
-                                        ? Border.all(
-                                            color:
-                                                MC.savane.withOpacity(.45))
-                                        : null,
-                                  ),
-                                  child: ListTile(
+                                    clipBehavior: Clip.antiAlias,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(Rd.md),
+                                      side: isMbote
+                                          ? BorderSide(
+                                              color: MC.savane
+                                                  .withValues(alpha: .45))
+                                          : BorderSide.none,
+                                    ),
+                                    child: ListTile(
                                     onTap: () => _onTap(e),
+                                    onLongPress: () => _onLongPress(e),
                                     leading: Container(
                                       width: 42,
                                       height: 42,
@@ -199,13 +211,12 @@ class _ContactsScreenState extends State<ContactsScreen> {
                                       decoration: BoxDecoration(
                                           color: color,
                                           borderRadius:
-                                              BorderRadius.circular(14)),
-                                      child: Text(
-                                          e.name[0].toUpperCase(),
+                                              BorderRadius.circular(Rd.md)),
+                                      child: Text(e.name[0].toUpperCase(),
                                           style: TextStyle(
                                               color: MC.onAccent,
                                               fontWeight: FontWeight.w800,
-                                              fontSize: 16)),
+                                              fontSize: Tx.subtitle)),
                                     ),
                                     title: Text(e.name,
                                         maxLines: 1,
@@ -213,10 +224,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
                                         style: TextStyle(
                                             color: MC.ivoire,
                                             fontWeight: FontWeight.w600,
-                                            fontSize: 15)),
+                                            fontSize: Tx.bodyLg)),
                                     subtitle: Text(e.rawPhone,
                                         style: TextStyle(
-                                            color: MC.kaki, fontSize: 12)),
+                                            color: MC.kaki, fontSize: Tx.label)),
                                     trailing: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
@@ -228,17 +239,18 @@ class _ContactsScreenState extends State<ContactsScreen> {
                                               width: 22,
                                               height: 22,
                                               fit: BoxFit.cover,
+                                              excludeFromSemantics: true,
                                             ),
                                           ),
                                         if (!widget.pick) ...[
                                           const SizedBox(width: 10),
                                           Icon(Icons.call_rounded,
-                                              color: isMbote
-                                                  ? MC.savane
-                                                  : MC.kaki,
+                                              color:
+                                                  isMbote ? MC.savane : MC.kaki,
                                               size: 20),
                                         ],
                                       ],
+                                    ),
                                     ),
                                   ),
                                 );
@@ -262,12 +274,11 @@ class _PermissionAsk extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('📒', style: TextStyle(fontSize: 48)),
+            const Text('📒', style: TextStyle(fontSize: Tx.display)),
             const SizedBox(height: 16),
             Text(L10n.t('contacts_perm'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: MC.sable, fontSize: 14.5, height: 1.5)),
+                style: TextStyle(color: MC.sable, fontSize: Tx.body, height: 1.5)),
             const SizedBox(height: 22),
             MboteButton(label: L10n.t('contacts_allow'), onTap: onRetry),
           ],
