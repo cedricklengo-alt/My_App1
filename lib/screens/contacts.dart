@@ -8,10 +8,10 @@ import '../l10n.dart';
 import 'call.dart';
 import 'call_sheet.dart';
 
-/// 📒 Contacts du téléphone, avec badge 💚 pour ceux qui ont déjà MboteCall.
+///Contacts du téléphone, avec badgepour ceux qui ont déjà MboteCall.
 /// - mode normal : toucher un contact → l'appeler (gratuit si MboteCall).
 /// - mode [pick] : toucher un contact → renvoie son numéro à l'écran appelant
-///   (utilisé par Transfert 💸 et Crédit GSM 📱).
+///   (utilisé par Transfertet Crédit GSM).
 class ContactsScreen extends StatefulWidget {
   final bool pick;
   const ContactsScreen({super.key, this.pick = false});
@@ -88,7 +88,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     _checkMbote(entries);
   }
 
-  /// Interroge le serveur par lots : qui a déjà un compte MboteCall ? 💚
+  /// Interroge le serveur par lots : qui a déjà un compte MboteCall ?
   Future<void> _checkMbote(List<_Entry> entries) async {
     final api = context.read<AppState>().api;
     try {
@@ -100,7 +100,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
           for (final e in batch) {
             if (found[e.e164] != null) e.mbotePhone = found[e.e164];
           }
-          // 💚 les contacts MboteCall remontent en tête de liste
+          //les contacts MboteCall remontent en tête de liste
           all.sort((a, b) {
             final am = a.mbotePhone != null ? 0 : 1;
             final bm = b.mbotePhone != null ? 0 : 1;
@@ -125,7 +125,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     }
   }
 
-  /// 📹 Appui long : choisir entre audio, vidéo et appel de groupe.
+  ///Appui long : choisir entre audio, vidéo et appel de groupe.
   void _onLongPress(_Entry e) {
     if (widget.pick) return;
     final phone = e.mbotePhone ?? e.e164;
@@ -274,7 +274,7 @@ class _PermissionAsk extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('📒', style: TextStyle(fontSize: Tx.display)),
+            Icon(Icons.contacts_rounded, size: Tx.display, color: MC.soleil),
             const SizedBox(height: 16),
             Text(L10n.t('contacts_perm'),
                 textAlign: TextAlign.center,

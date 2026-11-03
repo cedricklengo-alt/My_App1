@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'config.dart';
 
-/// 🎙️ Canal temps réel + moteur voix WebRTC.
+///Canal temps réel + moteur voix WebRTC.
 ///
 /// - `Rtc` : connexion WebSocket permanente vers le serveur (standardiste).
 ///   Reçoit les appels entrants et fait passer les messages techniques.
@@ -19,18 +19,18 @@ class Rtc {
   static bool _wanted = false;
   static bool _fg = true; // l'app démarre au premier plan
 
-  /// 🟢 Voyant : sommes-nous connectés au standardiste ?
+  ///Voyant : sommes-nous connectés au standardiste ?
   /// (affiché sur l'écran Clavier — vert = prêt à appeler/recevoir)
   static final ValueNotifier<bool> connected = ValueNotifier(false);
 
-  /// 📲 Appel entrant (offre reçue) — posé par le Shell
+  ///Appel entrant (offre reçue) — posé par le Shell
   static void Function(Map msg)? onOffer;
 
   /// Messages de l'appel en cours (answer/ice/hangup/reject/peer-offline)
   /// — posé par l'écran d'appel actif
   static void Function(Map msg)? onSignal;
 
-  /// 👥 Auditeurs des messages d'appel de groupe (`group_*`).
+  ///Auditeurs des messages d'appel de groupe (`group_*`).
   /// Une liste (et non un seul emplacement) : l'écran d'accueil écoute en
   /// permanence pour les invitations, pendant que l'écran d'appel de groupe
   /// écoute la même salle.
@@ -44,7 +44,7 @@ class Rtc {
     _groupListeners.remove(f);
   }
 
-  /// 💬 Auditeurs des messages de discussion (`msg` : nouveau message, lu,
+  ///Auditeurs des messages de discussion (`msg` : nouveau message, lu,
   /// écouté, supprimé) et de l'indicateur « écrit… » (`typing`).
   static final List<void Function(Map msg)> _messageListeners = [];
 
@@ -77,8 +77,8 @@ class Rtc {
     while (_wanted) {
       try {
         _ws = await WebSocket.connect('$_url?token=$_token');
-        connected.value = true; // 🟢 prêt à appeler/recevoir
-        setForeground(_fg); // 📡 état initial annoncé au serveur
+        connected.value = true; //prêt à appeler/recevoir
+        setForeground(_fg); //état initial annoncé au serveur
         await for (final data in _ws!) {
           Map msg;
           try {
@@ -90,14 +90,14 @@ class Rtc {
           if (type == 'offer') {
             onOffer?.call(msg);
           } else if (type == 'msg' || type == 'typing') {
-            // 💬 Discussions : l'écran ouvert et la liste écoutent en parallèle.
+            //Discussions : l'écran ouvert et la liste écoutent en parallèle.
             for (final f in List.of(_messageListeners)) {
               try {
                 f(msg);
               } catch (_) {}
             }
           } else if (type.startsWith('group_')) {
-            // 👥 Signalisation d'appel de groupe : à tous les auditeurs.
+            //Signalisation d'appel de groupe : à tous les auditeurs.
             for (final f in List.of(_groupListeners)) {
               try {
                 f(msg);
@@ -109,7 +109,7 @@ class Rtc {
         }
       } catch (_) {/* serveur injoignable : on retente */}
       _ws = null;
-      connected.value = false; // 🟠 reconnexion…
+      connected.value = false; //reconnexion…
       if (_wanted) await Future.delayed(const Duration(seconds: 4));
     }
   }
@@ -120,7 +120,7 @@ class Rtc {
     } catch (_) {}
   }
 
-  /// 👁️ Annonce au serveur si l'app est au premier plan ou non.
+  ///Annonce au serveur si l'app est au premier plan ou non.
   /// Le serveur part de « arrière-plan » : sans ce message il croit l'app
   /// fermée et double chaque appel d'un push de réveil inutile.
   /// À appeler juste après la connexion et à chaque changement d'état.
@@ -142,12 +142,12 @@ class Rtc {
   }
 }
 
-/// 🎧 Une session d'appel (audio seul, ou audio + vidéo si `video: true`).
+///Une session d'appel (audio seul, ou audio + vidéo si `video: true`).
 class RtcSession {
   final String peer; // numéro de l'autre téléphone
   final String callId;
 
-  /// 📹 true = appel vidéo (caméra + micro), false = appel audio.
+  ///true = appel vidéo (caméra + micro), false = appel audio.
   final bool video;
 
   RTCPeerConnection? _pc;
@@ -164,7 +164,7 @@ class RtcSession {
 
   RtcSession({required this.peer, required this.callId, this.video = false});
 
-  /// 🛟 Repli intégré si le serveur est injoignable : STUN seul.
+  ///Repli intégré si le serveur est injoignable : STUN seul.
   /// (L'ancien TURN public « openrelay » a été retiré par Metered —
   ///  le vrai TURN est désormais fourni par le serveur, voir _iceConfig.)
   static const _fallbackConfig = {
@@ -177,10 +177,10 @@ class RtcSession {
   /// Config ICE reçue du serveur (cache pour la session)
   static Map<String, dynamic>? _cachedIce;
 
-  /// 📡 Config STUN/TURN publique (utilisée aussi par les appels de groupe).
+  ///Config STUN/TURN publique (utilisée aussi par les appels de groupe).
   static Future<Map<String, dynamic>> iceConfig() => _iceConfig();
 
-  /// 📡 Demande au serveur la liste STUN/TURN (identifiants TURN jamais
+  ///Demande au serveur la liste STUN/TURN (identifiants TURN jamais
   /// écrits dans l'app → rotation possible sans recompiler). Repli : STUN.
   static Future<Map<String, dynamic>> _iceConfig() async {
     if (_cachedIce != null) return _cachedIce!;
@@ -206,11 +206,11 @@ class RtcSession {
 
   Future<void> _init() async {
     _pc = await createPeerConnection(await _iceConfig());
-    // 🎤 Micro (+ 📹 caméra avant si appel vidéo). La permission est demandée
+    //Micro (+caméra avant si appel vidéo). La permission est demandée
     // au premier appel ; si elle est refusée, l'appel bascule en audio seul.
     try {
       _mic = await navigator.mediaDevices.getUserMedia({
-        // 🎧 Qualité voix v1.8 : annulation d'écho, réduction de bruit,
+        //Qualité voix v1.8 : annulation d'écho, réduction de bruit,
         // gain automatique — indispensable en mains-libres.
         'audio': {
           'echoCancellation': true,
@@ -290,7 +290,7 @@ class RtcSession {
       'type': 'offer',
       'to': peer,
       'call_id': callId,
-      'video': video, // 📹 l'appelé saura qu'il s'agit d'un appel vidéo
+      'video': video, //l'appelé saura qu'il s'agit d'un appel vidéo
       'sdp': {'type': offer.type, 'sdp': offer.sdp},
     });
   }
@@ -327,14 +327,14 @@ class RtcSession {
     _mic?.getAudioTracks().forEach((t) => t.enabled = !m);
   }
 
-  /// 📹 Coupe / réactive la caméra sans interrompre l'appel.
+  ///Coupe / réactive la caméra sans interrompre l'appel.
   void setVideoEnabled(bool on) {
     _mic?.getVideoTracks().forEach((t) => t.enabled = on);
   }
 
   bool get hasVideoTrack => (_mic?.getVideoTracks().isNotEmpty ?? false);
 
-  /// 🔄 Bascule caméra avant / arrière.
+  ///Bascule caméra avant / arrière.
   Future<void> switchCamera() async {
     try {
       final tracks = _mic?.getVideoTracks() ?? const <MediaStreamTrack>[];

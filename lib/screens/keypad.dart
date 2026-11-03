@@ -13,6 +13,10 @@ import 'contacts.dart';
 import 'favorites.dart';
 
 /// Clavier de numérotation avec affichage du tarif AVANT l'appel (maquette 02).
+/// Touche d'effacement : une sentinelle, jamais un glyphe à l'écran
+/// (le clavier affiche une icône Material, lisible par les lecteurs d'écran).
+const _effacer = '#erase';
+
 class KeypadScreen extends StatefulWidget {
   const KeypadScreen({super.key});
   @override
@@ -22,7 +26,7 @@ class KeypadScreen extends StatefulWidget {
 class _KeypadScreenState extends State<KeypadScreen> {
   String number = '+243';
   String tarif = '';
-  bool free = false; // 💚 appel gratuit (MboteCall→MboteCall ou forfait)
+  bool free = false; //appel gratuit (MboteCall→MboteCall ou forfait)
   Timer? _debounce;
 
   void _press(String d) {
@@ -63,13 +67,13 @@ class _KeypadScreenState extends State<KeypadScreen> {
         setState(() {
           free = isFree;
           if (isFree) {
-            // 💚 gratuit : app-à-app ou forfait
+            //gratuit : app-à-app ou forfait
             tarif = r['free_reason'] == 'package'
-                ? '${r['flag']} ${r['destination']} · ${L10n.t('free_call')} — ${L10n.t('free_package')}'
-                : '${r['flag']} ${r['destination']} · ${L10n.t('free_call')}';
+                ? '${r['destination']} · ${L10n.t('free_call')} — ${L10n.t('free_package')}'
+                : '${r['destination']} · ${L10n.t('free_call')}';
           } else {
             tarif =
-                '${r['flag']} ${r['destination']} · ${(r['price_per_min_cents'] / 100).toStringAsFixed(2)} \$/min · ≈ ${r['max_minutes']} min possibles';
+                '${r['destination']} · ${(r['price_per_min_cents'] / 100).toStringAsFixed(2)} \$/min · ≈ ${r['max_minutes']} min possibles';
           }
         });
       } catch (_) {
@@ -85,9 +89,9 @@ class _KeypadScreenState extends State<KeypadScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '0', '⌫'];
+    const keys = ['1','2','3','4','5','6','7','8','9','+','0', _effacer];
 
-    // 📐 Le clavier s'adapte : sur un petit téléphone il défile au lieu de
+    //Le clavier s'adapte : sur un petit téléphone il défile au lieu de
     // déborder (l'ancienne version fixe débordait de 372 px en 800×600).
     return SafeArea(
       child: LayoutBuilder(
@@ -114,12 +118,29 @@ class _KeypadScreenState extends State<KeypadScreen> {
                               color: MC.ivoire)),
                       SizedBox(
                         height: 22,
-                        child: Text(tarif,
-                            style: TextStyle(
-                                color: free ? MC.savane : MC.sable,
-                                fontWeight:
-                                    free ? FontWeight.w800 : FontWeight.w400,
-                                fontSize: Tx.label)),
+                        child: tarif.isEmpty
+                            ? null
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // Destination (plus de drapeau emoji : icône)
+                                  Icon(Icons.public_rounded,
+                                      size: 14,
+                                      color: free ? MC.savane : MC.sable),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(tarif,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                            color: free ? MC.savane : MC.sable,
+                                            fontWeight: free
+                                                ? FontWeight.w800
+                                                : FontWeight.w400,
+                                            fontSize: Tx.label)),
+                                  ),
+                                ],
+                              ),
                       ),
                       const SizedBox(height: 8),
                       // ---- Pavé ----
@@ -137,15 +158,21 @@ class _KeypadScreenState extends State<KeypadScreen> {
                                   child: InkWell(
                                     borderRadius: BorderRadius.circular(Rd.md),
                                     onTap: () =>
-                                        k == '⌫' ? _erase() : _press(k),
-                                    onLongPress: k == '⌫'
+                                        k == _effacer ? _erase() : _press(k),
+                                    onLongPress: k == _effacer
                                         ? () {
                                             setState(() => number = '');
                                             _lookupTarif();
                                           }
                                         : null,
                                     child: Center(
-                                      child: Text(k,
+                                      child: k == _effacer
+                                          ? Icon(Icons.backspace_outlined,
+                                              size: Tx.headline,
+                                              color: MC.ivoire,
+                                              semanticLabel:
+                                                  L10n.t('keypad_erase'))
+                                          : Text(k,
                                           style: TextStyle(
                                               fontSize: Tx.headline,
                                               fontWeight: FontWeight.w600,
@@ -202,7 +229,7 @@ class _KeypadScreenState extends State<KeypadScreen> {
                     fontWeight: FontWeight.w800,
                     color: MC.ivoire)),
           ),
-          // 🟢 Voyant temps réel : vert = prêt pour la vraie voix
+          //Voyant temps réel : vert = prêt pour la vraie voix
           ValueListenableBuilder<bool>(
             valueListenable: Rtc.connected,
             builder: (_, ok, __) => Tooltip(

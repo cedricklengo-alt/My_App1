@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'design.dart';
 
-/// 🎨 Une palette = un thème complet de MboteCall.
+///Une palette = un thème complet de MboteCall.
 class Palette {
   final Color nuit, nuit2, nuit3; // fonds (écran, carte, carte claire)
   final Color accent, accent2; // couleur signature + dégradé
@@ -30,7 +30,7 @@ class Palette {
 
 /// Les thèmes de MboteCall. « Fleuve Congo » est l'identité par défaut.
 const Map<String, Palette> kPalettes = {
-  // 🌊 L'identité de référence — « Fleuve Congo »
+  //L'identité de référence — « Fleuve Congo »
   //    Bleu-vert profond du fleuve, sable des berges, corail des pirogues.
   //    Contraste vérifié : 21 paires texte/fond conformes WCAG AA
   //    (voir `test/design_test.dart`).
@@ -50,7 +50,7 @@ const Map<String, Palette> kPalettes = {
     onAccent: Color(0xFF10201F),
     halo: Color(0xFF1B3034),
   ),
-  // 🌅 L'identité originale « Soleil de Kin »
+  //L'identité originale « Soleil de Kin »
   'kin': Palette(
     nuit: Color(0xFF14100E),
     nuit2: Color(0xFF201915),
@@ -67,7 +67,7 @@ const Map<String, Palette> kPalettes = {
     onAccent: Color(0xFF241204),
     halo: Color(0xFF33210F),
   ),
-  // 💬 Émeraude — inspiré de WhatsApp
+  //Émeraude — inspiré de WhatsApp
   'emeraude': Palette(
     nuit: Color(0xFF0B141A),
     nuit2: Color(0xFF111B21),
@@ -84,7 +84,7 @@ const Map<String, Palette> kPalettes = {
     onAccent: Color(0xFF062B1A),
     halo: Color(0xFF13272F),
   ),
-  // 💼 Océan — inspiré de LinkedIn
+  //Océan — inspiré de LinkedIn
   'ocean': Palette(
     nuit: Color(0xFF15181B),
     nuit2: Color(0xFF1E2226),
@@ -101,8 +101,8 @@ const Map<String, Palette> kPalettes = {
     onAccent: Color(0xFF0D1A26),
     halo: Color(0xFF1C2630),
   ),
-  // 👥 Bleu Nuit — inspiré de Facebook
-  //    ⚠️ `onAccent` est volontairement SOMBRE : l'accent bleu clair
+  //Bleu Nuit — inspiré de Facebook
+  //`onAccent` est volontairement SOMBRE : l'accent bleu clair
   //    (#318AFF) n'offre que ~5,5:1 avec du blanc, qui échoue en AA sur
   //    les petits textes. Un texte presque noir y monte à ~7:1.
   'bleu': Palette(
@@ -165,12 +165,12 @@ class MC {
   }
 }
 
-/// 🎛️ Thème + police choisis par l'utilisateur (persistés).
+///Thème + police choisis par l'utilisateur (persistés).
 class ThemeCtl {
   static String theme = 'fleuve';
   static String font = 'standard';
 
-  /// 🔠 Taille du texte de TOUTE l'application (1.0 = taille normale).
+  ///Taille du texte de TOUTE l'application (1.0 = taille normale).
   /// L'utilisateur peut l'augmenter sans passer par les réglages du système :
   /// c'est un vrai réglage, enregistré et appliqué au démarrage.
   static double textScale = 1.0;
@@ -180,11 +180,11 @@ class ThemeCtl {
   static final ValueNotifier<int> version = ValueNotifier(0);
 
   static const themes = {
-    'fleuve': 'Fleuve Congo 🌊',
-    'kin': 'Soleil de Kin 🌅',
-    'emeraude': 'Émeraude 💬',
-    'ocean': 'Océan 💼',
-    'bleu': 'Bleu Nuit 👥',
+    'fleuve': 'Fleuve Congo',
+    'kin': 'Soleil de Kin',
+    'emeraude': 'Émeraude',
+    'ocean': 'Océan',
+    'bleu': 'Bleu Nuit',
   };
   static const fonts = {
     'standard': 'Standard',
@@ -279,7 +279,7 @@ ThemeData mboteTheme() {
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Rd.md)),
     ),
-    // ── Le reste de l'application suit la même identité « Fleuve Congo » :
+ // Le reste de l'application suit la même identité « Fleuve Congo » :
     //    bords nets, surfaces franches, filets fins, aucune ombre lourde.
     dividerTheme: DividerThemeData(
       color: MC.ligne,
@@ -442,7 +442,7 @@ class MboteButton extends StatelessWidget {
   }
 }
 
-/// 🔠 Applique la taille de texte choisie dans Réglages › Apparence.
+///Applique la taille de texte choisie dans Réglages › Apparence.
 ///
 /// Le réglage de l'application **multiplie** celui du système (jamais il ne
 /// l'ignore : un utilisateur qui a agrandi le texte de son téléphone pour

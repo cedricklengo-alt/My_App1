@@ -7,7 +7,7 @@ import '../theme.dart';
 import '../l10n.dart';
 import 'contacts.dart';
 
-/// 📱 Offrir du crédit GSM : recharge le téléphone d'un proche en RDC
+///Offrir du crédit GSM : recharge le téléphone d'un proche en RDC
 /// (Vodacom, Orange, Airtel, Africell) depuis le solde MboteCall.
 class AirtimeScreen extends StatefulWidget {
   const AirtimeScreen({super.key});
@@ -52,7 +52,7 @@ class _AirtimeScreenState extends State<AirtimeScreen> {
       await _loadHistory();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${L10n.t('airtime_sent')} $p (${r['operator']}) ✓'),
+          content: Text('${L10n.t('airtime_sent')} $p (${r['operator']})'),
           backgroundColor: MC.savane));
     } catch (e) {
       if (!mounted) return;
@@ -89,7 +89,7 @@ class _AirtimeScreenState extends State<AirtimeScreen> {
             decoration: BoxDecoration(
                 color: MC.nuit2, borderRadius: BorderRadius.circular(Rd.md)),
             child: Row(children: [
-              const Text('💰 ', style: TextStyle(fontSize: Tx.subtitle)),
+              Icon(Icons.account_balance_wallet_rounded, size: Tx.subtitle, color: MC.soleil),
               Text('${L10n.t('my_credit')} : ',
                   style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
               Text(fmtMoney(st.balanceCents),
@@ -159,7 +159,7 @@ class _AirtimeScreenState extends State<AirtimeScreen> {
           ),
           const SizedBox(height: 20),
           MboteButton(
-            label: '📱 ${L10n.t('send')} ${fmtMoney(amountCents)}',
+            label: '${L10n.t('send')} ${fmtMoney(amountCents)}',
             loading: sending,
             onTap: _send,
           ),
@@ -181,8 +181,16 @@ class _AirtimeScreenState extends State<AirtimeScreen> {
                 decoration: BoxDecoration(
                     color: MC.nuit2, borderRadius: BorderRadius.circular(Rd.md)),
                 child: Row(children: [
-                  Text(ok ? '✅' : (pending ? '⏳' : '↩️'),
-                      style: const TextStyle(fontSize: Tx.subtitle)),
+                  Icon(
+                      ok
+                          ? Icons.check_circle_rounded
+                          : (pending
+                              ? Icons.hourglass_top_rounded
+                              : Icons.cancel_rounded),
+                      size: 20,
+                      color: ok
+                          ? MC.savane
+                          : (pending ? MC.soleil : MC.kaki)),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(

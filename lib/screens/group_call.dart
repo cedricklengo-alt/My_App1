@@ -1,5 +1,5 @@
 // lib/screens/group_call.dart
-// 👥 Écran d'appel de groupe (audio ou vidéo) — jusqu'à 4 personnes.
+//Écran d'appel de groupe (audio ou vidéo) — jusqu'à 4 personnes.
 //
 // La grille montre chaque participant : sa vidéo quand elle arrive, son
 // initiale sinon. Les commandes sont les mêmes que pour un appel simple,
@@ -86,7 +86,7 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
       setState(() => _error = session.error);
       return;
     }
-    // 🧾 Journal de l'appel de groupe (gratuit, mais visible dans l'historique)
+    //Journal de l'appel de groupe (gratuit, mais visible dans l'historique)
     try {
       await st.api.startGroupCall(widget.callId);
     } catch (_) {/* le journal ne bloque jamais l'appel */}
@@ -515,7 +515,7 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
       );
 }
 
-/// 📲 Invitation à un appel de groupe déjà en cours.
+///Invitation à un appel de groupe déjà en cours.
 class IncomingGroupScreen extends StatelessWidget {
   final Map invite; // {call_id, from, from_name, video}
   const IncomingGroupScreen({super.key, required this.invite});

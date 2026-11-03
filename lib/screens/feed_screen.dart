@@ -82,7 +82,7 @@ class _FeedScreenState extends State<FeedScreen> {
     _refresh();
   }
 
-  // ── Chargement ─────────────────────────────────────────
+ // Chargement ────────────────────────────────────────
 
   Future<void> _load() async {
     setState(() {
@@ -170,7 +170,7 @@ class _FeedScreenState extends State<FeedScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  // ── J'aime ─────────────────────────────────────────────
+ // J'aime ────────────────────────────────────────────
 
   void _replace(Post updated) {
     setState(() {
@@ -203,7 +203,7 @@ class _FeedScreenState extends State<FeedScreen> {
     }
   }
 
-  // ── Commentaires ───────────────────────────────────────
+ // Commentaires ──────────────────────────────────────
 
   Future<void> _openComments(Post post) async {
     final count = await showModalBottomSheet<int>(
@@ -215,7 +215,7 @@ class _FeedScreenState extends State<FeedScreen> {
     if (count != null) _replace(post.copyWith(comments: count));
   }
 
-  // ── Partage ────────────────────────────────────────────
+ // Partage ───────────────────────────────────────────
 
   Future<void> _share(Post post) async {
     final text = [
@@ -227,7 +227,7 @@ class _FeedScreenState extends State<FeedScreen> {
     _toast('Publication copiée — colle-la où tu veux');
   }
 
-  // ── Appel ──────────────────────────────────────────────
+ // Appel ─────────────────────────────────────────────
 
   void _call(Post post) {
     final phone = post.authorPhone;
@@ -236,9 +236,9 @@ class _FeedScreenState extends State<FeedScreen> {
         name: post.authorName, avatar: post.authorAvatar);
   }
 
-  // ── Suppression ────────────────────────────────────────
+ // Suppression ───────────────────────────────────────
 
-  /// 🗑️ Demande confirmation puis supprime la publication.
+  ///Demande confirmation puis supprime la publication.
   /// L'élément disparaît de la liste **tout de suite** ; si le serveur refuse,
   /// il est remis à sa place (aucune perte silencieuse).
   Future<void> _confirmDelete(Post post) async {
@@ -270,18 +270,18 @@ class _FeedScreenState extends State<FeedScreen> {
 
     final index = _posts.indexWhere((p) => p.id == post.id);
     if (index == -1) return;
-    setState(() => _posts.removeAt(index)); // ⚡ retrait immédiat
+    setState(() => _posts.removeAt(index)); //retrait immédiat
     try {
       await _api.deletePost(post.id);
       _toast('Publication supprimée');
     } catch (e) {
       if (!mounted) return;
-      setState(() => _posts.insert(index, post)); // ↩️ remise en place
+      setState(() => _posts.insert(index, post)); // ↩remise en place
       _toast(friendlyError(e));
     }
   }
 
-  /// 🗑️ Supprime un de mes statuts (confirmation incluse).
+  ///Supprime un de mes statuts (confirmation incluse).
   Future<bool> _confirmDeleteStory(Story story) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -315,7 +315,7 @@ class _FeedScreenState extends State<FeedScreen> {
     }
   }
 
-  // ── Publication ────────────────────────────────────────
+ // Publication ───────────────────────────────────────
 
   Future<void> _openCreate() async {
     HapticFeedback.mediumImpact();
@@ -349,7 +349,7 @@ class _FeedScreenState extends State<FeedScreen> {
       if (!mounted) return;
       setState(() => _posts = [post, ..._posts]);
       _scrollToTop();
-      _toast('Publication en ligne 🎉');
+      _toast('Publication en ligne');
     } catch (e) {
       if (!mounted) return;
       _toast(friendlyError(e));
@@ -363,7 +363,7 @@ class _FeedScreenState extends State<FeedScreen> {
     }
   }
 
-  // ── Statuts ────────────────────────────────────────────
+ // Statuts ───────────────────────────────────────────
 
   Future<void> _onMyStory(StoryGroup? mine) async {
     if (mine != null) {
@@ -373,7 +373,7 @@ class _FeedScreenState extends State<FeedScreen> {
     }
   }
 
-  /// 📸 Nouveau statut : photo, courte vidéo ou texte.
+  ///Nouveau statut : photo, courte vidéo ou texte.
   Future<void> _addStory() async {
     final choix = await showModalBottomSheet<String>(
       context: context,
@@ -450,7 +450,7 @@ class _FeedScreenState extends State<FeedScreen> {
     }
   }
 
-  /// ✍️ Statut texte seul (sans photo) — accepté par le serveur depuis la v3.6.
+  ///Statut texte seul (sans photo) — accepté par le serveur depuis la v3.6.
   Future<void> _addTextStory() async {
     final ctrl = TextEditingController();
     final texte = await showDialog<String>(
@@ -502,7 +502,7 @@ class _FeedScreenState extends State<FeedScreen> {
         builder: (_) => _StoryViewer(
           group: group,
           api: _api,
-          // 🗑️ Suppression possible seulement sur mes propres statuts.
+          //Suppression possible seulement sur mes propres statuts.
           onDelete: group.isMe ? _confirmDeleteStory : null,
           onDeleted: (storyId) {
             if (!mounted) return;
@@ -547,7 +547,7 @@ class _FeedScreenState extends State<FeedScreen> {
     );
   }
 
-  // ── Interface ──────────────────────────────────────────
+ // Interface ─────────────────────────────────────────
 
   List<Post> get _visible {
     if (_query.trim().isEmpty) return _posts;
@@ -652,7 +652,7 @@ class _FeedScreenState extends State<FeedScreen> {
                     post: post,
                     myId: _myId,
                     dataSaverMode: _dataSaver,
-                    // 📞 Jamais d'appel sur sa propre publication (double
+                    //Jamais d'appel sur sa propre publication (double
                     // sécurité : la carte le vérifie aussi).
                     onCall: (!mine && post.canCall) ? () => _call(post) : null,
                     onDelete: mine ? () => _confirmDelete(post) : null,
@@ -687,7 +687,7 @@ class _FeedScreenState extends State<FeedScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   child: Center(
                     child: Text(
-                      'Tu es à jour 🌞',
+                      'Tu es à jour',
                       style: TextStyle(color: MC.kaki, fontSize: Tx.label),
                     ),
                   ),
@@ -710,9 +710,9 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 }
 
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 // Barre du haut
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 
 class _FeedAppBar extends StatelessWidget {
   final bool dataSaver;
@@ -803,9 +803,9 @@ class _FeedAppBar extends StatelessWidget {
   }
 }
 
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 // États vide / erreur
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 
 class _EmptyState extends StatelessWidget {
   final bool searching;
@@ -957,9 +957,9 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 // Bouton de création
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 
 class _Fab extends StatelessWidget {
   final VoidCallback onTap;
@@ -993,9 +993,9 @@ class _Fab extends StatelessWidget {
   }
 }
 
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 // Feuille de commentaires
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 
 class _CommentsSheet extends StatefulWidget {
   final Api api;
@@ -1229,9 +1229,9 @@ class _CommentsSheetState extends State<_CommentsSheet> {
   }
 }
 
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 // Feuille de publication
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 
 class _CreateSheet extends StatefulWidget {
   const _CreateSheet();
@@ -1289,7 +1289,7 @@ class _CreateSheetState extends State<_CreateSheet> {
     }
   }
 
-  /// 🎬 Choisit une courte vidéo (60 s max) et l'envoie.
+  ///Choisit une courte vidéo (60 s max) et l'envoie.
   Future<void> _pickVideo() async {
     try {
       final picker = ImagePicker();
@@ -1699,9 +1699,9 @@ class _Field extends StatelessWidget {
   }
 }
 
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 // Visionneuse de statuts
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 
 class _StoryViewer extends StatefulWidget {
   final StoryGroup group;
@@ -1737,7 +1737,12 @@ class _StoryViewerState extends State<_StoryViewer> {
   void initState() {
     super.initState();
     _stories = List<Story>.from(widget.group.stories);
-    _mark(0);
+    // Le marquage « vu » remonte au fil (onSeen) : le faire pendant initState
+    // déclencherait un setState sur un parent en pleine construction. On le
+    // décale d'une frame, la barre de progression démarre tout de suite.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _mark(_index);
+    });
     _armAutoAdvance();
   }
 
@@ -1750,7 +1755,7 @@ class _StoryViewerState extends State<_StoryViewer> {
   Story? get _story =>
       _stories.isEmpty ? null : _stories[_index.clamp(0, _stories.length - 1)];
 
-  /// 📷 Les statuts photo/texte avancent seuls (5 s) ; une vidéo se termine
+  ///Les statuts photo/texte avancent seuls (5 s) ; une vidéo se termine
   /// naturellement, on ne la coupe pas au milieu.
   void _armAutoAdvance() {
     _auto?.cancel();
@@ -1788,7 +1793,7 @@ class _StoryViewerState extends State<_StoryViewer> {
     _armAutoAdvance();
   }
 
-  /// 🗑️ Supprime le statut affiché (confirmation gérée par l'écran d'accueil).
+  ///Supprime le statut affiché (confirmation gérée par l'écran d'accueil).
   Future<void> _delete() async {
     final st = _story;
     final cb = widget.onDelete;
@@ -1833,7 +1838,7 @@ class _StoryViewerState extends State<_StoryViewer> {
             if (story == null)
               const SizedBox.shrink()
             else if (story.mediaUrl != null)
-              // 🎬 Vidéo jouée directement dans le statut, sinon photo.
+              //Vidéo jouée directement dans le statut, sinon photo.
               isVideoUrl(story.mediaUrl)
                   ? MboteVideo(
                       url: story.mediaUrl!,

@@ -15,7 +15,7 @@ import 'keypad.dart';
 import 'sms_compose.dart';
 import 'call_detail.dart';
 
-/// 📞 Onglet « Appels » : historique par catégorie.
+///Onglet « Appels » : historique par catégorie.
 ///
 /// Ce que l'écran sait faire :
 ///  • distinguer un appel **reçu** d'un appel **passé** (colonne `direction`)
@@ -103,7 +103,7 @@ class HistoryScreenState extends State<HistoryScreen>
     }
   }
 
-  // ── Lecture d'une ligne d'historique ────────────────────
+ // Lecture d'une ligne d'historique ───────────────────
 
   static bool _isIn(dynamic c) => '${c['direction'] ?? ''}' == 'incoming';
 
@@ -129,7 +129,7 @@ class HistoryScreenState extends State<HistoryScreen>
   /// ainsi pas diverger).
   List get _visible => calls;
 
-  // ── Actions ────────────────────────────────────────────
+ // Actions ───────────────────────────────────────────
 
   void _call(dynamic c) {
     if (!_dialable(c)) return;
@@ -476,7 +476,7 @@ class _CallTile extends StatelessWidget {
     // Renommage : les anciens appels « MboteCall → MboteCall » s'affichent « MboteCall »
     var dest = (call['destination'] ?? '').toString();
     if (dest.isEmpty) dest = 'MboteCall';
-    if (dest.contains('MBOTE')) dest = 'MboteCall 💚';
+    if (dest.contains('MBOTE')) dest = 'MboteCall';
 
     final dur = int.tryParse('${call['billed_sec'] ?? 0}') ?? 0;
     final name = '${call['callee'] ?? ''}';

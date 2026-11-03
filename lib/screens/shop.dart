@@ -11,7 +11,7 @@ import '../state.dart';
 import '../theme.dart';
 import 'my_plans.dart';
 
-/// 🛍️ BOUTIQUE — catalogue, commande, paiement (Mobile Money ou carte Visa).
+///BOUTIQUE — catalogue, commande, paiement (Mobile Money ou carte Visa).
 ///
 /// Le prix affiché vient du serveur (`shop_packages`), jamais du client. Après
 /// le paiement, l'écran interroge le STATUT RÉEL de la commande : un retour

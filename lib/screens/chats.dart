@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../api.dart';
 import '../chat_format.dart';
 import '../l10n.dart';
+import '../prefs.dart';
 import '../rtc.dart';
 import '../state.dart';
 import '../tabs.dart';
@@ -15,9 +16,10 @@ import '../theme.dart';
 import '../widgets/avatar.dart';
 import 'call.dart';
 import 'chat.dart';
+import 'traduction.dart';
 
 
-/// 💬 DISCUSSIONS — la liste des conversations.
+///DISCUSSIONS — la liste des conversations.
 ///
 /// Une seule liste pour tout : messages écrits, photos, fichiers et notes
 /// vocales traduites. Le serveur renvoie déjà, pour chaque personne, le dernier
@@ -215,7 +217,16 @@ class ChatsScreenState extends State<ChatsScreen> {
     return p.isEmpty ? L10n.t('chats_unknown') : p;
   }
 
-  /// ➕ Écrire à quelqu'un : on pioche dans les contacts du téléphone.
+ /// Écrire à quelqu'un : on pioche dans les contacts du téléphone.
+ /// Ouvre le panneau de traduction (Lokota) puis rafraîchit la liste : les
+ /// aperçus traduits en dépendent.
+  Future<void> _ouvrirTraduction() async {
+    await showTraductionSheet(context);
+    if (!mounted) return;
+    setState(() {});
+    await _load();
+  }
+
   Future<void> _newChat() async {
     final app = context.read<AppState>();
     List contacts = app.contacts;
@@ -263,9 +274,19 @@ class ChatsScreenState extends State<ChatsScreen> {
       backgroundColor: MC.nuit,
       // Bouton flottant « nouvelle discussion » : l'action principale de
       // l'onglet, atteignable au pouce sans remonter la liste.
-      floatingActionButton: _NouvelleDiscussionButton(
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+ // Traduction des discussions (ex-Lokota) : elle appartient à cet
+ // onglet, plus au menu « · · · ».
+          _BoutonTraduction(onTap: _ouvrirTraduction),
+          const SizedBox(height: 12),
+          _NouvelleDiscussionButton(
         key: const Key('fab-nouvelle-discussion'),
         onTap: _newChat,
+          ),
+        ],
       ),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -569,13 +590,13 @@ class _ThreadTile extends StatelessWidget {
     switch (type) {
       case 'note':
       case 'voice':
-        prefix = '🎙️ ${L10n.t('chats_voice')}';
+        prefix = L10n.t('chats_voice');
       case 'image':
-        prefix = '📷 ${L10n.t('chats_photo')}';
+        prefix = L10n.t('chats_photo');
       case 'file':
-        prefix = '📎 ${L10n.t('chats_file')}';
+        prefix = L10n.t('chats_file');
       case 'deleted':
-        prefix = '🚫 ${L10n.t('chats_deleted')}';
+        prefix = L10n.t('chats_deleted');
       default:
         prefix = '';
     }
@@ -718,7 +739,7 @@ class _ContactPickerState extends State<_ContactPicker> {
   }
 }
 
-/// ➕ BOUTON FLOTTANT — démarrer une nouvelle discussion.
+///BOUTON FLOTTANT — démarrer une nouvelle discussion.
 ///
 /// 68 px, rayon 32 %, icône 42 %, appui qui réduit à .93 : mêmes constantes
 /// que les autres boutons flottants de l'application. Le dégradé corail est
@@ -727,6 +748,45 @@ class _ContactPickerState extends State<_ContactPicker> {
 /// Accessibilité : le bouton porte un libellé (« Nouvelle discussion ») lu par
 /// le lecteur d'écran et une infobulle au survol — un simple `+` ne suffirait
 /// pas (WCAG 1.1.1 et 4.1.2).
+/// Bouton flottant secondaire : active ou coupe la traduction des
+/// discussions. Le libellé accessible dit l'état, pas seulement « traduire ».
+class _BoutonTraduction extends StatelessWidget {
+  final VoidCallback onTap;
+  const _BoutonTraduction({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final actif = TradPrefs.actif;
+    final libelle =
+        actif ? L10n.t('trad_fab_on') : L10n.t('trad_fab_off');
+    return Semantics(
+      button: true,
+      label: libelle,
+      child: Tooltip(
+        message: libelle,
+        child: Material(
+          key: const Key('fab-traduction'),
+          color: actif ? MC.soleil : MC.nuit3,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Rd.md),
+            side: BorderSide(color: actif ? MC.soleil : MC.ligne),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(Rd.md),
+            child: SizedBox(
+              width: 52,
+              height: 52,
+              child: Icon(Icons.translate_rounded,
+                  size: 24, color: actif ? MC.onAccent : MC.sable),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _NouvelleDiscussionButton extends StatefulWidget {
   final VoidCallback onTap;
   const _NouvelleDiscussionButton({super.key, required this.onTap});

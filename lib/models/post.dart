@@ -1,15 +1,15 @@
 // lib/models/post.dart
 // Modèles du fil Mbote : publications (posts) + statuts (stories).
 //
-// ⚠️ Les couleurs/thèmes vivants sont dans `theme.dart` ; ici, uniquement des
+//Les couleurs/thèmes vivants sont dans `theme.dart` ; ici, uniquement des
 // données. Chaque modèle sait se construire depuis la réponse de l'API
 // (`fromJson`) — c'est ce qui rend le fil réellement branché au backend.
 
 import 'dart:convert';
 
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 // Enums
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 
 enum PostType { photo, clip, texte, event }
 
@@ -52,9 +52,9 @@ String postTypeToApi(PostType t) => switch (t) {
       PostType.event => 'event',
     };
 
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 // Publication
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 
 class Post {
   final String id;
@@ -229,9 +229,9 @@ class Post {
   }
 }
 
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 // Statuts (stories)
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 
 class Story {
   final String id;

@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 
 import 'l10n.dart';
 
-// ┌──────────────────────────────────────────────────────────────────────┐
-// │  SYSTÈME DE DESIGN MBOTE — les « règles du jeu » visuelles           │
-// └──────────────────────────────────────────────────────────────────────┘
+//────────────────────────────────────────────────────────────────────┐
+// SYSTÈME DE DESIGN MBOTE — les « règles du jeu » visuelles
+//────────────────────────────────────────────────────────────────────┘
 //
 // Historiquement, chaque écran choisissait ses tailles de texte, ses
 // arrondis et ses marges « à la main » : ~30 tailles de police différentes,
@@ -23,7 +23,7 @@ import 'l10n.dart';
 //   3. **Cohérence** — des rayons ([Rd]), des durées d'animation ([Motion])
 //      et des cibles tactiles ([Tap]) nommés, pas des nombres magiques.
 
-/// 📐 Échelle typographique — 7 marches, du plus petit au plus grand.
+///Échelle typographique — 7 marches, du plus petit au plus grand.
 ///
 /// Une seule taille par « rôle ». Si un écran a besoin d'une taille qui n'est
 /// pas ici, c'est le rôle qui manque : en ajouter un, pas un nombre.
@@ -70,7 +70,7 @@ class Tx {
   static const double minimum = caption;
 }
 
-/// 📏 Espacement — multiples de 4 px, alignés sur une grille de 8.
+///Espacement — multiples de 4 px, alignés sur une grille de 8.
 class Sp {
   Sp._();
   static const double x1 = 4;
@@ -91,7 +91,7 @@ class Sp {
   static const double element = x2;
 }
 
-/// ⬜ Rayons — 4 crans, pour que tous les coins se ressemblent.
+///Rayons — 4 crans, pour que tous les coins se ressemblent.
 ///
 /// Identité « Fleuve Congo » : bords **nets**. Les cartes et les champs sont
 /// peu arrondis (12), les avatars sont des carrés arrondis et non des cercles.
@@ -105,7 +105,7 @@ class Rd {
   static const double pill = 999; // pastilles de compteur, filtres
 }
 
-/// 📦 Mesures de densité (identité compacte : plus de contenu à l'écran).
+///Mesures de densité (identité compacte : plus de contenu à l'écran).
 class Densite {
   Densite._();
   static const double ligneListe = 64; // une conversation dans la liste
@@ -115,7 +115,7 @@ class Densite {
   static const double separateur = 1;
 }
 
-/// ⏱️ Durées d'animation — trois vitesses, pas plus.
+/// Durées d'animation — trois vitesses, pas plus.
 class Motion {
   Motion._();
   static const Duration rapide = Duration(milliseconds: 150);
@@ -123,14 +123,14 @@ class Motion {
   static const Duration lent = Duration(milliseconds: 320);
 }
 
-/// 👆 Cibles tactiles — Material recommande 48 dp de côté minimum.
+///Cibles tactiles — Material recommande 48 dp de côté minimum.
 class Tap {
   Tap._();
   static const double min = 48;
   static const double confort = 56;
 }
 
-/// 🎨 Couleurs **hors palettes**, centralisées ici pour rester traçables.
+///Couleurs **hors palettes**, centralisées ici pour rester traçables.
 ///
 /// Les quatre palettes de `theme.dart` décrivent l'identité de l'app ; les
 /// couleurs ci-dessous sont des exceptions assumées (marques tierces, types
@@ -179,7 +179,7 @@ class Surcouche {
   static const Color ombre = Color(0x33000000);
 }
 
-/// 🔍 Contraste WCAG 2.1 — luminance relative d'une couleur opaque.
+///Contraste WCAG 2.1 — luminance relative d'une couleur opaque.
 ///
 /// La formule est celle de la recommandation (sRGB linéarisé). On ignore le
 /// canal alpha : les couleurs de la palette sont opaques par construction.
@@ -201,9 +201,9 @@ double contrastRatio(Color a, Color b) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-// ┌──────────────────────────────────────────────────────────────────────┐
-// │  ACCESSIBILITÉ — annoncer l'attente                                  │
-// └──────────────────────────────────────────────────────────────────────┘
+//────────────────────────────────────────────────────────────────────┐
+// ACCESSIBILITÉ — annoncer l'attente
+//────────────────────────────────────────────────────────────────────┘
 
 /// Indicateur de chargement **annoté**.
 ///

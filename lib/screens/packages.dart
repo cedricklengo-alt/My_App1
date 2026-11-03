@@ -6,7 +6,7 @@ import '../design.dart';
 import '../theme.dart';
 import '../l10n.dart';
 
-/// 📦 Forfaits & Pass : mes forfaits actifs + catalogue à acheter.
+///Forfaits & Pass : mes forfaits actifs + catalogue à acheter.
 class PackagesScreen extends StatefulWidget {
   const PackagesScreen({super.key});
   @override
@@ -104,7 +104,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
                             color: MC.savane.withValues(alpha: .08),
                           ),
                           child: Row(children: [
-                            const Text('📦 ', style: TextStyle(fontSize: Tx.headline)),
+                            Icon(Icons.inventory_2_rounded, size: Tx.headline, color: MC.soleil),
                             const SizedBox(width: 6),
                             Expanded(
                               child: Column(
@@ -177,7 +177,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
                           ]),
                           const SizedBox(height: 6),
                           Text(
-                            '${unlimited ? '∞ ${L10n.t('unlimited')}' : '${p['minutes']} min'} · ${p['days']} jours · ${(p['prefix'] ?? '').toString().isEmpty ? '🌍' : '+${p['prefix']}…'}',
+                            '${unlimited ? '∞ ${L10n.t('unlimited')}' : '${p['minutes']} min'} · ${p['days']} jours · ${(p['prefix'] ?? '').toString().isEmpty ? '' : '+${p['prefix']}…'}',
                             style: TextStyle(color: MC.kaki, fontSize: Tx.label),
                           ),
                           const SizedBox(height: 12),

@@ -7,7 +7,7 @@ import '../l10n.dart';
 import '../state.dart';
 import '../theme.dart';
 
-/// 📋 FICHE D'UN APPEL — tout ce que le serveur sait de cette communication.
+///FICHE D'UN APPEL — tout ce que le serveur sait de cette communication.
 ///
 /// Distinction importante pour l'utilisateur :
 ///   • **ce qu'il a payé** (`cost_cents`, débit réel de son portefeuille) ;

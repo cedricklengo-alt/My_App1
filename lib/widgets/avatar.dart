@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../design.dart';
 import '../theme.dart';
 
-/// 👤 L'avatar de l'application — **carré arrondi**, jamais un cercle.
+///L'avatar de l'application — **carré arrondi**, jamais un cercle.
 ///
 /// Identité « Fleuve Congo » : les photos et les initiales vivent dans un
 /// carré à coins arrondis (12 px), cerclé d'un filet de 1 px. Ce widget existe

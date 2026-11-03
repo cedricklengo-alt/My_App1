@@ -135,7 +135,7 @@ class _CallModeSheet extends StatelessWidget {
               ),
               const SizedBox(height: Sp.x6),
 
-              // ── Les trois façons d'appeler : icônes seules, couleurs
+ // Les trois façons d'appeler : icônes seules, couleurs
               //    porteuses de sens (vert = voix, sable = vidéo, corail = groupe).
               FloatingChoiceRow(
                 children: [
@@ -164,7 +164,7 @@ class _CallModeSheet extends StatelessWidget {
               ),
               const SizedBox(height: Sp.x5),
 
-              // ── Actions secondaires, plus petites, sans aplat plein.
+ // Actions secondaires, plus petites, sans aplat plein.
               FloatingChoiceRow(
                 gap: Sp.x4,
                 children: [

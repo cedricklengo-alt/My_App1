@@ -8,7 +8,7 @@ import '../l10n.dart';
 import '../state.dart';
 import '../theme.dart';
 
-/// ✉️ COMPOSITION D'UN SMS vers le réseau GSM.
+///COMPOSITION D'UN SMS vers le réseau GSM.
 ///
 /// Avant l'envoi, l'écran demande un DEVIS au serveur :
 ///   • destination couverte ou non (`NO_RATE`) ;
@@ -204,9 +204,12 @@ class _SmsComposeScreenState extends State<SmsComposeScreen> {
                   ],
                   if ('${devis!['destination'] ?? ''}'.isNotEmpty) ...[
                     const SizedBox(height: 6),
-                    Text('${devis!['flag'] ?? ''} ${devis!['destination']}',
-                        style:
-                            TextStyle(color: MC.kaki, fontSize: Tx.caption)),
+                    Row(children: [
+                      Icon(Icons.public_rounded, size: 13, color: MC.kaki),
+                      const SizedBox(width: 4),
+                      Text('${devis!['destination']}',
+                          style: TextStyle(color: MC.kaki, fontSize: Tx.caption)),
+                    ]),
                   ],
                 ],
               ),

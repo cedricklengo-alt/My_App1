@@ -1,7 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'api.dart';
 
-/// 🔔 Notifications d'appel (Firebase Cloud Messaging)
+///Notifications d'appel (Firebase Cloud Messaging)
 ///
 /// Enregistre ce téléphone auprès du serveur pour qu'il puisse le RÉVEILLER
 /// quand quelqu'un appelle et que l'app est fermée (comme WhatsApp) :
@@ -22,7 +22,7 @@ class Push {
       final fm = FirebaseMessaging.instance;
       await fm
           .requestPermission(); // Android 13+ : « Autoriser les notifications ? »
-      // ⚠️ `getToken()` est marqué déprécié au profit de `register()`/
+      //`getToken()` est marqué déprécié au profit de `register()`/
       // `onRegistered`, MAIS ces derniers renvoient l'identifiant
       // d'installation Firebase (FID), pas le jeton d'envoi FCM. Le serveur
       // envoie des notifications HTTP v1 à `message.token` : c'est donc bien

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:provider/provider.dart';
+import '../l10n.dart';
 import '../state.dart';
 import '../design.dart';
 import '../theme.dart';
@@ -11,7 +12,7 @@ import '../rtc.dart';
 import '../prefs.dart';
 import 'call.dart';
 
-/// 📲 Appel MboteCall ENTRANT — sonnerie système + vibration,
+///Appel MboteCall ENTRANT — sonnerie système + vibration,
 /// même langage visuel que l'écran d'appel : anneau dégradé + halo,
 /// nom, icône officielle, puis décrocher (vert) ou refuser (rouge).
 class IncomingCallScreen extends StatefulWidget {
@@ -26,17 +27,17 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
   Timer? vibre;
   bool done = false; // évite double pop / double journal
   final List<Map> earlyIce =
-      []; // 🧊 candidats réseau arrivés pendant la sonnerie
+      []; //candidats réseau arrivés pendant la sonnerie
 
   @override
   void initState() {
     super.initState();
-    // 🔔 Sonnerie + vibration selon les préférences (Profil → Paramètres)
+    //Sonnerie + vibration selon les préférences (Profil → Paramètres)
     _startRingAndVibe();
-    // 👂 Si l'appelant raccroche pendant la sonnerie → appel manqué
-    // 🧊 Et on mémorise les candidats réseau (ICE) reçus pendant qu'on sonne :
+    //Si l'appelant raccroche pendant la sonnerie → appel manqué
+    //Et on mémorise les candidats réseau (ICE) reçus pendant qu'on sonne :
     //    ils seront rejoués au décrochage (indispensable quand on répond
-    //    tard, par ex. après avoir touché la notification 📲)
+    //    tard, par ex. après avoir touché la notification)
     Rtc.onSignal = (msg) {
       if (msg['call_id'] != widget.offer['call_id']) return;
       if (msg['type'] == 'hangup') {
@@ -47,7 +48,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
     };
   }
 
-  /// 🔔 Démarre la sonnerie choisie par l'utilisateur + la vibration
+  ///Démarre la sonnerie choisie par l'utilisateur + la vibration
   void _startRingAndVibe() {
     final player = FlutterRingtonePlayer();
     switch (CallPrefs.ringtone) {
@@ -83,12 +84,15 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
     _stopRing();
     Rtc.onSignal = null;
     if (missed) {
-      // 📥 Journalise l'appel manqué (sans bloquer l'interface)
+      //Journalise l'appel manqué (sans bloquer l'interface)
       try {
-        context
+        //Le journal part en tâche de fond : un réseau coupé ne doit ni
+        // planter l'écran ni empêcher de raccrocher.
+        unawaited(context
             .read<AppState>()
             .api
-            .logIncoming(widget.offer['from'].toString(), 0);
+            .logIncoming(widget.offer['from'].toString(), 0)
+            .catchError((_) {}));
       } catch (_) {}
     }
     if (mounted) Navigator.pop(context);
@@ -123,11 +127,11 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
           child: Column(
             children: [
               const Spacer(flex: 2),
-              Text('🔔 APPEL ENTRANT',
+              Text('APPEL ENTRANT',
                   style: TextStyle(
                       color: MC.sable, fontSize: Tx.label, letterSpacing: 2)),
               const SizedBox(height: 26),
-              // 📷 Même anneau doré que l'écran d'appel
+              //Même anneau doré que l'écran d'appel
               Container(
                 width: 128,
                 height: 140,
@@ -164,7 +168,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                       fontWeight: FontWeight.w800,
                       color: MC.ivoire)),
               const SizedBox(height: 14),
-              // 📹 Précise le type d'appel entrant
+              //Précise le type d'appel entrant
               if (widget.offer['video'] == true)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),
@@ -178,7 +182,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                     ],
                   ),
                 ),
-              // 💚 Icône officielle : c'est un appel MboteCall gratuit
+              //Icône officielle : c'est un appel MboteCall gratuit
               Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
@@ -202,7 +206,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _big(Icons.call_end_rounded, MC.rouge, () {
+                  _big(Icons.call_end_rounded, MC.rouge, L10n.t('call_decline'), () {
                     Rtc.send({
                       'type': 'reject',
                       'to': offer['from'],
@@ -211,7 +215,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                     _finish(missed: true);
                   }),
                   const SizedBox(width: 70),
-                  _big(Icons.call_rounded, MC.savane, () {
+                  _big(Icons.call_rounded, MC.savane, L10n.t('call_accept'), () {
                     if (done) return;
                     done = true;
                     _stopRing();
@@ -221,7 +225,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
                         builder: (_) => CallScreen(
                           to: offer['from'],
                           displayName: offer['from_name']?.toString(),
-                          // 📹 l'appelant a demandé la vidéo → on l'ouvre en vidéo
+                          //l'appelant a demandé la vidéo → on l'ouvre en vidéo
                           video: offer['video'] == true,
                           incomingOffer: {...offer, 'early_ice': earlyIce},
                         ),
@@ -238,8 +242,15 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
     );
   }
 
-  Widget _big(IconData icon, Color color, VoidCallback onTap) =>
-      GestureDetector(
+  /// Bouton rond de l'écran d'appel. Il porte toujours un **nom accessible** :
+  /// un lecteur d'écran annonçait jusqu'ici « bouton » sans dire lequel.
+  Widget _big(IconData icon, Color color, String libelle, VoidCallback onTap) =>
+      Semantics(
+        button: true,
+        label: libelle,
+        child: Tooltip(
+          message: libelle,
+          child: GestureDetector(
         onTap: onTap,
         child: Container(
           width: 74,
@@ -255,6 +266,8 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
             ],
           ),
           child: Icon(icon, color: Colors.white, size: 32),
+        ),
+          ),
         ),
       );
 }

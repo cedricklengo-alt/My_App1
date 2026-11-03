@@ -38,8 +38,8 @@ class _LoginScreenState extends State<LoginScreen> {
       demoCode = r['demo_code'];
       setState(() => otpSent = true);
       _snack(demoCode != null
-          ? '📲 Code (mode démo) : $demoCode'
-          : '📲 Code envoyé par SMS');
+          ? 'Code (mode démo) : $demoCode'
+          : 'Code envoyé par SMS');
     } catch (e) {
       _snack(friendlyError(e), error: true);
     } finally {
@@ -58,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await st.onLoggedIn(r['token'], r['user'], r['balance_cents']);
       if (!mounted) return;
       if (r['is_new'] == true) {
-        _snack('🎁 Bienvenue ! 0,50 \$ offerts pour tester.');
+        _snack('Bienvenue ! 0,50 \$ offerts pour tester.');
       }
       Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const ShellScreen()), (_) => false);
@@ -79,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              otpSent ? 'Entre le code reçu 📲' : 'Ton numéro de téléphone',
+              otpSent ? 'Entre le code reçu' : 'Ton numéro de téléphone',
               style: TextStyle(
                   fontSize: Tx.headline, fontWeight: FontWeight.w800, color: MC.ivoire),
             ),
@@ -122,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(color: MC.savane, fontSize: Tx.label)),
                 ),
               const SizedBox(height: 12),
-              // 🎁 Code parrain (facultatif) — 1 $ offert au 1er appel
+              //Code parrain (facultatif) — 1 $ offert au 1er appel
               if (!showReferral)
                 GestureDetector(
                   onTap: () => setState(() => showReferral = true),

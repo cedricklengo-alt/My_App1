@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import '../design.dart';
 import '../theme.dart';
 
-/// 🔵 Bouton **flottant à icône seule** — le geste de choix de l'application.
+///Bouton **flottant à icône seule** — le geste de choix de l'application.
 ///
 /// Principe d'interface (UI) : un aplat de couleur, une icône Material
 /// explicite, un léger relief qui le détache du fond — rien d'autre.

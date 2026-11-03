@@ -14,18 +14,18 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
-/// 🤝 Transforme n'importe quelle erreur en message compréhensible.
+///Transforme n'importe quelle erreur en message compréhensible.
 /// À utiliser PARTOUT où l'on affiche une erreur à l'utilisateur :
 /// jamais de jargon technique à l'écran.
 String friendlyError(Object e) {
   if (e is ApiException) return e.message;
   if (e is SocketException || e is http.ClientException) {
-    return 'Pas d\'Internet — vérifie ta connexion 📶';
+    return 'Pas d\'Internet — vérifie ta connexion';
   }
   if (e is TimeoutException) {
     return 'Le serveur met trop de temps à répondre — réessaie dans un instant';
   }
-  return 'Un petit souci est survenu — réessaie 🙏';
+  return 'Un petit souci est survenu — réessaie';
 }
 
 /// Client HTTP unique vers le backend MboteCall
@@ -64,10 +64,10 @@ class Api {
       }
     } on SocketException {
       throw ApiException(
-          'Pas d\'Internet — vérifie ta connexion 📶', 'offline');
+          'Pas d\'Internet — vérifie ta connexion', 'offline');
     } on http.ClientException {
       throw ApiException(
-          'Pas d\'Internet — vérifie ta connexion 📶', 'offline');
+          'Pas d\'Internet — vérifie ta connexion', 'offline');
     } on TimeoutException {
       throw ApiException(
           'Le serveur met trop de temps à répondre — réessaie dans un instant',
@@ -108,18 +108,18 @@ class Api {
   Future<void> updateName(String name) async =>
       await _send('PUT', '/auth/me', {'name': name});
 
-  /// 📷 Photo de profil (data-URI compressée) · null = supprimer
+  ///Photo de profil (data-URI compressée) · null = supprimer
   Future<void> updateAvatar(String? dataUri) async =>
       await _send('PUT', '/auth/me', {'avatar': dataUri ?? ''});
 
   // ---- Wallet ----
   Future<Map> wallet() async => await _send('GET', '/wallet');
 
-  /// 📊 Tableau de bord : solde, dépenses du jour et du mois, appels, SMS.
+  ///Tableau de bord : solde, dépenses du jour et du mois, appels, SMS.
   /// Tous les chiffres viennent du grand livre du serveur (aucune estimation).
   Future<Map> walletSummary() async => await _send('GET', '/wallet/summary');
 
-  /// 🧾 Grand livre filtrable : type, statut, période, pagination.
+  ///Grand livre filtrable : type, statut, période, pagination.
   Future<Map> walletTransactions({
     String type = 'all',
     String status = 'all',
@@ -149,19 +149,19 @@ class Api {
   Future<Map> topupStatus(String paymentId) async =>
       await _send('GET', '/wallet/topup/$paymentId/status');
 
-  /// 💸 Transfert de crédit MboteCall → MboteCall
+  ///Transfert de crédit MboteCall → MboteCall
   Future<Map> transfer(String toPhone, int amountCents) async => await _send(
       'POST',
       '/wallet/transfer',
       {'to_phone': toPhone, 'amount_cents': amountCents});
 
-  // ---- 📦 Forfaits ----
+  // ----Forfaits ----
   Future<List> packages() async => await _send('GET', '/packages');
   Future<List> myPackages() async => await _send('GET', '/packages/mine');
   Future<Map> buyPackage(int id) async =>
       await _send('POST', '/packages/$id/buy');
 
-  // ---- 🛍️ Boutique (FlexPay : Mobile Money + carte Visa) ----
+  // ----Boutique (FlexPay : Mobile Money + carte Visa) ----
   //
   // Parcours : catalogue → commande (prix figé) → paiement → statut vérifié
   // côté serveur → activation du forfait. L'app ne fait JAMAIS confiance à un
@@ -207,7 +207,7 @@ class Api {
     return (r['plans'] as List?) ?? const [];
   }
 
-  // ---- 📱 Airtime : offrir du crédit GSM à un proche ----
+  // ----Airtime : offrir du crédit GSM à un proche ----
   Future<Map> sendAirtime(String phone, int amountCents) async => await _send(
       'POST', '/airtime', {'phone': phone, 'amount_cents': amountCents});
   Future<List> airtimeHistory() async => await _send('GET', '/airtime');
@@ -218,7 +218,7 @@ class Api {
   // ---- Promos actives (bannière) ----
   Future<List> promos() async => await _send('GET', '/rates/promos');
 
-  // ---- 🗣️ Langues téléchargeables ----
+  // ----Langues téléchargeables ----
   Future<List> availableLangs() async => await _send('GET', '/i18n');
   Future<Map> langPack(String code) async => await _send('GET', '/i18n/$code');
 
@@ -230,7 +230,7 @@ class Api {
   // ---- Contacts ----
   Future<List> contacts() async => await _send('GET', '/contacts');
 
-  /// 📒 Lesquels de ces numéros ont un compte MboteCall ?
+  ///Lesquels de ces numéros ont un compte MboteCall ?
   /// Renvoie { "<numéro envoyé>": "<numéro normalisé>" } pour les comptes trouvés.
   Future<Map> checkMbote(List<String> phones) async {
     final r = await _send('POST', '/contacts/check', {'phones': phones});
@@ -248,15 +248,15 @@ class Api {
   Future<Map> callStatus(String id) async =>
       await _send('GET', '/calls/$id/status');
 
-  /// 📥 Journalise un appel MboteCall reçu (répondu ou manqué)
+  ///Journalise un appel MboteCall reçu (répondu ou manqué)
   Future<void> logIncoming(String from, int billedSec) async => await _send(
       'POST', '/calls/log-incoming', {'from': from, 'billed_sec': billedSec});
 
-  /// 🔔 Jeton de notification Firebase (appels app fermée)
+  ///Jeton de notification Firebase (appels app fermée)
   Future<void> sendFcmToken(String token) async =>
       await _send('POST', '/auth/fcm-token', {'token': token});
 
-  /// 🔐 Réinitialisation SÉCURISÉE du code PIN :
+  ///Réinitialisation SÉCURISÉE du code PIN :
   /// jeton du compte exigé + code SMS dédié (5 min, 3 essais, usage unique).
   /// Le code n'est jamais renvoyé par l'API — il arrive par SMS.
   Future<void> pinResetRequest() async =>
@@ -264,7 +264,7 @@ class Api {
   Future<void> pinResetVerify(String code) async =>
       await _send('POST', '/auth/pin-reset/verify', {'code': code});
 
-  // ---- 🗣️ LOKOTA : notes vocales traduites ----
+  // ----LOKOTA : notes vocales traduites ----
   Future<Map> lokotaSend(String to, String audioDataUri, int durationSec,
           String langFrom, String langTo) async =>
       await _send('POST', '/lokota/send', {
@@ -280,7 +280,7 @@ class Api {
   Future<void> lokotaMarkRead(String phone) async =>
       await _send('POST', '/lokota/with/${Uri.encodeComponent(phone)}/read');
 
-  // ---- 💬 DISCUSSIONS : messages texte, photos et notes vocales ----
+  // ----DISCUSSIONS : messages texte, photos et notes vocales ----
   //
   // Tout passe par les mêmes tables côté serveur (`messages`) : un fil unique
   // par personne, que l'on écrive, qu'on envoie une photo ou qu'on parle.
@@ -313,7 +313,7 @@ class Api {
         if (clientId != null) 'client_id': clientId,
       });
 
-  /// 🗣️ Envoie une note vocale (stockée comme un message, donc dans le fil).
+  ///Envoie une note vocale (stockée comme un message, donc dans le fil).
   Future<Map> sendVoiceNote(
     String to, {
     required List<int> bytes,
@@ -333,7 +333,7 @@ class Api {
         if (clientId != null) 'client_id': clientId,
       });
 
-  /// 🖼️ Envoie une photo (ou un fichier) — corps binaire brut.
+  ///Envoie une photo (ou un fichier) — corps binaire brut.
   Future<Map> sendMessageMedia(
     String to, {
     required List<int> bytes,
@@ -364,7 +364,7 @@ class Api {
           )
           .timeout(const Duration(seconds: 60));
     } on SocketException {
-      throw ApiException('Pas d\'Internet — vérifie ta connexion 📶', 'offline');
+      throw ApiException('Pas d\'Internet — vérifie ta connexion', 'offline');
     } on TimeoutException {
       throw ApiException('Envoi trop lent — réessaie', 'timeout');
     }
@@ -381,19 +381,19 @@ class Api {
     return data is Map ? data : {};
   }
 
-  /// ✓✓ Marque comme lus les messages reçus de [phone].
+  ///Marque comme lus les messages reçus de [phone].
   Future<void> markConversationRead(String phone) async =>
       await _send('POST', '/messages/with/${Uri.encodeComponent(phone)}/read');
 
-  /// 🗑️ Supprime un message **pour tout le monde** (expéditeur seulement).
+  ///Supprime un message **pour tout le monde** (expéditeur seulement).
   Future<void> deleteMessageForAll(String id) async =>
       await _send('DELETE', '/messages/$id');
 
-  /// 🗑️ Supprime des messages **pour moi** (masqués de mon fil uniquement).
+  ///Supprime des messages **pour moi** (masqués de mon fil uniquement).
   Future<void> deleteMessagesForMe(List<String> ids) async =>
       await _send('POST', '/messages/delete', {'ids': ids, 'scope': 'me'});
 
-  /// 👂 Signale qu'une note vocale reçue a été écoutée.
+  ///Signale qu'une note vocale reçue a été écoutée.
   Future<void> markMessagePlayed(String id) async =>
       await _send('POST', '/messages/$id/played');
 
@@ -402,7 +402,7 @@ class Api {
 
   Future<Map> hangup(String id) async =>
       await _send('POST', '/calls/$id/hangup');
-  /// 📞 Historique filtrable côté serveur.
+  ///Historique filtrable côté serveur.
   /// [filter] : all | in | out | missed | internet | gsm · [q] : nom ou numéro
   Future<Map> history({String filter = 'all', String? q, int limit = 100}) async {
     final b = StringBuffer('/calls/history?filter=$filter&limit=$limit');
@@ -422,7 +422,7 @@ class Api {
   Future<void> hideCall(String id) async =>
       await _send('POST', '/calls/$id/hide');
 
-  // ---- ✉️ SMS vers le réseau GSM (facturés) ----
+  // ----SMS vers le réseau GSM (facturés) ----
 
   /// Prix d'un SMS et couverture par un forfait, AVANT envoi.
   Future<Map> smsQuote(String phone) async =>
@@ -442,9 +442,9 @@ class Api {
     return (r['messages'] as List?) ?? const [];
   }
 
-  // ────────────────────────────────────────────────────────────────
-  // 📰 FIL DE PUBLICATION
-  // ────────────────────────────────────────────────────────────────
+ //─────────────────────────────────────────────────────────────
+  //FIL DE PUBLICATION
+ //─────────────────────────────────────────────────────────────
 
   /// Une page du fil. `next` sert de curseur pour la page suivante.
   Future<FeedPage> feedPage({int? before, String? cursor}) async {
@@ -498,20 +498,20 @@ class Api {
 
   // ---- Appels de groupe « Mbote Famille » (gratuits) ----
 
-  /// 🧾 Journalise le début d'un appel de groupe (visible dans l'historique).
+  ///Journalise le début d'un appel de groupe (visible dans l'historique).
   Future<Map> startGroupCall(String callId) async =>
       await _send('POST', '/calls/group/start', {'call_id': callId});
 
-  /// 🧾 Clôt l'appel de groupe avec sa durée réelle.
+  ///Clôt l'appel de groupe avec sa durée réelle.
   Future<Map> endGroupCall(String callId, int durationSec) async => await _send(
       'POST', '/calls/group/$callId/end', {'duration_sec': durationSec});
 
-  /// 🗑️ Supprime une publication — le serveur refuse (403) si je n'en suis
+  ///Supprime une publication — le serveur refuse (403) si je n'en suis
   /// pas l'auteur, ce qui protège même si l'interface se trompe.
   Future<void> deletePost(String id) async =>
       await _send('DELETE', '/feed/posts/$id');
 
-  /// 🗑️ Supprime un statut (auteur uniquement).
+  ///Supprime un statut (auteur uniquement).
   Future<void> deleteStory(String id) async =>
       await _send('DELETE', '/feed/stories/$id');
 
@@ -586,7 +586,7 @@ class Api {
       r = await http.Response.fromStream(streamed);
     } on SocketException {
       throw ApiException(
-          'Pas d\'Internet — vérifie ta connexion 📶', 'offline');
+          'Pas d\'Internet — vérifie ta connexion', 'offline');
     } on TimeoutException {
       throw ApiException('Envoi trop lent — réessaie', 'timeout');
     }

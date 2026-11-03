@@ -1,4 +1,4 @@
-/// 🧮 Petites fonctions pures de la messagerie (dates, tailles, durées,
+///Petites fonctions pures de la messagerie (dates, tailles, durées,
 /// numéros). Isolées ici pour être **testables sans serveur ni écran**.
 ///
 /// Toutes les dates du serveur sont en **millisecondes** (0 = « jamais »).
@@ -107,7 +107,7 @@ String chatInitials(String name) {
   return (take(parts.first, 1) + take(parts.last, 1)).toUpperCase();
 }
 
-// ── interne ─────────────────────────────────────────────
+// interne ────────────────────────────────────────────
 
 String _two(int v) => v.toString().padLeft(2, '0');
 

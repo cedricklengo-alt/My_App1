@@ -21,19 +21,20 @@ final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // 🔔 Firebase (appels app fermée) — ne bloque JAMAIS le démarrage
+  //Firebase (appels app fermée) — ne bloque JAMAIS le démarrage
   try {
     await Firebase.initializeApp();
   } catch (_) {/* google-services.json absent : l'app marche sans push */}
-  // 📅 Données de langue pour les dates en français (« 7 déc. 2024 · 09h00 »).
+  //Données de langue pour les dates en français (« 7 déc. 2024 · 09h00 »).
   // Sans cet appel, DateFormat('…', 'fr_FR') lève une LocaleDataException.
   try {
     await initializeDateFormatting('fr_FR', null);
   } catch (_) {/* format de repli numérique */}
-  await L10n.load(); // 🗣️ langue sauvegardée (+ langues téléchargées)
-  await ThemeCtl.load(); // 🎨 thème + police sauvegardés
-  await CallPrefs.load(); // 🔔 sonnerie + vibration choisies
-  final pinSet = await Pin.isSet(); // 🔐 verrou PIN éventuel
+  await L10n.load(); // langue sauvegardée (+ langues téléchargées)
+  await ThemeCtl.load(); // thème + police sauvegardés
+  await CallPrefs.load(); // sonnerie + vibration choisies
+  await TradPrefs.load(); // traduction des discussions (Lokota)
+  final pinSet = await Pin.isSet(); // verrou PIN éventuel
   runApp(
     ChangeNotifierProvider(
       create: (_) => AppState()..init(),
@@ -59,10 +60,10 @@ class _MboteAppState extends State<MboteApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // 📞 Branche les appels entrants : sans cette ligne, les offres reçues
+    //Branche les appels entrants : sans cette ligne, les offres reçues
     // par le canal temps réel n'ont aucun écran où s'afficher.
     Rtc.onOffer = _onOffer;
-    // 👥 Invitations à un appel de groupe (l'écran d'appel de groupe, quand il
+    //Invitations à un appel de groupe (l'écran d'appel de groupe, quand il
     // est ouvert, écoute la même salle de son côté).
     Rtc.addGroupListener(_onGroupMessage);
   }
@@ -75,16 +76,16 @@ class _MboteAppState extends State<MboteApp> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  /// 👁️ App au premier plan / en arrière-plan → le serveur en a besoin pour
+  ///App au premier plan / en arrière-plan → le serveur en a besoin pour
   /// éviter les notifications en double quand l'écran est déjà ouvert.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     Rtc.setForeground(state == AppLifecycleState.resumed);
   }
 
-  /// 📲 Appel entrant reçu par le canal temps réel.
+  ///Appel entrant reçu par le canal temps réel.
   void _onOffer(Map msg) {
-    // 📳 Acquittement immédiat : sans lui le serveur considère le socket
+    //Acquittement immédiat : sans lui le serveur considère le socket
     // comme « fantôme » au bout de 4,5 s, le ferme et bascule sur un push
     // — la sonnerie puis la réponse ne passent plus.
     final callId = msg['call_id'];
@@ -103,7 +104,7 @@ class _MboteAppState extends State<MboteApp> with WidgetsBindingObserver {
         .whenComplete(() => _callShown = false);
   }
 
-  /// 👥 Invitation de groupe reçue alors qu'aucun appel de groupe n'est ouvert.
+  ///Invitation de groupe reçue alors qu'aucun appel de groupe n'est ouvert.
   void _onGroupMessage(Map msg) {
     if ('${msg['type']}' != 'group_invite') return;
     if (_groupShown) return;
@@ -125,14 +126,14 @@ class _MboteAppState extends State<MboteApp> with WidgetsBindingObserver {
     return ListenableBuilder(
       listenable: Listenable.merge([L10n.version, ThemeCtl.version]),
       builder: (_, __) => MaterialApp(
-        // 🔠 Taille de texte choisie dans Réglages › Apparence : appliquée à
+        //Taille de texte choisie dans Réglages › Apparence : appliquée à
         // TOUTE l'application (elle s'ajoute à celle du système, bornée par
         // Flutter pour ne jamais dépasser les limites d'accessibilité).
         builder: (context, child) =>
             EchelleTexte(child: child ?? const SizedBox.shrink()),
         title: 'MboteCall',
         navigatorKey: appNavigatorKey,
-        // 🇫🇷 Interface en français (sélecteurs de date, copier/coller, etc.)
+        //Interface en français (sélecteurs de date, copier/coller, etc.)
         locale: const Locale('fr'),
         supportedLocales: const [Locale('fr'), Locale('en')],
         localizationsDelegates: const [
@@ -145,7 +146,7 @@ class _MboteAppState extends State<MboteApp> with WidgetsBindingObserver {
         home: !st.ready
             ? const _Splash()
             : locked
-                // 🔐 Déverrouillage avant tout accès à l'app
+                //Déverrouillage avant tout accès à l'app
                 ? PinScreen(onSuccess: () => setState(() => locked = false))
                 : st.loggedIn
                     ? const ShellScreen()

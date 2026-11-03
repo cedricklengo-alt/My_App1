@@ -6,7 +6,6 @@ import '../design.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import 'airtime.dart';
-import 'lokota.dart';
 import 'my_plans.dart';
 import 'packages.dart';
 import 'shop.dart';
@@ -25,7 +24,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List promos = [];
 
-  /// 📊 Résumé financier calculé par le SERVEUR (`/wallet/summary`).
+  ///Résumé financier calculé par le SERVEUR (`/wallet/summary`).
   /// Aucun chiffre n'est estimé ici : si le résumé n'arrive pas, on n'affiche
   /// simplement pas le bloc (plutôt qu'un « 0 » trompeur).
   Map? resume;
@@ -146,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 10),
 
-            // ---- 📊 Activité réelle du portefeuille ----
+            // ----Activité réelle du portefeuille ----
             if (resume != null) ...[
               Container(
                 padding: const EdgeInsets.all(Sp.x4),
@@ -247,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 10),
             ],
 
-            // ---- ⚠️ Alerte crédit bas ----
+            // ----Alerte crédit bas ----
             if (resume?['low_balance'] == true || st.balanceCents < 100)
               Container(
                 margin: const EdgeInsets.only(top: 10),
@@ -259,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   border: Border.all(color: MC.rouge.withValues(alpha: .55)),
                 ),
                 child: Row(children: [
-                  const Text('⚠️ ', style: TextStyle(fontSize: Tx.subtitle)),
+                  Icon(Icons.warning_amber_rounded, size: Tx.subtitle, color: MC.rouge),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ]),
               ),
 
-            // ---- 🎉 Bannière Happy Hour ----
+            // ----Bannière Happy Hour ----
             ...promos.map((p) => Container(
                   margin: const EdgeInsets.only(top: 10),
                   padding:
@@ -291,7 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     border: Border.all(color: MC.soleil.withValues(alpha: .55)),
                   ),
                   child: Row(children: [
-                    const Text('🎉 ', style: TextStyle(fontSize: Tx.subtitle)),
+                    Icon(Icons.celebration_rounded, size: Tx.subtitle, color: MC.savane),
                     Expanded(
                       child: Text('${p['title']} — ${L10n.t('promo_until')}',
                           style: TextStyle(
@@ -302,63 +301,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ]),
                 )),
             const SizedBox(height: 10),
-            // ---- 🗣️ Lokota : notes vocales traduites (pilote) ----
-            GestureDetector(
-              onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const LokotaScreen())),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: MC.nuit2,
-                  borderRadius: BorderRadius.circular(Rd.md),
-                  border: Border.all(color: MC.ligne),
-                ),
-                child: Row(
-                  children: [
-                    const Text('🗣️', style: TextStyle(fontSize: Tx.display)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(L10n.t('lokota_home_title'),
-                                  style: TextStyle(
-                                      fontSize: Tx.subtitle,
-                                      fontWeight: FontWeight.w800,
-                                      color: MC.ivoire)),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 7, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: MC.soleil.withValues(alpha: .16),
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(color: MC.soleil),
-                                ),
-                                child: Text(L10n.t('lokota_pilot'),
-                                    style: TextStyle(
-                                        color: MC.soleil,
-                                        fontSize: Tx.caption,
-                                        fontWeight: FontWeight.w800)),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          Text(L10n.t('lokota_home_sub'),
-                              style: TextStyle(
-                                  fontSize: Tx.label,
-                                  height: 1.35,
-                                  color: MC.kaki)),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.chevron_right_rounded, color: MC.soleil),
-                  ],
-                ),
-              ),
-            ),
             const SizedBox(height: 10),
 
             // ---- Transfert + Crédit GSM côte à côte ----
@@ -391,7 +333,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 10),
 
-            // ---- 🛍️ Boutique (FlexPay) + Mes forfaits ----
+            // ----Boutique (FlexPay) + Mes forfaits ----
             Row(
               children: [
                 Expanded(

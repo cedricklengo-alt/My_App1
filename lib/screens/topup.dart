@@ -46,8 +46,8 @@ class _TopupScreenState extends State<TopupScreen> {
         final bonus = (result['bonus_cents'] ?? 0) as int;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(bonus > 0
-              ? '✓ Recharge réussie ! ${fmtMoney(result['credited_cents'])} crédités (dont ${fmtMoney(bonus)} de bonus 🎁)'
-              : '✓ Recharge réussie ! ${fmtMoney(result['credited_cents'])} crédités'),
+              ? 'Recharge réussie ! ${fmtMoney(result['credited_cents'])} crédités (dont ${fmtMoney(bonus)} de bonus)'
+              : 'Recharge réussie ! ${fmtMoney(result['credited_cents'])} crédités'),
           backgroundColor: MC.savane,
         ));
         Navigator.pop(context);
@@ -109,7 +109,7 @@ class _TopupScreenState extends State<TopupScreen> {
                     child: CircularProgressIndicator(
                         color: MC.soleil, strokeWidth: 3)),
                 const SizedBox(height: 20),
-                Text('Confirmez sur votre téléphone 📲',
+                Text('Confirmez sur votre téléphone',
                     style: TextStyle(
                         color: MC.ivoire,
                         fontSize: Tx.subtitle,
@@ -142,7 +142,7 @@ class _TopupScreenState extends State<TopupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Recharger 💰')),
+      appBar: AppBar(title: const Text('Recharger')),
       body: ListView(
         padding: const EdgeInsets.all(Sp.x4),
         children: [
@@ -175,7 +175,7 @@ class _TopupScreenState extends State<TopupScreen> {
                 .toList(),
           ),
           const SizedBox(height: 8),
-          Text('🎁 +10% offerts dès 10 \$',
+          Text('+10% offerts dès 10 \$',
               style: TextStyle(color: MC.savane, fontSize: Tx.label)),
           const SizedBox(height: 24),
           Text('MOYEN DE PAIEMENT',

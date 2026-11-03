@@ -8,7 +8,7 @@ import '../state.dart';
 import '../theme.dart';
 import 'shop.dart';
 
-/// 🎫 MES FORFAITS — ce que l'utilisateur a acheté et ce qu'il lui reste.
+///MES FORFAITS — ce que l'utilisateur a acheté et ce qu'il lui reste.
 ///
 /// Deux sections :
 ///   • **Actifs** : quota restant (minutes/SMS), date d'expiration ;

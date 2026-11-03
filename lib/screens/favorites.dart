@@ -7,7 +7,7 @@ import '../theme.dart';
 import '../l10n.dart';
 import 'call.dart';
 
-/// ⭐ Favoris — accessibles depuis le Clavier (v1.3).
+///Favoris — accessibles depuis le Clavier (v1.3).
 /// Ajout rapide, appel en 1 geste, suppression par appui long.
 class FavoritesScreen extends StatelessWidget {
   const FavoritesScreen({super.key});

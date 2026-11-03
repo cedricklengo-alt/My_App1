@@ -7,7 +7,7 @@ import '../theme.dart';
 import '../l10n.dart';
 import 'contacts.dart';
 
-/// 💸 Transfert de crédit MboteCall → MboteCall.
+///Transfert de crédit MboteCall → MboteCall.
 /// Le fils à Bruxelles envoie 10 $ de crédit d'appel à sa maman à Beni.
 class TransferScreen extends StatefulWidget {
   const TransferScreen({super.key});
@@ -32,7 +32,7 @@ class _TransferScreenState extends State<TransferScreen> {
       final to = r['to'];
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-            '✓ ${L10n.t('sent_ok')} ${to['name']?.isNotEmpty == true ? to['name'] : to['phone']} (${fmtMoney(r['sent_cents'])})'),
+            '${L10n.t('sent_ok')} ${to['name']?.isNotEmpty == true ? to['name'] : to['phone']} (${fmtMoney(r['sent_cents'])})'),
         backgroundColor: MC.savane,
       ));
       Navigator.pop(context);
@@ -145,7 +145,7 @@ class _TransferScreenState extends State<TransferScreen> {
           const SizedBox(height: 24),
           MboteButton(
             label:
-                '${L10n.t('send')} ${fmtMoney(amountCents).replaceAll(',00', '')} 💸',
+                '${L10n.t('send')} ${fmtMoney(amountCents).replaceAll(',00', '')}',
             loading: loading,
             onTap: _send,
           ),

@@ -21,7 +21,7 @@ class PostCard extends StatelessWidget {
   final VoidCallback? onShare;
   final VoidCallback? onCall;
 
-  /// 🗑️ Fourni seulement pour MES publications (suppression autorisée).
+  ///Fourni seulement pour MES publications (suppression autorisée).
   final VoidCallback? onDelete;
 
   /// Mon identifiant : sert à ne jamais afficher « Appeler » sur ma propre
@@ -73,9 +73,9 @@ class PostCard extends StatelessWidget {
   }
 }
 
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 // En-tête : avatar · nom · localisation · badges
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 
 class _Header extends StatelessWidget {
   final bool isMine;
@@ -186,7 +186,7 @@ class _Header extends StatelessWidget {
                 value: 'share',
                 child: Text('Partager', style: TextStyle(color: MC.ivoire)),
               ),
-              // 🗑️ Seul l'auteur voit cette entrée.
+              //Seul l'auteur voit cette entrée.
               if (isMine && onDelete != null)
                 PopupMenuItem(
                   value: 'delete',
@@ -265,7 +265,7 @@ class _OrigineChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (origine == PostOrigine.rdc) {
-      return const Text('🇨🇩', style: TextStyle(fontSize: Tx.label));
+      return Icon(Icons.public_rounded, size: Tx.label, color: MC.kaki);
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
@@ -285,9 +285,9 @@ class _OrigineChip extends StatelessWidget {
   }
 }
 
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 // Section média selon le type
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 
 class _MediaSection extends StatelessWidget {
   final Post post;
@@ -360,7 +360,7 @@ class _ClipMedia extends StatelessWidget {
         if (post.mediaUrl != null)
           Stack(
             children: [
-              // 🎬 La vidéo démarre au premier appui : aucune donnée consommée
+              //La vidéo démarre au premier appui : aucune donnée consommée
               // avant (important sur une connexion 3G/4G limitée).
               MboteVideo(url: post.mediaUrl!, height: 220),
               if (post.clipDureeLabel.isNotEmpty)
@@ -598,9 +598,9 @@ class _EventMedia extends StatelessWidget {
   }
 }
 
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 // Barre d'actions : like · commentaire · partage · Appeler
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 
 class _Actions extends StatelessWidget {
   final Post post;
@@ -646,7 +646,7 @@ class _Actions extends StatelessWidget {
             onTap: onShare,
           ),
           const Spacer(),
-          // 📞 Bouton Appeler :
+          //Bouton Appeler :
           //   • jamais sur MA propre publication (on ne s'appelle pas soi-même) ;
           //   • seulement si l'API a fourni le numéro (auteur = contact) ;
           //   • jamais d'appel automatique : il faut un appui explicite.

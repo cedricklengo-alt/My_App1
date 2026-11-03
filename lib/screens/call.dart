@@ -13,7 +13,7 @@ import '../rtc.dart';
 
 /// Écran d'appel : sonnerie → conversation avec chrono (maquette 03 + v1.2).
 ///
-/// 💚 Appel MboteCall → MboteCall : design épuré validé sur maquette —
+///Appel MboteCall → MboteCall : design épuré validé sur maquette —
 /// photo dans un anneau doré, nom, chrono, et l'icône officielle MboteCall
 /// à la place de tout texte technique (pas de « MboteCall → MboteCall », pas de coût).
 ///
@@ -23,10 +23,10 @@ class CallScreen extends StatefulWidget {
   final String to;
   final String? displayName;
 
-  /// 📲 Si non nul : on est l'APPELÉ (offre WebRTC reçue, on décroche)
+  ///Si non nul : on est l'APPELÉ (offre WebRTC reçue, on décroche)
   final Map? incomingOffer;
 
-  /// 📹 Appel vidéo (caméra + micro). Sinon appel audio classique.
+  ///Appel vidéo (caméra + micro). Sinon appel audio classique.
   final bool video;
 
   const CallScreen({
@@ -43,7 +43,7 @@ class CallScreen extends StatefulWidget {
 
 class _CallScreenState extends State<CallScreen>
     with SingleTickerProviderStateMixin {
-  // 💫 Pulsation douce de l'anneau pendant la sonnerie (design fluide).
+  //Pulsation douce de l'anneau pendant la sonnerie (design fluide).
   // Elle ne démarre PAS d'emblée : on interroge d'abord le réglage système
   // « Réduire les animations » (WCAG 2.3.3 / réglages Android &
   // Accessibilité iOS). Une animation qui pulse en boucle peut provoquer un
@@ -79,30 +79,30 @@ class _CallScreenState extends State<CallScreen>
   int priceMin = 0;
   String? freeReason; // 'mbote' | 'package' | null
   String? calleeName; // nom du compte MboteCall appelé
-  String? calleeAvatar; // 📷 photo de profil de l'appelé (data-URI)
+  String? calleeAvatar; //photo de profil de l'appelé (data-URI)
   String? endReason;
   String? error;
   bool muted = false;
   bool speaker = false;
-  bool cameraOn = false; // 📹 caméra active (appels vidéo)
+  bool cameraOn = false; //caméra active (appels vidéo)
 
-  // 📹 Moteurs d'affichage (créés à la première image reçue)
+  //Moteurs d'affichage (créés à la première image reçue)
   RTCVideoRenderer? _localRender;
   RTCVideoRenderer? _remoteRender;
 
   /// Cet appel est-il un appel vidéo ? (demandé, ou annoncé par l'appelant)
   bool get isVideoCall =>
       widget.video || widget.incomingOffer?['video'] == true;
-  bool pushSent = false; // 📲 l'appelé est prévenu par notification
+  bool pushSent = false; //l'appelé est prévenu par notification
   Timer? poll;
 
-  // 🎙️ Vraie voix (WebRTC) — utilisée si l'appelé a l'app ouverte
+  //Vraie voix (WebRTC) — utilisée si l'appelé a l'app ouverte
   RtcSession? rtc;
   bool rtcMode = false;
   Timer? chrono;
-  Timer? rtcTimeout; // ⏱️ garde-fou : injoignable si pas de réponse
+  Timer? rtcTimeout; // garde-fou : injoignable si pas de réponse
 
-  /// 📹 Relie les flux de la session aux moteurs d'affichage.
+  ///Relie les flux de la session aux moteurs d'affichage.
   void _attachVideo(RtcSession s) {
     if (!isVideoCall) return;
     cameraOn = true;
@@ -134,7 +134,7 @@ class _CallScreenState extends State<CallScreen>
   @override
   void initState() {
     super.initState();
-    cameraOn = isVideoCall; // 📹 un appel vidéo démarre caméra allumée
+    cameraOn = isVideoCall; //un appel vidéo démarre caméra allumée
     if (isCallee) {
       _answerIncoming();
     } else {
@@ -142,7 +142,7 @@ class _CallScreenState extends State<CallScreen>
     }
   }
 
-  /// 📲 Côté appelé : on décroche l'offre reçue
+  ///Côté appelé : on décroche l'offre reçue
   Future<void> _answerIncoming() async {
     final offer = widget.incomingOffer!;
     rtcMode = true;
@@ -161,7 +161,7 @@ class _CallScreenState extends State<CallScreen>
     _attachVideo(rtc!);
     try {
       await rtc!.answer(Map.from(offer['sdp']));
-      // 🧊 Rejoue les candidats réseau arrivés pendant la sonnerie
+      //Rejoue les candidats réseau arrivés pendant la sonnerie
       for (final c in (offer['early_ice'] as List? ?? const [])) {
         await rtc!.addIce(Map.from(c));
       }
@@ -176,7 +176,7 @@ class _CallScreenState extends State<CallScreen>
     }
   }
 
-  /// 🎙️ Côté appelant : lance la vraie voix après /calls/start
+  ///Côté appelant : lance la vraie voix après /calls/start
   Future<void> _startRtc() async {
     Rtc.onSignal = _onSignal;
     rtc = RtcSession(
@@ -187,7 +187,7 @@ class _CallScreenState extends State<CallScreen>
     rtc!.onConnected = _onVoiceConnected;
     rtc!.onEnded = () => _endRtc(remote: true);
     _attachVideo(rtc!);
-    // ⏱️ Si rien ne se passe en 25 s → le téléphone d'en face est injoignable
+ // Si rien ne se passe en 25 s → le téléphone d'en face est injoignable
     rtcTimeout = Timer(const Duration(seconds: 25), () {
       if (status != 'answered') _endRtc(remote: true, unreachable: true);
     });
@@ -208,7 +208,7 @@ class _CallScreenState extends State<CallScreen>
     if (!mounted || status == 'ended') return;
     rtcTimeout?.cancel();
     _pulse.animateTo(1.0,
-        duration: const Duration(milliseconds: 400)); // 💫 l'anneau se pose
+        duration: const Duration(milliseconds: 400)); //l'anneau se pose
     setState(() => status = 'answered');
     chrono?.cancel();
     chrono = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -220,12 +220,12 @@ class _CallScreenState extends State<CallScreen>
   void _onSignal(Map msg) async {
     if (!mounted) return;
     switch (msg['type']) {
-      case 'ringing': // 📳 l'écran sonne bien chez l'appelé → on patiente
+      case 'ringing': //l'écran sonne bien chez l'appelé → on patiente
         rtcTimeout?.cancel();
         rtcTimeout = Timer(const Duration(seconds: 60), () {
           if (status != 'answered') _endRtc(remote: true, unreachable: true);
         });
-      case 'push-sent': // 📲 app fermée chez l'appelé → notification envoyée
+      case 'push-sent': //app fermée chez l'appelé → notification envoyée
         setState(() => pushSent = true);
         rtcTimeout?.cancel();
         rtcTimeout = Timer(const Duration(seconds: 60), () {
@@ -262,7 +262,7 @@ class _CallScreenState extends State<CallScreen>
       Rtc.send({'type': 'hangup', 'to': widget.to, 'call_id': callId});
     }
     if (isCallee) {
-      // 📥 L'appelé journalise l'appel reçu (répondu si durée > 0)
+      //L'appelé journalise l'appel reçu (répondu si durée > 0)
       try {
         await appState.api.logIncoming(widget.to, elapsed);
       } catch (_) {}
@@ -279,7 +279,7 @@ class _CallScreenState extends State<CallScreen>
         if (unreachable) endReason = 'unreachable';
       });
       _pulse.stop();
-      // 🚪 L'écran se referme tout seul après 2 s (bouton Fermer toujours là)
+      //L'écran se referme tout seul après 2 s (bouton Fermer toujours là)
       Timer(const Duration(seconds: 2), () {
         if (mounted && status == 'ended') Navigator.maybePop(context);
       });
@@ -294,13 +294,13 @@ class _CallScreenState extends State<CallScreen>
       // plus à l'état dans ce cas (sinon « setState() called after dispose »).
       if (!mounted) return;
       callId = r['call_id'];
-      destination = '${r['flag']} ${r['destination']}';
+      destination = '${r['destination']}';
       priceMin = r['price_per_min_cents'];
       freeReason = r['free_reason'];
       calleeName = r['callee_name'];
       calleeAvatar = r['callee_avatar'];
       setState(() => status = 'ringing');
-      // 🎙️ L'appelé a l'app ouverte → VRAIE VOIX (WebRTC)
+      //L'appelé a l'app ouverte → VRAIE VOIX (WebRTC)
       if (r['rtc_online'] == true && freeReason == 'mbote') {
         rtcMode = true;
         await _startRtc();
@@ -369,8 +369,8 @@ class _CallScreenState extends State<CallScreen>
 
   String get statusLabel => switch (status) {
         'connexion' => 'Connexion…',
-        'ringing' => pushSent ? '📲 Notification envoyée…' : '🔔 Ça sonne…',
-        'answered' => '● EN LIGNE · HD',
+        'ringing' => pushSent ? 'Notification envoyée…' : 'Ça sonne…',
+        'answered' => 'EN LIGNE · HD',
         'ended' => endReason == 'no_credit'
             ? 'Crédit épuisé'
             : endReason == 'rejected'
@@ -387,7 +387,7 @@ class _CallScreenState extends State<CallScreen>
         (calleeName?.isNotEmpty == true ? calleeName! : widget.to);
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
     final hasPhoto = calleeAvatar != null && calleeAvatar!.isNotEmpty;
-    // 💚 MboteCall → MboteCall en conversation : aucun texte technique
+    //MboteCall → MboteCall en conversation : aucun texte technique
     final minimal = isMbote && status == 'answered';
 
     return Scaffold(
@@ -402,7 +402,7 @@ class _CallScreenState extends State<CallScreen>
         child: SafeArea(
           child: Column(
             children: [
-              // 📹 En vidéo, l'image prend la place : pas de grands blancs.
+              //En vidéo, l'image prend la place : pas de grands blancs.
               if (!isVideoCall)
                 const Spacer(flex: 2)
               else
@@ -424,8 +424,8 @@ class _CallScreenState extends State<CallScreen>
                 ),
               ),
               const SizedBox(height: 26),
-              // 📹 Appel vidéo : l'image de l'autre (ou l'avatar en attendant)
-              // 📷 Appel audio : anneau dégradé doré + halo, photo ou initiale
+              //Appel vidéo : l'image de l'autre (ou l'avatar en attendant)
+              //Appel audio : anneau dégradé doré + halo, photo ou initiale
               if (isVideoCall)
                 Expanded(child: _videoArea(name, initial, hasPhoto))
               else
@@ -463,7 +463,7 @@ class _CallScreenState extends State<CallScreen>
                             ),
                     ),
                   ),
-                ), // fin ScaleTransition 💫
+                ), // fin ScaleTransition
               const SizedBox(height: 18),
               Text(name,
                   style: TextStyle(
@@ -476,8 +476,12 @@ class _CallScreenState extends State<CallScreen>
                 if (widget.displayName != null)
                   Text(widget.to,
                       style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
-                Text(destination,
-                    style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.public_rounded, size: 13, color: MC.kaki),
+                  const SizedBox(width: 4),
+                  Text(destination,
+                      style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
+                ]),
               ],
               const SizedBox(height: 14),
               // Chrono doré
@@ -488,7 +492,7 @@ class _CallScreenState extends State<CallScreen>
                       color: MC.soleil,
                       fontFeatures: const [FontFeature.tabularFigures()])),
               const SizedBox(height: 12),
-              // 💚 MboteCall → MboteCall : l'icône officielle, sans texte
+              //MboteCall → MboteCall : l'icône officielle, sans texte
               if (isMbote)
                 Container(
                   decoration: BoxDecoration(
@@ -550,7 +554,7 @@ class _CallScreenState extends State<CallScreen>
                     _round(muted ? Icons.mic_off_rounded : Icons.mic_rounded,
                         muted, () {
                       setState(() => muted = !muted);
-                      rtc?.setMuted(muted); // 🎤 coupe réellement le micro
+                      rtc?.setMuted(muted); //coupe réellement le micro
                     }),
                     const SizedBox(width: 26),
                     GestureDetector(
@@ -585,7 +589,7 @@ class _CallScreenState extends State<CallScreen>
                     ] else
                       _round(Icons.volume_up_rounded, speaker, () {
                         setState(() => speaker = !speaker);
-                        rtc?.setSpeaker(speaker); // 🔊 vrai haut-parleur
+                        rtc?.setSpeaker(speaker); //vrai haut-parleur
                       }),
                   ],
                 ),
@@ -597,7 +601,7 @@ class _CallScreenState extends State<CallScreen>
     );
   }
 
-  /// 📹 Zone vidéo : image du correspondant + mon aperçu en petit.
+  ///Zone vidéo : image du correspondant + mon aperçu en petit.
   Widget _videoArea(String name, String initial, bool hasPhoto) {
     final remote = _remoteRender;
     final showRemote = remote != null && remote.srcObject != null;

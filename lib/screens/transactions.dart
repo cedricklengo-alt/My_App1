@@ -8,7 +8,7 @@ import '../l10n.dart';
 import '../state.dart';
 import '../theme.dart';
 
-/// 🧾 TRANSACTIONS — le grand livre du portefeuille, tel que le serveur
+///TRANSACTIONS — le grand livre du portefeuille, tel que le serveur
 /// l'enregistre : montants SIGNÉS (débit < 0, crédit > 0), statut réel
 /// (en attente ≠ confirmé) et type métier.
 ///

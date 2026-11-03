@@ -8,7 +8,7 @@ import 'design.dart';
 import 'theme.dart';
 import 'l10n.dart';
 
-/// 🔐 Code PIN local (pur Dart, stocké dans SharedPreferences).
+///Code PIN local (pur Dart, stocké dans SharedPreferences).
 /// Protège l'ouverture de l'app — le solde et les transferts de l'utilisateur.
 class Pin {
   static const _key = 'mbote_pin';
@@ -28,6 +28,9 @@ class Pin {
 /// Écran de verrouillage : pavé 4 chiffres, style « Soleil de Kin ».
 /// - [setup] = true : choisir puis confirmer un nouveau code.
 /// - sinon : vérifier le code existant (déverrouillage ou désactivation).
+/// Touche d'effacement du pavé PIN (icône Material, sentinelle interne).
+const _effacer = '#erase';
+
 class PinScreen extends StatefulWidget {
   final bool setup;
   final VoidCallback onSuccess;
@@ -95,7 +98,7 @@ class _PinScreenState extends State<PinScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'];
+    const keys = ['1','2','3','4','5','6','7','8','9','','0', _effacer];
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -161,9 +164,16 @@ class _PinScreenState extends State<PinScreen> {
                             borderRadius: BorderRadius.circular(Rd.md),
                             child: InkWell(
                               borderRadius: BorderRadius.circular(Rd.md),
-                              onTap: () => k == '⌫' ? _erase() : _press(k),
+                              onTap: () => k == _effacer
+                                  ? _erase()
+                                  : (k.isEmpty ? null : _press(k)),
                               child: Center(
-                                child: Text(k,
+                                child: k == _effacer
+                                    ? Icon(Icons.backspace_outlined,
+                                        size: Tx.headline,
+                                        color: MC.ivoire,
+                                        semanticLabel: L10n.t('keypad_erase'))
+                                    : Text(k,
                                     style: TextStyle(
                                         fontSize: Tx.headline,
                                         fontWeight: FontWeight.w600,
@@ -175,7 +185,7 @@ class _PinScreenState extends State<PinScreen> {
               ),
             ),
             const Spacer(),
-            // 🆘 PIN oublié ? → on reprouve son identité par SMS (comme au 1er jour)
+            //PIN oublié ? → on reprouve son identité par SMS (comme au 1er jour)
             if (!widget.setup)
               TextButton(
                 onPressed: () => _forgotPin(context),
@@ -199,7 +209,7 @@ class _PinScreenState extends State<PinScreen> {
   }
 }
 
-/// 🔐 Réinitialisation du PIN par SMS — réutilisable PARTOUT :
+///Réinitialisation du PIN par SMS — réutilisable PARTOUT :
 /// écran verrouillé (« Code PIN oublié ? ») ET Profil → PIN.
 /// L'esprit « pro » : le numéro de téléphone EST l'identité du compte ;
 /// celui qui reçoit le SMS est le propriétaire légitime.
@@ -211,7 +221,7 @@ Future<bool> resetPinBySms(BuildContext context) async {
     _pinSnack(
         context,
         friendlyError(ApiException(
-            'Pas d\'Internet — vérifie ta connexion 📶', 'offline')),
+            'Pas d\'Internet — vérifie ta connexion', 'offline')),
         err: true);
     return false;
   }

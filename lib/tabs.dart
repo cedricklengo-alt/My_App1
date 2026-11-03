@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-/// 🔄 Signal de rafraîchissement des onglets.
+///Signal de rafraîchissement des onglets.
 ///
 /// Toucher l'onglet déjà actif (comme dans WhatsApp) recharge son contenu :
 /// le fil d'actualité remonte les nouveautés, l'historique d'appels et les

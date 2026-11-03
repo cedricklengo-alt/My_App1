@@ -19,7 +19,7 @@ import 'profile.dart';
 import 'shop.dart';
 import 'transactions.dart';
 
-/// ⚙️ RÉGLAGES — le seul endroit où l'on change quelque chose dans l'app.
+///RÉGLAGES — le seul endroit où l'on change quelque chose dans l'app.
 ///
 /// Organisation « comme WhatsApp », adaptée à nos écrans :
 ///
@@ -272,9 +272,9 @@ class _PortefeuilleEcran extends StatelessWidget {
       );
 }
 
-// ────────────────────────────────────────────────────────────────
+//─────────────────────────────────────────────────────────────
 // Briques communes
-// ────────────────────────────────────────────────────────────────
+//─────────────────────────────────────────────────────────────
 
 /// Une ligne de réglage : icône, titre, sous-titre, chevron.
 class _Ligne extends StatelessWidget {
@@ -419,9 +419,9 @@ class _CarteCompte extends StatelessWidget {
   }
 }
 
-// ────────────────────────────────────────────────────────────────
-// 🎨 Apparence — thème, police, taille du texte
-// ────────────────────────────────────────────────────────────────
+//─────────────────────────────────────────────────────────────
+//Apparence — thème, police, taille du texte
+//─────────────────────────────────────────────────────────────
 
 class AppearanceScreen extends StatefulWidget {
   const AppearanceScreen({super.key});
@@ -647,9 +647,9 @@ class _Choix extends StatelessWidget {
   }
 }
 
-// ────────────────────────────────────────────────────────────────
-// 🗣️ Langue — 3 langues intégrées + téléchargement depuis le serveur
-// ────────────────────────────────────────────────────────────────
+//─────────────────────────────────────────────────────────────
+//Langue — 3 langues intégrées + téléchargement depuis le serveur
+//─────────────────────────────────────────────────────────────
 
 class LanguageScreen extends StatefulWidget {
   const LanguageScreen({super.key});
@@ -789,9 +789,9 @@ class _LanguageScreenState extends State<LanguageScreen> {
   }
 }
 
-// ────────────────────────────────────────────────────────────────
-// 🔔 Notifications et sonnerie
-// ────────────────────────────────────────────────────────────────
+//─────────────────────────────────────────────────────────────
+//Notifications et sonnerie
+//─────────────────────────────────────────────────────────────
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -803,9 +803,11 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final FlutterRingtonePlayer _player = FlutterRingtonePlayer();
   bool _relance = false;
+  Timer? _minuteur;
 
   @override
   void dispose() {
+    _minuteur?.cancel();
     _player.stop();
     super.dispose();
   }
@@ -827,7 +829,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       default:
         _player.playRingtone(looping: false, volume: 1);
     }
-    Timer(const Duration(milliseconds: 2500), _player.stop);
+    _minuteur?.cancel();
+    _minuteur = Timer(const Duration(milliseconds: 2500), _player.stop);
   }
 
   @override
@@ -963,9 +966,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 }
 
-// ────────────────────────────────────────────────────────────────
-// 🔐 Confidentialité et sécurité — code PIN + session
-// ────────────────────────────────────────────────────────────────
+//─────────────────────────────────────────────────────────────
+//Confidentialité et sécurité — code PIN + session
+//─────────────────────────────────────────────────────────────
 
 class SecurityScreen extends StatefulWidget {
   const SecurityScreen({super.key});
@@ -1153,7 +1156,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
               icon: Icons.sms_rounded,
               color: MC.soleil,
               titre: L10n.t('pin_forgot'),
-              sous: 'SMS → ${st.phone}',
+              sous: 'SMS · ${st.phone}',
               onTap: _oublie,
             ),
             _Ligne(
@@ -1239,7 +1242,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
   }
 }
 
-/// ℹ️ À propos — un seul endroit, réutilisé par le menu et les réglages.
+/// ℹÀ propos — un seul endroit, réutilisé par le menu et les réglages.
 void showAboutDialogMbote(BuildContext context) {
   showDialog(
     context: context,

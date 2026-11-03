@@ -64,7 +64,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          // 📷 Avatar : photo si définie, sinon initiale · toucher = changer
+          //Avatar : photo si définie, sinon initiale · toucher = changer
           Center(
             child: GestureDetector(
               onTap: () => _changePhoto(context),
@@ -129,7 +129,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               () => _editName(context)),
           _tile(Icons.public_rounded, L10n.t('rates_by_dest'),
               () => _showRates(context)),
-          // 💚 Inviter tes proches — carte dorée bien visible
+          //Inviter tes proches — carte dorée bien visible
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Material(
@@ -163,7 +163,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           _tile(
               Icons.lock_rounded,
-              pinSet ? '${L10n.t('pin_title')} · activé ✅' : L10n.t('pin_set'),
+              pinSet ? '${L10n.t('pin_title')} · activé' : L10n.t('pin_set'),
               () => _managePin(context)),
           const SizedBox(height: 14),
           OutlinedButton(
@@ -216,7 +216,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
 
-  /// 📷 Choisir une photo dans la galerie, compressée puis envoyée au serveur :
+  ///Choisir une photo dans la galerie, compressée puis envoyée au serveur :
   /// elle s'affichera chez tes proches quand ils t'appellent.
   Future<void> _changePhoto(BuildContext context) async {
     final st = context.read<AppState>();
@@ -242,7 +242,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await st.refresh();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: const Text('Photo de profil mise à jour 📷'),
+            content: const Text('Photo de profil mise à jour'),
             backgroundColor: MC.savane));
       }
     } catch (e) {
@@ -280,7 +280,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// 🎁 Feuille parrainage : code + stats + copie en 1 geste
+  ///Feuille parrainage : code + stats + copie en 1 geste
   void _showReferral(BuildContext context) async {
     final st = context.read<AppState>();
     final r = await st.api.referral();
@@ -333,13 +333,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 '${r['filleuls']} ${L10n.t('referral_stats')} ${fmtMoney(r['earned_cents'] ?? 0)}',
                 style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
             const SizedBox(height: 16),
-            // 📲 Partage riche : message complet prêt pour WhatsApp
+            //Partage riche : message complet prêt pour WhatsApp
             MboteButton(
               label: L10n.t('share_invite'),
               onTap: () async {
                 final msg = L10n.t('invite_message')
                     .replaceAll('%CODE%', r['code'] ?? '');
-                await Share.share(msg, subject: 'MboteCall 🧡');
+                await Share.share(msg, subject: 'MboteCall');
               },
             ),
             const SizedBox(height: 10),
@@ -360,7 +360,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       backgroundColor: MC.savane));
                 }
               },
-              child: Text('📋 ${L10n.t('copy')}',
+              child: Text(L10n.t('copy'),
                   style:
                       TextStyle(color: MC.soleil, fontWeight: FontWeight.w700)),
             ),
@@ -370,7 +370,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// 🔐 Gestion du code PIN : activer / changer / désactiver
+  ///Gestion du code PIN : activer / changer / désactiver
   void _managePin(BuildContext context) {
     if (!pinSet) {
       // Activation : choisir + confirmer un code
@@ -457,7 +457,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 });
               },
             ),
-            // 🆘 PIN oublié alors que l'app est ouverte ?
+            //PIN oublié alors que l'app est ouverte ?
             // → réinitialisation par SMS (sans connaître l'ancien code)
             ListTile(
               leading: Icon(Icons.sms_rounded, color: MC.soleil),
@@ -466,7 +466,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: MC.ivoire,
                       fontSize: Tx.bodyLg,
                       fontWeight: FontWeight.w600)),
-              subtitle: Text('SMS → ${st0.phone}',
+              subtitle: Text('SMS · ${st0.phone}',
                   style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
               onTap: () async {
                 Navigator.pop(ctx);
@@ -516,7 +516,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 7),
                 child: Row(
                   children: [
-                    Text('${r['flag']} ', style: const TextStyle(fontSize: Tx.subtitle)),
+                    Icon(Icons.public_rounded, size: 16, color: MC.kaki),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(r['destination'],
                           style: TextStyle(color: MC.ivoire, fontSize: Tx.body)),

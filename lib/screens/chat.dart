@@ -16,18 +16,20 @@ import 'package:share_plus/share_plus.dart';
 import '../api.dart';
 import '../chat_format.dart';
 import '../l10n.dart';
+import '../prefs.dart';
 import '../rtc.dart';
 import '../state.dart';
 import '../design.dart';
 import '../theme.dart';
 import '../widgets/floating_choice.dart';
 import 'call.dart';
+import 'traduction.dart';
 
-/// 💬 DISCUSSIONS — une conversation avec un proche.
+///DISCUSSIONS — une conversation avec un proche.
 ///
 /// Tout dans le même fil : textes, photos, fichiers et notes vocales traduites.
 /// - envoi optimiste (le message apparaît tout de suite, puis se confirme)
-/// - états ✓ envoyé · ✓✓ reçu · ✓✓ lu
+/// - états envoyé, reçu, lu (icônes Material)
 /// - temps réel (nouveau message, lecture, note écoutée, suppression)
 /// - indicateur « écrit… »
 /// - appel audio / vidéo depuis l'en-tête
@@ -90,8 +92,9 @@ class ChatScreenState extends State<ChatScreen> {
   DateTime? typingSentAt;
   Timer? typingSendTimer;
 
-  String langFrom = 'fr';
-  String langTo = 'ln';
+ // Langues pilotées par le réglage global de traduction (voir TraductionSheet).
+  String langFrom = TradPrefs.langFrom;
+  String langTo = TradPrefs.langTo;
   int _nextLocalId = 0;
 
   Api get api => context.read<AppState>().api;
@@ -113,7 +116,8 @@ class ChatScreenState extends State<ChatScreen> {
         ? widget.peerPhone
         : widget.peerName!.trim();
     Rtc.addMessageListener(handleRealtime);
-    // 💬 On rouvre le brouillon laissé dans ce fil, s'il y en a un.
+    _reloadTrad();
+ // On rouvre le brouillon laissé dans ce fil, s'il y en a un.
     ctrl.text = drafts[widget.peerPhone] ?? '';
     ChatScreen.openPeer = widget.peerPhone;
     scroll.addListener(_onScroll);
@@ -142,7 +146,7 @@ class ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  // ═══════════════════════ Chargement ═══════════════════════
+ //════════════════════ Chargement ══════════════════════
 
   Future<void> _load({bool older = false}) async {
     if (!mounted) return;
@@ -260,7 +264,7 @@ class ChatScreenState extends State<ChatScreen> {
     } catch (_) {}
   }
 
-  // ═══════════════════════ Temps réel ═══════════════════════
+ //════════════════════ Temps réel ══════════════════════
 
   bool _isPeer(Object? raw) => samePeerPhone(raw, widget.peerPhone);
 
@@ -292,7 +296,7 @@ class ChatScreenState extends State<ChatScreen> {
         setState(() => typingAt = null);
         _load();
       case 'delivered':
-        // 📬 Mon message vient d'arriver sur le téléphone du proche.
+        //Mon message vient d'arriver sur le téléphone du proche.
         setState(() {
           for (final x in msgs) {
             if ('${x['id']}' == msgId && '${x['status']}' == 'sent') {
@@ -346,7 +350,7 @@ class ChatScreenState extends State<ChatScreen> {
     Rtc.send({'type': 'typing', 'to': widget.peerPhone});
   }
 
-  // ═══════════════════════ Envois ═══════════════════════
+ //════════════════════ Envois ══════════════════════
 
   String _clientId() =>
       'c${DateTime.now().microsecondsSinceEpoch}_${_nextLocalId++}';
@@ -525,7 +529,7 @@ class ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // 🎙️ Note vocale traduite
+  //Note vocale traduite
 
   Future<void> _startRec() async {
     try {
@@ -633,7 +637,7 @@ class ChatScreenState extends State<ChatScreen> {
     return List<int>.generate(28, (_) => 25 + r.nextInt(70));
   }
 
-  // ▶️ Écoute d'une note vocale
+ // Écoute d'une note vocale
 
   Future<void> _play(Map n) async {
     final id = '${n['id']}';
@@ -666,7 +670,7 @@ class ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // 🖼️ / 📎 Ouverture d'une pièce jointe
+  ///Ouverture d'une pièce jointe
 
   Future<void> _openFile(Map m) async {
     final api = this.api;
@@ -687,7 +691,7 @@ class ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // 🗑️ Suppression
+  //Suppression
 
   Future<void> _menu(Map m) async {
     if ('${m['status']}' == 'sending') return;
@@ -872,7 +876,7 @@ class ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // ═══════════════════════ Interface ═══════════════════════
+ //════════════════════ Interface ══════════════════════
 
   @override
   Widget build(BuildContext context) {
@@ -1241,11 +1245,26 @@ class ChatScreenState extends State<ChatScreen> {
                       Icon(Icons.translate_rounded, color: MC.kaki, size: 15),
                       const SizedBox(width: 4),
                       Flexible(
-                        child: Text(
-                          '$_langFromLabel → $_langToLabel',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: MC.kaki, fontSize: Tx.label),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(_langFromLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      color: MC.kaki, fontSize: Tx.label)),
+                            ),
+                            Icon(Icons.arrow_forward_rounded,
+                                size: 13, color: MC.kaki),
+                            Flexible(
+                              child: Text(_langToLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      color: MC.kaki, fontSize: Tx.label)),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -1283,66 +1302,21 @@ class ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  void _pickLangs() {
-    const codes = ['fr', 'ln', 'sw'];
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: MC.nuit2,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(L10n.t('chat_lang_from'),
-                  style: TextStyle(
-                      color: MC.ivoire, fontWeight: FontWeight.w700)),
-              Wrap(
-                spacing: 8,
-                children: codes
-                    .map((c) => ChoiceChip(
-                          label: Text(_langName(c)),
-                          selected: langFrom == c,
-                          onSelected: (_) => setState(() => langFrom = c),
-                        ))
-                    .toList(),
-              ),
-              const SizedBox(height: 14),
-              Text(L10n.t('chat_lang_to'),
-                  style: TextStyle(
-                      color: MC.ivoire, fontWeight: FontWeight.w700)),
-              Wrap(
-                spacing: 8,
-                children: codes
-                    .map((c) => ChoiceChip(
-                          label: Text(_langName(c)),
-                          selected: langTo == c,
-                          onSelected: (_) => setState(() => langTo = c),
-                        ))
-                    .toList(),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: Text(L10n.t('chat_ok'),
-                      style:
-                          TextStyle(color: MC.soleil, fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+ /// Relit le réglage global de traduction (le panneau peut avoir changé).
+  void _reloadTrad() {
+    langFrom = TradPrefs.langFrom;
+    langTo = TradPrefs.langTo;
+  }
+
+ /// Ouvre le panneau de traduction, puis réapplique le choix au fil courant.
+  Future<void> _pickLangs() async {
+    await showTraductionSheet(context);
+    if (!mounted) return;
+    setState(_reloadTrad);
   }
 }
 
-// ═══════════════════════ Bulles ═══════════════════════
+//════════════════════ Bulles ══════════════════════
 
 class _Bubble extends StatelessWidget {
   final Map msg;
@@ -1566,8 +1540,47 @@ class _Bubble extends StatelessWidget {
         return _voice(context, tint);
 
       default:
-        return Text('${msg['body'] ?? ''}',
-            style: TextStyle(color: tint, fontSize: Tx.bodyLg, height: 1.28));
+        final corps = '${msg['body'] ??''}';
+        final trad = '${msg['translation'] ??''}'.trim();
+        final montreTrad = TradPrefs.actif &&
+            trad.isNotEmpty &&
+            trad.toLowerCase() != corps.trim().toLowerCase();
+        if (!montreTrad) {
+          return Text(corps,
+              style:
+                  TextStyle(color: tint, fontSize: Tx.bodyLg, height: 1.28));
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(corps,
+                style:
+                    TextStyle(color: tint, fontSize: Tx.bodyLg, height: 1.28)),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Container(
+                  height: 1, color: tint.withValues(alpha: 0.22)),
+            ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.translate_rounded,
+                    size: 14, color: tint.withValues(alpha: 0.75)),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(trad,
+                      style: TextStyle(
+                          color: tint.withValues(alpha: 0.92),
+                          fontSize: Tx.body,
+                          height: 1.3,
+                          fontStyle: FontStyle.italic)),
+                ),
+              ],
+            ),
+          ],
+        );
     }
   }
 
@@ -1599,7 +1612,8 @@ class _Bubble extends StatelessWidget {
     final played = (int.tryParse('${msg['played_at'] ?? 0}') ?? 0) > 0;
 
     return StatefulBuilder(builder: (ctx, setSt) {
-      final showTrad = _showTrad[msg['id']] ?? false;
+ // Réglage global actif : la traduction s'affiche d'emblée.
+      final showTrad = _showTrad[msg['id']] ?? TradPrefs.actif;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -1677,7 +1691,7 @@ class _Bubble extends StatelessWidget {
     });
   }
 
-  /// Original ou traduction, selon le bouton 🌍 de la bulle.
+  /// Original ou traduction, selon le boutonde la bulle.
   static String _voiceText(String transcript, String translation, bool showTrad) {
     if (showTrad) return translation.isNotEmpty ? translation : transcript;
     return transcript.isNotEmpty ? transcript : translation;
@@ -1735,7 +1749,7 @@ class _Bubble extends StatelessWidget {
   static String _size(Object? raw) => chatSize(raw);
 }
 
-/// 🔍 Photo en plein écran (zoom, fermeture, partage).
+///Photo en plein écran (zoom, fermeture, partage).
 class _ImageViewer extends StatelessWidget {
   final String url;
   final Map<String, String> headers;

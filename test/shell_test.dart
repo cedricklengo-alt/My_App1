@@ -355,6 +355,16 @@ void main() {
       expect(find.text(L10n.t('settings')), findsWidgets);
     });
 
+    testWidgets('Lokota n’est plus dans le menu : il vit dans la Discussion',
+        (t) async {
+      await t.pumpWidget(wrapShell(appState(FakeApi())));
+      await t.pumpAndSettle();
+      await openMenu(t);
+
+      expect(find.text(L10n.t('lokota_home_title')), findsNothing);
+      expect(find.text(L10n.t('more_lokota_sub')), findsNothing);
+    });
+
     testWidgets('« Réglages » ouvre le hub de réglages', (t) async {
       await t.pumpWidget(wrapShell(appState(FakeApi())));
       await t.pumpAndSettle();

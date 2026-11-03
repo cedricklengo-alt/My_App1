@@ -13,7 +13,7 @@ import '../theme.dart';
 import '../widgets/avatar.dart';
 import '../l10n.dart';
 
-/// 🗣️ LOKOTA 1 — Notes vocales traduites (pilote)
+///LOKOTA 1 — Notes vocales traduites (pilote)
 /// « Parle ta langue. Ils entendront la leur. »
 ///
 /// - LokotaScreen : liste des fils de discussion + nouvelle note
@@ -21,7 +21,6 @@ import '../l10n.dart';
 ///   traduction, et enregistreur en bas (choix des langues).
 
 const _langNames = {'fr': 'Français', 'ln': 'Lingala', 'sw': 'Swahili'};
-const _langFlags = {'fr': '🇫🇷', 'ln': '🇨🇩', 'sw': '🌍'};
 
 class LokotaScreen extends StatefulWidget {
   const LokotaScreen({super.key});
@@ -116,7 +115,7 @@ class _LokotaScreenState extends State<LokotaScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         title: Row(children: [
-          const Text('🗣️ '),
+          Icon(Icons.record_voice_over_rounded, color: MC.soleil),
           Text('Lokota',
               style: TextStyle(color: MC.ivoire, fontWeight: FontWeight.w800)),
           const SizedBox(width: 8),
@@ -150,7 +149,7 @@ class _LokotaScreenState extends State<LokotaScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('🗣️', style: TextStyle(fontSize: Tx.display)),
+                        Icon(Icons.record_voice_over_rounded, size: Tx.display, color: MC.soleil),
                         const SizedBox(height: 12),
                         Text(L10n.t('lokota_empty_title'),
                             textAlign: TextAlign.center,
@@ -193,9 +192,18 @@ class _LokotaScreenState extends State<LokotaScreen> {
                                   color: MC.ivoire,
                                   fontWeight: FontWeight.w700,
                                   fontSize: Tx.bodyLg)),
-                          subtitle: Text(
-                              '${t['last_mine'] == true ? '↗ ' : '↙ '}🎙️ ${t['last_duration']}s',
-                              style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
+                          subtitle: Row(children: [
+                            Icon(
+                                t['last_mine'] == true
+                                    ? Icons.north_east_rounded
+                                    : Icons.south_west_rounded,
+                                size: 14,
+                                color: MC.kaki),
+                            const SizedBox(width: 4),
+                            Text('${t['last_duration']}s',
+                                style: TextStyle(
+                                    color: MC.kaki, fontSize: Tx.label)),
+                          ]),
                           trailing: unread > 0
                               ? Container(
                                   padding: const EdgeInsets.symmetric(
@@ -224,7 +232,7 @@ class _LokotaScreenState extends State<LokotaScreen> {
   }
 }
 
-/// 💬 Un fil de notes vocales avec un proche
+///Un fil de notes vocales avec un proche
 class LokotaThread extends StatefulWidget {
   final String peerPhone;
   final String peerName;
@@ -254,7 +262,7 @@ class _LokotaThreadState extends State<LokotaThread> {
     super.initState();
     peerName = widget.peerName;
     _load(markRead: true);
-    // ⏳ Les traductions arrivent en tâche de fond → petit rafraîchissement
+ // Les traductions arrivent en tâche de fond → petit rafraîchissement
     refresh = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!recording && !sending) _load();
     });
@@ -289,7 +297,7 @@ class _LokotaThreadState extends State<LokotaThread> {
     } catch (_) {}
   }
 
-  // ---- 🎙️ Enregistrement ----
+  // ----Enregistrement ----
   Future<void> _startRec() async {
     try {
       if (!await _recorder.hasPermission()) return;
@@ -310,7 +318,7 @@ class _LokotaThreadState extends State<LokotaThread> {
       recTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         if (!mounted) return;
         setState(() => recSec++);
-        if (recSec >= 60) _stopAndSend(); // ⏱️ 60 s max
+        if (recSec >= 60) _stopAndSend(); // 60 s max
       });
       setState(() => recording = true);
     } catch (_) {
@@ -357,7 +365,7 @@ class _LokotaThreadState extends State<LokotaThread> {
     }
   }
 
-  // ---- ▶️ Écoute ----
+ // ---- Écoute ----
   Future<void> _play(Map n) async {
     try {
       if (playingId == n['id']) {
@@ -397,8 +405,7 @@ class _LokotaThreadState extends State<LokotaThread> {
           mainAxisSize: MainAxisSize.min,
           children: _langNames.entries
               .map((e) => ListTile(
-                    leading: Text(_langFlags[e.key]!,
-                        style: const TextStyle(fontSize: Tx.title)),
+                    leading: Icon(Icons.language_rounded, color: MC.kaki),
                     title: Text(e.value,
                         style: TextStyle(
                             color: MC.ivoire, fontWeight: FontWeight.w600)),
@@ -459,7 +466,7 @@ class _LokotaThreadState extends State<LokotaThread> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ▶️ lecteur + langues
+ // lecteur + langues
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -480,15 +487,19 @@ class _LokotaThreadState extends State<LokotaThread> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text('🎙️ ${n['duration_sec']}s',
+                Text('${n['duration_sec']}s',
                     style: TextStyle(color: MC.sable, fontSize: Tx.label)),
                 const SizedBox(width: 8),
-                Text(
-                    '${_langFlags[n['lang_from']] ?? ''}→${_langFlags[n['lang_to']] ?? ''}',
+                Text(_langNames[n['lang_from']] ?? '',
+                    style: const TextStyle(fontSize: Tx.label)),
+                const SizedBox(width: 4),
+                Icon(Icons.arrow_forward_rounded, size: 12, color: MC.kaki),
+                const SizedBox(width: 4),
+                Text(_langNames[n['lang_to']] ?? '',
                     style: const TextStyle(fontSize: Tx.label)),
               ],
             ),
-            // 📝 transcription + traduction
+            //transcription + traduction
             if (status == 'done') ...[
               if ((n['transcript'] ?? '').toString().isNotEmpty) ...[
                 const SizedBox(height: 8),
@@ -507,15 +518,15 @@ class _LokotaThreadState extends State<LokotaThread> {
               ],
             ] else if (status == 'pending') ...[
               const SizedBox(height: 8),
-              Text('⏳ ${L10n.t('lokota_translating')}',
+              Text(' ${L10n.t('lokota_translating')}',
                   style: TextStyle(color: MC.soleil, fontSize: Tx.label)),
             ] else if (status == 'no_ai') ...[
               const SizedBox(height: 8),
-              Text('🔑 ${L10n.t('lokota_no_ai')}',
+              Text(L10n.t('lokota_no_ai'),
                   style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
             ] else if (status == 'failed') ...[
               const SizedBox(height: 8),
-              Text('⚠️ ${L10n.t('lokota_failed')}',
+              Text(L10n.t('lokota_failed'),
                   style: TextStyle(color: MC.rouge, fontSize: Tx.label)),
             ],
           ],
@@ -533,7 +544,7 @@ class _LokotaThreadState extends State<LokotaThread> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 🌍 Je parle X → il/elle lit Y
+          //Je parle X → il/elle lit Y
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -550,7 +561,7 @@ class _LokotaThreadState extends State<LokotaThread> {
           ),
           const SizedBox(height: 12),
           if (recording) ...[
-            Text('🔴 ${recSec}s / 60s',
+            Text('${recSec}s / 60s',
                 style: TextStyle(
                     color: MC.rouge,
                     fontSize: Tx.bodyLg,
@@ -620,7 +631,7 @@ class _LokotaThreadState extends State<LokotaThread> {
             border: Border.all(color: from ? MC.soleil : MC.savane),
           ),
           child: Text(
-            '${from ? '🎙️' : '👂'} ${_langFlags[code]} ${_langNames[code]}',
+            '${(from ? L10n.t('trad_my_lang') : L10n.t('trad_their_lang'))} · ${_langNames[code]}',
             style: TextStyle(
                 color: MC.ivoire, fontSize: Tx.label, fontWeight: FontWeight.w700),
           ),

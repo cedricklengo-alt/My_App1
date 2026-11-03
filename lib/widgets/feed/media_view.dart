@@ -1,11 +1,11 @@
 // lib/widgets/feed/media_view.dart
-// 🖼️ Lecture des médias du fil : image (aperçu plein écran) et vidéo courte
+//Lecture des médias du fil : image (aperçu plein écran) et vidéo courte
 // (lecture directe dans la carte).
 //
 // Tout est fait pour ne jamais casser l'écran :
 //   • chargement  → indicateur de progression ;
 //   • erreur      → message clair + bouton « Réessayer » ;
-//   • vidéo       → aucune donnée téléchargée avant l'appui sur ▶ (éco data) ;
+// • vidéo → aucune donnée téléchargée avant l'appui sur (éco data) ;
 //   • plugin absent (tests d'interface) → état d'erreur propre, pas de crash.
 
 import 'package:flutter/material.dart';
@@ -28,7 +28,7 @@ bool isVideoUrl(String? url) {
       path.contains('/video/');
 }
 
-/// 🖼️ Affiche une image servie par le serveur.
+///Affiche une image servie par le serveur.
 ///
 /// • `height` : hauteur fixe dans la carte (0 = au ratio naturel, plein écran).
 /// • un appui ouvre l'aperçu plein écran (zoom, fermeture).
@@ -126,9 +126,9 @@ class _RetryNetworkImageState extends State<_RetryNetworkImage> {
   }
 }
 
-/// 🎬 Vidéo courte jouée **dans** la carte (pas d'écran intermédiaire).
+///Vidéo courte jouée **dans** la carte (pas d'écran intermédiaire).
 ///
-/// Rien n'est téléchargé avant l'appui sur ▶ : sur une connexion 3G congolaise,
+/// Rien n'est téléchargé avant l'appui sur : sur une connexion 3G congolaise,
 /// c'est la différence entre un fil fluide et un fil qui rame.
 class MboteVideo extends StatefulWidget {
   final String url;
@@ -292,7 +292,7 @@ class _MboteVideoState extends State<MboteVideo> {
                 child: VideoPlayer(_c!),
               ),
             ),
-            // Voile + bouton ▶/⏸ au centre quand la vidéo est en pause
+ // Voile + bouton lecture au centre quand la vidéo est en pause
             if (!_c!.value.isPlaying)
               Container(
                 color: Colors.black.withValues(alpha: .35),
@@ -397,7 +397,7 @@ class _MediaError extends StatelessWidget {
   }
 }
 
-/// 🔍 Aperçu plein écran d'une image (pincer pour zoomer, glisser pour fermer).
+///Aperçu plein écran d'une image (pincer pour zoomer, glisser pour fermer).
 Future<void> showMediaPreview(BuildContext context, String url) {
   return showDialog<void>(
     context: context,

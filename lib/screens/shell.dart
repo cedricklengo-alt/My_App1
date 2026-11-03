@@ -28,20 +28,19 @@ import 'favorites.dart';
 import 'history.dart';
 import 'home.dart';
 import 'keypad.dart';
-import 'lokota.dart';
 import 'my_plans.dart';
 import 'profile.dart';
 import 'settings.dart';
 import 'shop.dart';
 import 'transactions.dart';
 
-// ── Remplacez ces imports par les vrais écrans de votre projet ───────────
+// Remplacez ces imports par les vrais écrans de votre projet ──────────
 // import 'calls_list.dart';   // liste des appels récents
 // import 'chats_list.dart';   // liste des conversations
 // import 'home.dart';         // portefeuille  (HomeScreen)
 // import 'profile.dart';      // profil utilisateur
 // import 'settings.dart';     // paramètres
-// ─────────────────────────────────────────────────────────────────────────
+//──────────────────────────────────────────────────────────────────────
 
 class ShellScreen extends StatefulWidget {
   const ShellScreen({super.key});
@@ -102,9 +101,9 @@ class _ShellScreenState extends State<ShellScreen> {
   }
 }
 
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 // Barre de navigation — 4 onglets
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 
 class _BottomBar extends StatelessWidget {
   final int currentIndex;
@@ -284,9 +283,9 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 // Menu ··· — Portefeuille · Profil · Paramètres
-// ──────────────────────────────────────────────
+//───────────────────────────────────────────
 
 /// Menu « ··· » : tout ce qui n'a pas sa place dans la barre du bas.
 ///
@@ -414,7 +413,7 @@ class _MoreMenuSheet extends StatelessWidget {
                 ),
               ),
 
-              // ── Mon compte : nom, numéro et solde, sans quitter le menu ──
+ // Mon compte : nom, numéro et solde, sans quitter le menu─
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                 child: Material(
@@ -487,7 +486,7 @@ class _MoreMenuSheet extends StatelessWidget {
                 ),
               ),
 
-              // ── COMPTE ──
+ // COMPTE─
               _SectionTitre(L10n.t('settings_section_account')),
               _MoreItem(
                 icon: Icons.person_rounded,
@@ -527,7 +526,7 @@ class _MoreMenuSheet extends StatelessWidget {
                 onTap: () => _pushFull(context, const TransactionsScreen()),
               ),
 
-              // ── OUTILS ──
+ // OUTILS─
               _SectionTitre(L10n.t('settings_section_tools')),
               _MoreItem(
                 icon: Icons.dialpad_rounded,
@@ -551,15 +550,8 @@ class _MoreMenuSheet extends StatelessWidget {
                 subtitle: L10n.t('more_favorites_sub'),
                 onTap: () => _pushFull(context, const FavoritesScreen()),
               ),
-              _MoreItem(
-                icon: Icons.graphic_eq_rounded,
-                iconColor: MC.braise,
-                label: L10n.t('lokota_home_title'),
-                subtitle: L10n.t('more_lokota_sub'),
-                onTap: () => _pushFull(context, const LokotaScreen()),
-              ),
 
-              // ── RÉGLAGES ──
+ // RÉGLAGES─
               _SectionTitre(L10n.t('settings_section_prefs')),
               _MoreItem(
                 icon: Icons.settings_rounded,
@@ -569,7 +561,7 @@ class _MoreMenuSheet extends StatelessWidget {
                 onTap: () => _pushFull(context, const SettingsScreen()),
               ),
 
-              // ── AIDE ──
+ // AIDE─
               _SectionTitre(L10n.t('settings_section_help')),
               _MoreItem(
                 icon: Icons.info_outline_rounded,

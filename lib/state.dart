@@ -13,7 +13,7 @@ class AppState extends ChangeNotifier {
   String? id; // identifiant serveur (pour « mon statut » dans le fil)
   String name = '';
   String phone = '';
-  String? avatar; // 📷 data-URI de la photo de profil
+  String? avatar; //data-URI de la photo de profil
   int balanceCents = 0;
   List contacts = [];
   bool ready = false;
@@ -51,7 +51,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 🔌 Ouvre le canal temps réel (appels entrants) et enregistre le jeton
+  ///Ouvre le canal temps réel (appels entrants) et enregistre le jeton
   /// push. Sans ces deux appels l'app ne PEUT PAS recevoir d'appel :
   /// le serveur n'a personne à qui annoncer l'appel, et ne peut pas réveiller
   /// le téléphone quand l'app est fermée.

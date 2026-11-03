@@ -131,7 +131,7 @@ void main() {
       await tester.tap(find.text(L10n.t('language')));
       await tester.pumpAndSettle();
       expect(find.byType(LanguageScreen), findsOneWidget);
-      expect(find.text('Lingála 🇨🇩'), findsOneWidget);
+      expect(find.text('Lingála'), findsOneWidget);
     });
 
     testWidgets('« Notifications et sonnerie » propose les 4 sonneries', (tester) async {

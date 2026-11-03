@@ -1,5 +1,5 @@
 // lib/group_call.dart
-// 👥 Appel de groupe « Mbote Famille » — audio ou vidéo, jusqu'à 4 personnes.
+//Appel de groupe « Mbote Famille » — audio ou vidéo, jusqu'à 4 personnes.
 //
 // Topologie **maillée (mesh)** : chaque participant est relié directement aux
 // autres (une connexion WebRTC par pair). Le serveur ne transporte que les
@@ -41,7 +41,7 @@ class GroupCallSession extends ChangeNotifier {
   final String callId;
   final String myPhone;
   final String myName;
-  final bool video; // 📹 appel vidéo de groupe ?
+  final bool video; //appel vidéo de groupe ?
 
   GroupCallSession({
     required this.callId,
@@ -72,7 +72,7 @@ class GroupCallSession extends ChangeNotifier {
       peers.isEmpty && joined; // indicatif (l'hôte crée la salle)
   int get count => peers.length + 1;
 
-  // ── Cycle de vie ────────────────────────────────────────────────
+ // Cycle de vie ───────────────────────────────────────────────
 
   /// Rentre dans la salle et branche la signalisation.
   Future<void> join({Map<String, dynamic>? iceConfig}) async {
@@ -127,7 +127,7 @@ class GroupCallSession extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Signalisation ───────────────────────────────────────────────
+ // Signalisation ──────────────────────────────────────────────
 
   Future<void> handle(Map msg) async {
     if (msg['call_id'] != null && '${msg['call_id']}' != callId) return;
@@ -309,9 +309,9 @@ class GroupCallSession extends ChangeNotifier {
     p?.pc = null;
   }
 
-  // ── Actions ─────────────────────────────────────────────────────
+ // Actions ────────────────────────────────────────────────────
 
-  /// ➕ Invite un contact dans la salle.
+  ///Invite un contact dans la salle.
   void invite(String phone, {String? name}) {
     if (phone.isEmpty || phone == myPhone) return;
     Rtc.send({
@@ -354,7 +354,7 @@ class GroupCallSession extends ChangeNotifier {
     });
   }
 
-  /// 🚪 Quitte la salle et raccroche toutes les connexions.
+  ///Quitte la salle et raccroche toutes les connexions.
   Future<void> leave() async {
     _chrono?.cancel();
     _chrono = null;
