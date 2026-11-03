@@ -54,6 +54,19 @@ Map<String, dynamic> msg({
 /// Faux serveur de messagerie.
 class FakeChatApi extends Api {
   final List<Map> threads;
+
+  /// Carnet d'adresses renvoyé à l'ouverture du sélecteur de destinataire.
+  List<Map> carnet = [
+    {'id': 'ct1', 'name': 'Chantal', 'phone': '+243810000003'},
+    {'id': 'ct2', 'name': 'Bob', 'phone': peer},
+  ];
+  int carnetAppels = 0;
+
+  @override
+  Future<List> contacts() async {
+    carnetAppels++;
+    return carnet;
+  }
   final Map<String, List<Map>> conversations = {};
   final List<String> journal = [];
   bool failSend = false;
@@ -153,6 +166,97 @@ void main() {
   setUp(() async {
     L10n.lang = 'fr';
     ChatsScreen.unread.value = 0;
+  });
+
+  // Cible stable : la clé du bouton flottant (l'état vide propose en plus un
+  // bouton « Nouvelle discussion », et son libellé est le même).
+  final fab = find.byKey(const Key('fab-nouvelle-discussion'));
+
+  group('Bouton flottant — nouvelle discussion', () {
+    testWidgets('le bouton est là, avec un libellé lisible par un lecteur '
+        'd’écran', (t) async {
+      final handle = t.ensureSemantics();
+      final api = FakeChatApi();
+      await t.pumpWidget(wrap(const ChatsScreen(), chatState(api)));
+      await t.pumpAndSettle();
+
+      // Trouvé par son libellé : un « + » muet serait inaccessible.
+      expect(find.bySemanticsLabel(L10n.t('chats_new')), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('le bouton fait 68 px et garde ses proportions', (t) async {
+      final api = FakeChatApi();
+      await t.pumpWidget(wrap(const ChatsScreen(), chatState(api)));
+      await t.pumpAndSettle();
+
+      final boite = t.getSize(
+          find.byWidgetPredicate((w) => w is AnimatedScale).first);
+      expect(boite.width, 68);
+      expect(boite.height, 68);
+    });
+
+    testWidgets('toucher le bouton ouvre le choix du destinataire',
+        (t) async {
+      final api = FakeChatApi();
+      await t.pumpWidget(wrap(const ChatsScreen(), chatState(api)));
+      await t.pumpAndSettle();
+
+      expect(find.text('Chantal'), findsNothing);
+
+      await t.tap(fab);
+      await t.pumpAndSettle();
+
+      // La feuille s'ouvre même si l'app n'avait encore chargé aucun contact.
+      expect(api.carnetAppels, greaterThanOrEqualTo(1));
+      expect(find.text('Chantal'), findsOneWidget);
+      expect(find.text('+243810000003'), findsOneWidget);
+    });
+
+    testWidgets('choisir un contact ouvre directement la conversation',
+        (t) async {
+      final api = FakeChatApi();
+      api.conversations['+243810000003'] = [
+        msg(id: 'm1', body: 'Mbote Chantal', mine: false, status: 'done'),
+      ];
+      await t.pumpWidget(wrap(const ChatsScreen(), chatState(api)));
+      await t.pumpAndSettle();
+
+      await t.tap(fab);
+      await t.pumpAndSettle();
+      await t.tap(find.text('Chantal'));
+      await t.pumpAndSettle();
+
+      expect(find.byType(ChatScreen), findsOneWidget);
+      expect(find.text('Mbote Chantal'), findsOneWidget);
+    });
+
+    testWidgets('liste vide : le bouton reste disponible', (t) async {
+      final api = FakeChatApi(threads: []);
+      await t.pumpWidget(wrap(const ChatsScreen(), chatState(api)));
+      await t.pumpAndSettle();
+
+      expect(find.textContaining('Aucune discussion'), findsOneWidget);
+      // Le bouton flottant reste offert même sans aucune conversation.
+      await t.tap(fab);
+      await t.pumpAndSettle();
+      expect(find.text('Chantal'), findsOneWidget);
+    });
+
+    testWidgets('un appui ne déclenche qu’une seule ouverture', (t) async {
+      final api = FakeChatApi();
+      await t.pumpWidget(wrap(const ChatsScreen(), chatState(api)));
+      await t.pumpAndSettle();
+
+      await t.tap(fab);
+      await t.pump(const Duration(milliseconds: 40));
+      // Un second appui pendant l'ouverture ne doit pas empiler deux feuilles :
+      // une seule liste de destinataires doit être présente.
+      expect(find.text('Chantal'), findsOneWidget);
+      await t.tapAt(const Offset(200, 40)); // appui hors feuille
+      await t.pumpAndSettle();
+      expect(find.text('Chantal'), findsNothing);
+    });
   });
 
   group('Liste des conversations', () {

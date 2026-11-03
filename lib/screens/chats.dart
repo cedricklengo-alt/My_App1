@@ -261,6 +261,12 @@ class ChatsScreenState extends State<ChatsScreen> {
 
     return Scaffold(
       backgroundColor: MC.nuit,
+      // Bouton flottant « nouvelle discussion » : l'action principale de
+      // l'onglet, atteignable au pouce sans remonter la liste.
+      floatingActionButton: _NouvelleDiscussionButton(
+        key: const Key('fab-nouvelle-discussion'),
+        onTap: _newChat,
+      ),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -289,13 +295,8 @@ class ChatsScreenState extends State<ChatsScreen> {
             ],
           ],
         ),
-        actions: [
-          IconButton(
-            tooltip: L10n.t('chats_new'),
-            onPressed: _newChat,
-            icon: Icon(Icons.edit_square, color: MC.soleil),
-          ),
-        ],
+        // Plus d'icône « écrire » ici : l'action vit désormais dans le bouton
+        // flottant, placé sous le pouce (une seule cible, un seul libellé).
       ),
       body: Column(
         children: [
@@ -349,7 +350,7 @@ class ChatsScreenState extends State<ChatsScreen> {
       color: MC.soleil,
       onRefresh: _load,
       child: ListView.separated(
-        padding: const EdgeInsets.only(bottom: 90),
+        padding: const EdgeInsets.only(bottom: 108),
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: visible.length,
         separatorBuilder: (_, __) => Divider(
@@ -712,6 +713,73 @@ class _ContactPickerState extends State<_ContactPicker> {
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// ➕ BOUTON FLOTTANT — démarrer une nouvelle discussion.
+///
+/// 68 px, rayon 32 %, icône 42 %, appui qui réduit à .93 : mêmes constantes
+/// que les autres boutons flottants de l'application. Le dégradé corail est
+/// réservé aux actions **décisives** (publier, payer, écrire à quelqu'un).
+///
+/// Accessibilité : le bouton porte un libellé (« Nouvelle discussion ») lu par
+/// le lecteur d'écran et une infobulle au survol — un simple `+` ne suffirait
+/// pas (WCAG 1.1.1 et 4.1.2).
+class _NouvelleDiscussionButton extends StatefulWidget {
+  final VoidCallback onTap;
+  const _NouvelleDiscussionButton({super.key, required this.onTap});
+
+  @override
+  State<_NouvelleDiscussionButton> createState() =>
+      _NouvelleDiscussionButtonState();
+}
+
+class _NouvelleDiscussionButtonState extends State<_NouvelleDiscussionButton> {
+  bool _appuye = false;
+
+  void _set(bool v) {
+    if (_appuye != v) setState(() => _appuye = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: L10n.t('chats_new'),
+      child: Tooltip(
+        message: L10n.t('chats_new'),
+        child: GestureDetector(
+          onTapDown: (_) => _set(true),
+          onTapCancel: () => _set(false),
+          onTapUp: (_) => _set(false),
+          onTap: () {
+            HapticFeedback.lightImpact();
+            widget.onTap();
+          },
+          child: AnimatedScale(
+            scale: _appuye ? .93 : 1,
+            duration: Motion.rapide,
+            curve: Curves.easeOut,
+            child: Container(
+              width: 68,
+              height: 68,
+              decoration: BoxDecoration(
+                gradient: MC.degrade,
+                borderRadius: BorderRadius.circular(68 * .32),
+                boxShadow: [
+                  BoxShadow(
+                      color: MC.braise.withValues(alpha: .38),
+                      blurRadius: 22,
+                      offset: const Offset(0, 10)),
+                ],
+              ),
+              child: Icon(Icons.edit_square,
+                  size: 68 * .42, color: MC.onAccent),
+            ),
+          ),
+        ),
       ),
     );
   }
