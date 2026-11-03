@@ -31,6 +31,7 @@ import 'keypad.dart';
 import 'lokota.dart';
 import 'my_plans.dart';
 import 'profile.dart';
+import 'settings.dart';
 import 'shop.dart';
 import 'transactions.dart';
 
@@ -397,6 +398,7 @@ class _MoreMenuSheet extends StatelessWidget {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SafeArea(
+        top: false,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -412,84 +414,88 @@ class _MoreMenuSheet extends StatelessWidget {
                 ),
               ),
 
-              // Mon compte : nom, numéro et solde — sans quitter le menu
+              // ── Mon compte : nom, numéro et solde, sans quitter le menu ──
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      alignment: Alignment.center,
-                      clipBehavior: Clip.antiAlias,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: MC.degrade,
-                      ),
-                      child: Text(_initials(st.name),
-                          style: TextStyle(
-                              color: MC.onAccent,
-                              fontWeight: FontWeight.w800,
-                              fontSize: Tx.bodyLg)),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                child: Material(
+                  color: MC.nuit3,
+                  clipBehavior: Clip.antiAlias,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(Rd.md),
+                    side: BorderSide(color: MC.ligne),
+                  ),
+                  child: InkWell(
+                    onTap: () =>
+                        _pushBare(context, const ProfileScreen(), L10n.t('profile')),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
                         children: [
-                          Text(
-                              st.name.trim().isEmpty
-                                  ? L10n.t('nav_profile')
-                                  : st.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  color: MC.ivoire,
-                                  fontSize: Tx.bodyLg,
-                                  fontWeight: FontWeight.w800)),
-                          Text(st.phone,
-                              style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
+                          Container(
+                            width: 44,
+                            height: 44,
+                            alignment: Alignment.center,
+                            clipBehavior: Clip.antiAlias,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: MC.degrade,
+                            ),
+                            child: Text(_initials(st.name),
+                                style: TextStyle(
+                                    color: MC.onAccent,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: Tx.bodyLg)),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                    st.name.trim().isEmpty
+                                        ? L10n.t('nav_profile')
+                                        : st.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        color: MC.ivoire,
+                                        fontSize: Tx.bodyLg,
+                                        fontWeight: FontWeight.w800)),
+                                Text(st.phone,
+                                    style: TextStyle(
+                                        color: MC.kaki, fontSize: Tx.label)),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: MC.nuit2,
+                              borderRadius: BorderRadius.circular(Rd.md),
+                            ),
+                            child: Text(fmtMoney(st.balanceCents),
+                                style: TextStyle(
+                                    color: MC.soleil,
+                                    fontSize: Tx.label,
+                                    fontWeight: FontWeight.w800)),
+                          ),
                         ],
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: MC.nuit3,
-                        borderRadius: BorderRadius.circular(Rd.md),
-                      ),
-                      child: Text(fmtMoney(st.balanceCents),
-                          style: TextStyle(
-                              color: MC.soleil,
-                              fontSize: Tx.label,
-                              fontWeight: FontWeight.w800)),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-              Divider(height: 1, color: MC.ligne, indent: 20, endIndent: 20),
 
+              // ── COMPTE ──
+              _SectionTitre(L10n.t('settings_section_account')),
               _MoreItem(
-                icon: Icons.dialpad_rounded,
-                iconColor: MC.savane,
-                label: L10n.t('nav_keypad'),
-                subtitle: L10n.t('more_keypad_sub'),
-                onTap: () => _pushBare(context, const KeypadScreen(), L10n.t('nav_keypad')),
-              ),
-              _MoreItem(
-                icon: Icons.contacts_rounded,
+                icon: Icons.person_rounded,
                 iconColor: MC.soleil,
-                label: L10n.t('contacts'),
-                subtitle: L10n.t('more_contacts_sub'),
-                onTap: () => _pushFull(context, const ContactsScreen()),
-              ),
-              _MoreItem(
-                icon: Icons.star_rounded,
-                iconColor: MC.terre,
-                label: L10n.t('favorites'),
-                subtitle: L10n.t('more_favorites_sub'),
-                onTap: () => _pushFull(context, const FavoritesScreen()),
+                label: L10n.t('profile'),
+                subtitle: L10n.t('more_account_sub'),
+                onTap: () =>
+                    _pushBare(context, const ProfileScreen(), L10n.t('profile')),
               ),
               _MoreItem(
                 icon: Icons.account_balance_wallet_rounded,
@@ -520,21 +526,30 @@ class _MoreMenuSheet extends StatelessWidget {
                 subtitle: L10n.t('more_tx_sub'),
                 onTap: () => _pushFull(context, const TransactionsScreen()),
               ),
+
+              // ── OUTILS ──
+              _SectionTitre(L10n.t('settings_section_tools')),
               _MoreItem(
-                icon: Icons.person_rounded,
-                iconColor: MC.soleil,
-                label: L10n.t('profile'),
-                subtitle: L10n.t('more_profile_sub'),
+                icon: Icons.dialpad_rounded,
+                iconColor: MC.savane,
+                label: L10n.t('nav_keypad'),
+                subtitle: L10n.t('more_keypad_sub'),
                 onTap: () =>
-                    _pushBare(context, const ProfileScreen(), L10n.t('profile')),
+                    _pushBare(context, const KeypadScreen(), L10n.t('nav_keypad')),
               ),
               _MoreItem(
-                icon: Icons.settings_rounded,
-                iconColor: MC.kaki,
-                label: L10n.t('settings'),
-                subtitle: L10n.t('more_settings_sub'),
-                onTap: () => _pushBare(context,
-                    const ProfileScreen(startWithSettings: true), L10n.t('settings')),
+                icon: Icons.contacts_rounded,
+                iconColor: MC.soleil,
+                label: L10n.t('contacts'),
+                subtitle: L10n.t('more_contacts_sub'),
+                onTap: () => _pushFull(context, const ContactsScreen()),
+              ),
+              _MoreItem(
+                icon: Icons.star_rounded,
+                iconColor: MC.terre,
+                label: L10n.t('favorites'),
+                subtitle: L10n.t('more_favorites_sub'),
+                onTap: () => _pushFull(context, const FavoritesScreen()),
               ),
               _MoreItem(
                 icon: Icons.graphic_eq_rounded,
@@ -543,6 +558,19 @@ class _MoreMenuSheet extends StatelessWidget {
                 subtitle: L10n.t('more_lokota_sub'),
                 onTap: () => _pushFull(context, const LokotaScreen()),
               ),
+
+              // ── RÉGLAGES ──
+              _SectionTitre(L10n.t('settings_section_prefs')),
+              _MoreItem(
+                icon: Icons.settings_rounded,
+                iconColor: MC.soleil,
+                label: L10n.t('settings'),
+                subtitle: L10n.t('more_settings_sub2'),
+                onTap: () => _pushFull(context, const SettingsScreen()),
+              ),
+
+              // ── AIDE ──
+              _SectionTitre(L10n.t('settings_section_help')),
               _MoreItem(
                 icon: Icons.info_outline_rounded,
                 iconColor: MC.kaki,
@@ -551,6 +579,7 @@ class _MoreMenuSheet extends StatelessWidget {
                 onTap: () => _about(context),
               ),
 
+              const SizedBox(height: 6),
               Divider(height: 1, color: MC.ligne, indent: 20, endIndent: 20),
               _MoreItem(
                 icon: Icons.logout_rounded,
@@ -654,4 +683,24 @@ class _MoreItem extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Petit titre de section dans le menu (« COMPTE », « OUTILS »…).
+class _SectionTitre extends StatelessWidget {
+  final String texte;
+  const _SectionTitre(this.texte);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(22, 10, 22, 6),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(texte,
+              style: TextStyle(
+                  color: MC.kaki,
+                  fontSize: Tx.caption,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.3)),
+        ),
+      );
 }

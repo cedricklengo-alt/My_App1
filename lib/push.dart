@@ -14,8 +14,10 @@ import 'api.dart';
 class Push {
   static bool _done = false;
 
-  static Future<void> register(Api api) async {
-    if (_done) return;
+  /// [force] : ré-enregistre même si un jeton a déjà été envoyé (bouton
+  /// « Réactiver » des réglages, après un refus ou une réinstallation).
+  static Future<void> register(Api api, {bool force = false}) async {
+    if (_done && !force) return;
     try {
       final fm = FirebaseMessaging.instance;
       await fm

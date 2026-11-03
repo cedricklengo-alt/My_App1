@@ -169,6 +169,14 @@ class MC {
 class ThemeCtl {
   static String theme = 'fleuve';
   static String font = 'standard';
+
+  /// 🔠 Taille du texte de TOUTE l'application (1.0 = taille normale).
+  /// L'utilisateur peut l'augmenter sans passer par les réglages du système :
+  /// c'est un vrai réglage, enregistré et appliqué au démarrage.
+  static double textScale = 1.0;
+  static const double echelleMin = 0.85;
+  static const double echelleMax = 1.5;
+
   static final ValueNotifier<int> version = ValueNotifier(0);
 
   static const themes = {
@@ -189,6 +197,7 @@ class ThemeCtl {
     final p = await SharedPreferences.getInstance();
     theme = p.getString('theme') ?? 'fleuve';
     font = p.getString('font') ?? 'standard';
+    textScale = (p.getDouble('text_scale') ?? 1.0).clamp(echelleMin, echelleMax);
     MC.apply(kPalettes[theme] ?? kPalettes['fleuve']!);
     version.value++;
   }
@@ -205,6 +214,17 @@ class ThemeCtl {
     (await SharedPreferences.getInstance()).setString('font', f);
     version.value++;
   }
+
+  /// Change la taille du texte (bornée) ; renvoie la valeur réellement retenue.
+  static Future<double> setTextScale(double v) async {
+    textScale = v.clamp(echelleMin, echelleMax);
+    (await SharedPreferences.getInstance()).setDouble('text_scale', textScale);
+    version.value++;
+    return textScale;
+  }
+
+  /// Remet la taille du texte à la normale.
+  static Future<double> resetTextScale() => setTextScale(1.0);
 }
 
 ThemeData mboteTheme() {
@@ -418,6 +438,32 @@ class MboteButton extends StatelessWidget {
                     fontSize: Tx.subtitle,
                     fontWeight: FontWeight.w800)),
       ),
+    );
+  }
+}
+
+/// 🔠 Applique la taille de texte choisie dans Réglages › Apparence.
+///
+/// Le réglage de l'application **multiplie** celui du système (jamais il ne
+/// l'ignore : un utilisateur qui a agrandi le texte de son téléphone pour
+/// raisons de vue garde son confort) et le résultat est borné pour éviter les
+/// mises en page impossibles.
+class EchelleTexte extends StatelessWidget {
+  final Widget child;
+  const EchelleTexte({super.key, required this.child});
+
+  /// Facteur effectivement appliqué (utile aux tests et au diagnostic).
+  static double facteur(BuildContext context) {
+    final systeme = MediaQuery.textScalerOf(context).scale(1);
+    return (systeme * ThemeCtl.textScale).clamp(0.85, 2.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    return MediaQuery(
+      data: mq.copyWith(textScaler: TextScaler.linear(facteur(context))),
+      child: child,
     );
   }
 }

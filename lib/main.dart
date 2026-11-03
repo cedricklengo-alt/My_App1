@@ -125,6 +125,11 @@ class _MboteAppState extends State<MboteApp> with WidgetsBindingObserver {
     return ListenableBuilder(
       listenable: Listenable.merge([L10n.version, ThemeCtl.version]),
       builder: (_, __) => MaterialApp(
+        // 🔠 Taille de texte choisie dans Réglages › Apparence : appliquée à
+        // TOUTE l'application (elle s'ajoute à celle du système, bornée par
+        // Flutter pour ne jamais dépasser les limites d'accessibilité).
+        builder: (context, child) =>
+            EchelleTexte(child: child ?? const SizedBox.shrink()),
         title: 'MboteCall',
         navigatorKey: appNavigatorKey,
         // 🇫🇷 Interface en français (sélecteurs de date, copier/coller, etc.)

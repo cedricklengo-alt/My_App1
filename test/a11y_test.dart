@@ -29,6 +29,7 @@ import 'package:mbote/screens/keypad.dart';
 import 'package:mbote/screens/login.dart';
 import 'package:mbote/screens/packages.dart';
 import 'package:mbote/screens/profile.dart';
+import 'package:mbote/screens/settings.dart';
 import 'package:mbote/screens/shell.dart';
 import 'package:mbote/screens/topup.dart';
 import 'package:mbote/state.dart';
@@ -184,6 +185,34 @@ void main() {
     await verifierNormes(t, 'Navigation');
   });
 
+  testWidgets('Réglages respecte les normes', (t) async {
+    await t.pumpWidget(
+        enveloppe(const SettingsScreen(), etat(FakeApi())));
+    await t.pumpAndSettle();
+    await verifierNormes(t, 'Réglages');
+  });
+
+  testWidgets('Apparence respecte les normes', (t) async {
+    await t.pumpWidget(
+        enveloppe(const AppearanceScreen(), etat(FakeApi())));
+    await t.pumpAndSettle();
+    await verifierNormes(t, 'Apparence');
+  });
+
+  testWidgets('Sécurité respecte les normes', (t) async {
+    await t.pumpWidget(
+        enveloppe(const SecurityScreen(), etat(FakeApi())));
+    await t.pumpAndSettle();
+    await verifierNormes(t, 'Sécurité');
+  });
+
+  testWidgets('Langue respecte les normes', (t) async {
+    await t.pumpWidget(
+        enveloppe(const LanguageScreen(), etat(FakeApi())));
+    await t.pumpAndSettle();
+    await verifierNormes(t, 'Langue');
+  });
+
   testWidgets('Profil respecte les normes', (t) async {
     await t.pumpWidget(
         enveloppe(const Scaffold(body: ProfileScreen()), etat(FakeApi())));
@@ -232,6 +261,13 @@ void main() {
     testWidgets('Appels (historique) tient à $pct', (t) async {
       await t.pumpWidget(enveloppe(
           const Scaffold(body: HistoryScreen()), etat(FakeApi()),
+          echelle: echelle));
+      await t.pumpAndSettle();
+    });
+
+    testWidgets('Réglages tiennent à $pct', (t) async {
+      await t.pumpWidget(enveloppe(
+          const SettingsScreen(), etat(FakeApi()),
           echelle: echelle));
       await t.pumpAndSettle();
     });

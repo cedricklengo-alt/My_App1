@@ -18,7 +18,9 @@ import 'package:mbote/models/post.dart';
 import 'package:mbote/screens/chats.dart';
 import 'package:mbote/screens/feed_screen.dart';
 import 'package:mbote/screens/history.dart';
+import 'package:mbote/screens/settings.dart';
 import 'package:mbote/screens/shell.dart';
+import 'package:mbote/screens/shop.dart';
 import 'package:mbote/state.dart';
 import 'package:mbote/tabs.dart';
 import 'package:mbote/theme.dart';
@@ -328,6 +330,59 @@ void main() {
       }
       // Le solde et le numéro sont rappelés dans l'en-tête du menu.
       expect(find.text('+243810000001'), findsOneWidget);
+    });
+
+    testWidgets('le menu est organisé en sections lisibles', (t) async {
+      await t.pumpWidget(wrapShell(appState(FakeApi())));
+      await t.pumpAndSettle();
+      await openMenu(t);
+
+      // Quatre sections, dans l'ordre attendu d'un menu professionnel.
+      for (final cle in [
+        'settings_section_account',
+        'settings_section_tools',
+        'settings_section_prefs',
+        'settings_section_help',
+      ]) {
+        expect(find.text(L10n.t(cle)), findsWidgets, reason: cle);
+      }
+
+      // Chaque section contient bien ses entrées.
+      expect(find.text(L10n.t('profile')), findsWidgets);
+      expect(find.text(L10n.t('wallet')), findsWidgets);
+      expect(find.text(L10n.t('shop_title')), findsWidgets);
+      expect(find.text(L10n.t('nav_keypad')), findsWidgets);
+      expect(find.text(L10n.t('settings')), findsWidgets);
+    });
+
+    testWidgets('« Réglages » ouvre le hub de réglages', (t) async {
+      await t.pumpWidget(wrapShell(appState(FakeApi())));
+      await t.pumpAndSettle();
+      await openMenu(t);
+
+      await tapEntry(t, L10n.t('settings'));
+
+      expect(find.byType(SettingsScreen), findsOneWidget);
+      // Le compte est en haut ; les réglages suivent (on fait défiler, comme
+      // un doigt sur un écran de 600 px).
+      expect(find.text(L10n.t('settings_section_account')), findsOneWidget);
+      await t.drag(find.byType(ListView).last, const Offset(0, -320));
+      await t.pumpAndSettle();
+      expect(find.text(L10n.t('appearance')), findsOneWidget);
+      expect(find.text(L10n.t('language')), findsOneWidget);
+      expect(find.text(L10n.t('settings_notifications')), findsOneWidget);
+      await t.drag(find.byType(ListView).last, const Offset(0, -320));
+      await t.pumpAndSettle();
+      expect(find.text(L10n.t('settings_security')), findsOneWidget);
+    });
+
+    testWidgets('« Boutique » ouvre la boutique', (t) async {
+      await t.pumpWidget(wrapShell(appState(FakeApi())));
+      await t.pumpAndSettle();
+      await openMenu(t);
+
+      await tapEntry(t, L10n.t('shop_title'));
+      expect(find.byType(ShopScreen), findsOneWidget);
     });
 
     testWidgets('Portefeuille ouvre un vrai écran', (t) async {
