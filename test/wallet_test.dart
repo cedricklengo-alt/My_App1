@@ -26,6 +26,32 @@ class FakeApi extends Api {
   List promosRows = [];
   int promoAppels = 0;
 
+  /// Résumé renvoyé par `/wallet/summary`. `null` = serveur muet : l'écran ne
+  /// doit alors afficher AUCUN chiffre inventé.
+  Map? resume;
+  Object? erreurResume;
+  int resumeAppels = 0;
+
+  @override
+  Future<Map> walletSummary() async {
+    resumeAppels++;
+    if (erreurResume != null) throw erreurResume!;
+    return resume ??
+        {
+          'balance_cents': 1250,
+          'currency': 'USD',
+          'low_balance': false,
+          'threshold_cents': 100,
+          'today_cents': 0,
+          'month_cents': 0,
+          'month_calls_cents': 0,
+          'month_sms_cents': 0,
+          'month_topup_cents': 0,
+          'month_seconds': 0,
+          'transactions_count': 0,
+        };
+  }
+
   @override
   Future<List> promos() async {
     promoAppels++;
@@ -107,12 +133,14 @@ void main() {
     await t.pumpWidget(
         enveloppe(const HomeScreen(), etat(FakeApi(), soldeCents: 500)));
     await t.pumpAndSettle();
-    expect(find.text(L10n.t('low_credit')), findsNothing);
+    // Nouveau libellé (identité « Fleuve Congo ») : titre + explication.
+    expect(find.text(L10n.t('wallet_low_balance_title')), findsNothing);
 
     await t.pumpWidget(
         enveloppe(const HomeScreen(), etat(FakeApi(), soldeCents: 40)));
     await t.pumpAndSettle();
-    expect(find.text(L10n.t('low_credit')), findsOneWidget);
+    expect(find.text(L10n.t('wallet_low_balance_title')), findsOneWidget);
+    expect(find.text(L10n.t('wallet_low_balance_body')), findsOneWidget);
   });
 
   testWidgets('les promotions du serveur sont affichées', (t) async {
@@ -138,5 +166,61 @@ void main() {
             reason: 'texte trop petit : « ${widget.data} » à $taille px');
       }
     }
+  });
+
+  group('Résumé du portefeuille (données serveur)', () {
+    testWidgets('dépenses du jour et du mois affichées telles quelles',
+        (t) async {
+      final api = FakeApi()
+        ..resume = {
+          'balance_cents': 1250,
+          'currency': 'USD',
+          'low_balance': false,
+          'today_cents': 320,
+          'month_cents': 2400,
+          'month_calls_cents': 1500,
+          'month_sms_cents': 140,
+          'transactions_count': 17,
+        };
+      await t.pumpWidget(enveloppe(const HomeScreen(), etat(api)));
+      await t.pumpAndSettle();
+
+      expect(api.resumeAppels, greaterThanOrEqualTo(1));
+      expect(find.text(fmtMoney(320)), findsOneWidget); // aujourd'hui
+      expect(find.text(fmtMoney(1500)), findsOneWidget); // appels du mois
+      expect(find.text(fmtMoney(140)), findsOneWidget); // SMS du mois
+      expect(find.textContaining(fmtMoney(2400)), findsOneWidget); // total mois
+    });
+
+    testWidgets('l’alerte de crédit bas suit le drapeau du serveur',
+        (t) async {
+      final api = FakeApi()
+        ..resume = {'balance_cents': 900, 'low_balance': true, 'today_cents': 0};
+      await t.pumpWidget(enveloppe(const HomeScreen(), etat(api, soldeCents: 900)));
+      await t.pumpAndSettle();
+
+      // 9 $ en poche mais le serveur signale un seuil atteint : on l'écoute.
+      expect(find.text(L10n.t('wallet_low_balance_title')), findsOneWidget);
+    });
+
+    testWidgets('résumé indisponible : message, aucun chiffre trompeur',
+        (t) async {
+      final api = FakeApi()..erreurResume = Exception('réseau');
+      await t.pumpWidget(enveloppe(const HomeScreen(), etat(api)));
+      await t.pumpAndSettle();
+
+      expect(find.text(L10n.t('wallet_summary_unavailable')), findsOneWidget);
+      expect(find.text(fmtMoney(0)), findsNothing,
+          reason: 'mieux vaut aucun chiffre qu’un zéro faux');
+    });
+
+    testWidgets('« Boutique » et « Mes forfaits » sont accessibles',
+        (t) async {
+      await t.pumpWidget(enveloppe(const HomeScreen(), etat(FakeApi())));
+      await t.pumpAndSettle();
+
+      expect(find.text(L10n.t('wallet_shop')), findsOneWidget);
+      expect(find.text(L10n.t('wallet_my_plans')), findsOneWidget);
+    });
   });
 }

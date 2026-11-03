@@ -7,12 +7,12 @@ menu « ··· ») est couvert par des tests **exécutables**. Aucun test ne
 dépend d'un téléphone, d'un micro, d'une caméra ni d'Internet.
 
 ```bash
-# 1. Backend — TOUTE la batterie (457 vérifications, 9 fichiers)
+# 1. Backend — TOUTE la batterie (521 vérifications, 10 fichiers)
 cd mbote-backend && npm install && npm test
 
 #   ou fichier par fichier
 node test/db_tx.test.js              # 13  atomicité / réentrance des transactions
-node test/api_smoke.test.js          # 29  parcours de base + sécurité des jetons
+node test/api_smoke.test.js          # 87  parcours de base + sécurité des jetons
 node test/group_signaling.test.js    # 30  signalisation des appels de groupe
 node test/feed.test.js               # 56  fil et statuts
 node test/calls.test.js              # 41  appels audio/vidéo/groupe (WebSocket réels)
@@ -20,8 +20,9 @@ node test/messages.test.js           # 87  discussions, médias, notes vocales
 node test/billing_referral.test.js   # 34  facturation, parrainage, blocage de compte
 node test/wallet.test.js             # 96  portefeuille, forfaits, GSM, tarifs, promos, console admin
 node test/shop.test.js               # 71  boutique, cadeaux, Lokota, invitations, webhooks, ICE
+node test/twilio_sms.test.js         # 64  Twilio, SMS, webhooks signés, historique, portefeuille
 
-# 2. Application Flutter (270 tests)
+# 2. Application Flutter (304 tests)
 cd My_App1
 flutter pub get
 flutter test
@@ -195,3 +196,27 @@ pas encore, webhook signé (refus sans signature ou avec une mauvaise),
 notes vocales traduites (mode privé, renvoi idempotent, non-lus, lecture,
 isolation entre tiers), invitations (création, page publique, validation,
 réutilisation refusée), serveurs ICE et accusés WebRTC, webhooks de paiement.
+
+---
+
+## 🆕 Ce tour : boutique, portefeuille réel, SMS, historique (app)
+
+| Fichier | Tests | Ce qui est prouvé |
+|---|---|---|
+| `test/shop_test.dart` | 8 | prix venant du serveur, états vide/erreur, parcours Mobile Money (commande → paiement → **statut vérifié** → activé), paiement refusé (jamais « activé »), carte = URL hébergée sans champ carte, quotas « Mes forfaits » |
+| `test/transactions_test.dart` | 8 | montants **signés** (−/+), « en attente » ≠ confirmé, écriture échouée barrée, filtres envoyés au serveur (`type=call_debit`, `status=pending`), pagination sans doublon, états vide/erreur |
+| `test/history_test.dart` | 8 | filtres **serveur** (`gsm`, `internet`), recherche différée (3 frappes = 1 requête), fiche d'appel (coût, canal, durée), masquage → route dédiée + rechargement, états vide/erreur |
+| `test/sms_test.dart` | 6 | devis avant envoi, **aucun envoi** si tarif manquant (`SMS_RATE_MISSING`) ou fournisseur non prêt, forfait SMS annoncé comme couvert, identifiant d'idempotence transmis |
+| `test/wallet_test.dart` | +4 | dépenses du jour/mois telles que le serveur les calcule, alerte pilotée par `low_balance`, résumé indisponible → **aucun chiffre faux**, accès boutique/forfaits |
+
+Règle appliquée partout : **un chiffre affiché vient du serveur**. Si la donnée
+manque, l'écran le dit (« Résumé indisponible ») au lieu d'afficher un zéro.
+
+### Backend — `test/twilio_sms.test.js` (64 vérifications)
+
+* « non configuré » (409 + code) ne se confond **jamais** avec « solde 0 » ;
+* `validateSignature` **fail-closed** : pas de jeton → webhook refusé ;
+* webhook rejoué avec le **même CallSid** → aucun second débit ;
+* SMS : aucun débit si `SMS_RATE_MISSING` ou fournisseur absent ;
+* historique filtrable (`in/out/missed/internet/gsm`), masquage **sans perte comptable** ;
+* `/wallet/summary` cohérent avec le grand livre ; zéro erreur 5xx.

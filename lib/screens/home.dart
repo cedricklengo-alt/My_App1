@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../api.dart';
 import '../state.dart';
 import '../design.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import 'airtime.dart';
 import 'lokota.dart';
+import 'my_plans.dart';
 import 'packages.dart';
+import 'shop.dart';
 import 'topup.dart';
+import 'transactions.dart';
 import 'transfer.dart';
 
 /// Écran d'accueil épuré : solde + actions + promos.
@@ -21,10 +25,17 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List promos = [];
 
+  /// 📊 Résumé financier calculé par le SERVEUR (`/wallet/summary`).
+  /// Aucun chiffre n'est estimé ici : si le résumé n'arrive pas, on n'affiche
+  /// simplement pas le bloc (plutôt qu'un « 0 » trompeur).
+  Map? resume;
+  String? resumeErreur;
+
   @override
   void initState() {
     super.initState();
     _loadPromos();
+    _loadResume();
   }
 
   Future<void> _loadPromos() async {
@@ -33,6 +44,22 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) setState(() => promos = p);
     } catch (_) {/* pas bloquant */}
   }
+
+  Future<void> _loadResume() async {
+    try {
+      final r = await context.read<AppState>().api.walletSummary();
+      if (!mounted) return;
+      setState(() {
+        resume = r;
+        resumeErreur = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => resumeErreur = friendlyError(e));
+    }
+  }
+
+  static int _n(dynamic v) => int.tryParse('${v ?? 0}') ?? 0;
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onRefresh: () async {
           await st.refresh();
           await _loadPromos();
+          await _loadResume();
         },
         child: ListView(
           padding: const EdgeInsets.fromLTRB(Sp.x4, Sp.x3, Sp.x4, Sp.x5),
@@ -118,6 +146,162 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 10),
 
+            // ---- 📊 Activité réelle du portefeuille ----
+            if (resume != null) ...[
+              Container(
+                padding: const EdgeInsets.all(Sp.x4),
+                decoration: BoxDecoration(
+                  color: MC.nuit2,
+                  borderRadius: BorderRadius.circular(Rd.md),
+                  border: Border.all(color: MC.ligne),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _stat(
+                            L10n.t('wallet_today'),
+                            fmtMoney(_n(resume!['today_cents'])),
+                            MC.soleil,
+                          ),
+                        ),
+                        Container(width: 1, height: 34, color: MC.ligne),
+                        Expanded(
+                          child: _stat(
+                            L10n.t('wallet_calls_spend'),
+                            fmtMoney(_n(resume!['month_calls_cents'])),
+                            MC.savane,
+                          ),
+                        ),
+                        Container(width: 1, height: 34, color: MC.ligne),
+                        Expanded(
+                          child: _stat(
+                            L10n.t('wallet_sms_spend'),
+                            fmtMoney(_n(resume!['month_sms_cents'])),
+                            MC.terre,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: Sp.x3),
+                    Divider(color: MC.ligne, height: 1),
+                    const SizedBox(height: Sp.x2),
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_month_rounded,
+                            size: 15, color: MC.kaki),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '${L10n.t('wallet_month')} : ${fmtMoney(_n(resume!['month_cents']))}',
+                            style: TextStyle(
+                                color: MC.kaki, fontSize: Tx.caption),
+                          ),
+                        ),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              minimumSize: const Size(0, Tap.min)),
+                          onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const TransactionsScreen()))
+                              .then((_) => _loadResume()),
+                          child: Text(L10n.t('wallet_transactions'),
+                              style: TextStyle(
+                                  color: MC.soleil,
+                                  fontSize: Tx.caption,
+                                  fontWeight: FontWeight.w800)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+            ] else if (resumeErreur != null) ...[
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: MC.nuit2,
+                  borderRadius: BorderRadius.circular(Rd.md),
+                  border: Border.all(color: MC.ligne),
+                ),
+                child: Row(children: [
+                  Icon(Icons.info_outline_rounded, size: 15, color: MC.kaki),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(L10n.t('wallet_summary_unavailable'),
+                        style: TextStyle(color: MC.kaki, fontSize: Tx.caption)),
+                  ),
+                  TextButton(
+                    onPressed: _loadResume,
+                    child: Text(L10n.t('chat_retry'),
+                        style: TextStyle(color: MC.soleil, fontSize: Tx.caption)),
+                  ),
+                ]),
+              ),
+              const SizedBox(height: 10),
+            ],
+
+            // ---- ⚠️ Alerte crédit bas ----
+            if (resume?['low_balance'] == true || st.balanceCents < 100)
+              Container(
+                margin: const EdgeInsets.only(top: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: MC.rouge.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(Rd.md),
+                  border: Border.all(color: MC.rouge.withValues(alpha: .55)),
+                ),
+                child: Row(children: [
+                  const Text('⚠️ ', style: TextStyle(fontSize: Tx.subtitle)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(L10n.t('wallet_low_balance_title'),
+                            style: TextStyle(
+                                color: MC.ivoire,
+                                fontSize: Tx.label,
+                                fontWeight: FontWeight.w800)),
+                        Text(L10n.t('wallet_low_balance_body'),
+                            style: TextStyle(
+                                color: MC.sable,
+                                fontSize: Tx.caption,
+                                height: 1.4)),
+                      ],
+                    ),
+                  ),
+                ]),
+              ),
+
+            // ---- 🎉 Bannière Happy Hour ----
+            ...promos.map((p) => Container(
+                  margin: const EdgeInsets.only(top: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: MC.soleil.withValues(alpha: .1),
+                    borderRadius: BorderRadius.circular(Rd.md),
+                    border: Border.all(color: MC.soleil.withValues(alpha: .55)),
+                  ),
+                  child: Row(children: [
+                    const Text('🎉 ', style: TextStyle(fontSize: Tx.subtitle)),
+                    Expanded(
+                      child: Text('${p['title']} — ${L10n.t('promo_until')}',
+                          style: TextStyle(
+                              color: MC.soleil,
+                              fontWeight: FontWeight.w700,
+                              fontSize: Tx.label)),
+                    ),
+                  ]),
+                )),
+            const SizedBox(height: 10),
             // ---- 🗣️ Lokota : notes vocales traduites (pilote) ----
             GestureDetector(
               onTap: () => Navigator.push(context,
@@ -207,7 +391,40 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 10),
 
-            // ---- Forfaits & Pass ----
+            // ---- 🛍️ Boutique (FlexPay) + Mes forfaits ----
+            Row(
+              children: [
+                Expanded(
+                  child: _ActionCard(
+                    icon: Icons.storefront_rounded,
+                    color: MC.soleil,
+                    label: L10n.t('wallet_shop'),
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const ShopScreen())).then((_) {
+                      _loadResume();
+                      st.refresh();
+                    }),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _ActionCard(
+                    icon: Icons.confirmation_number_rounded,
+                    color: MC.savane,
+                    label: L10n.t('wallet_my_plans'),
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const MyPlansScreen())),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // ---- Forfaits & Pass (ancien catalogue interne) ----
             GestureDetector(
               onTap: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const PackagesScreen())),
@@ -237,54 +454,30 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // ---- ⚠️ Alerte crédit bas ----
-            if (st.balanceCents < 100)
-              Container(
-                margin: const EdgeInsets.only(top: 10),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: MC.rouge.withValues(alpha: .12),
-                  borderRadius: BorderRadius.circular(Rd.md),
-                  border: Border.all(color: MC.rouge.withValues(alpha: .55)),
-                ),
-                child: Row(children: [
-                  const Text('⚠️ ', style: TextStyle(fontSize: Tx.subtitle)),
-                  Expanded(
-                    child: Text(L10n.t('low_credit'),
-                        style: TextStyle(
-                            color: MC.ivoire, fontSize: Tx.label, height: 1.4)),
-                  ),
-                ]),
-              ),
-
-            // ---- 🎉 Bannière Happy Hour ----
-            ...promos.map((p) => Container(
-                  margin: const EdgeInsets.only(top: 10),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: MC.soleil.withValues(alpha: .1),
-                    borderRadius: BorderRadius.circular(Rd.md),
-                    border: Border.all(color: MC.soleil.withValues(alpha: .55)),
-                  ),
-                  child: Row(children: [
-                    const Text('🎉 ', style: TextStyle(fontSize: Tx.subtitle)),
-                    Expanded(
-                      child: Text('${p['title']} — ${L10n.t('promo_until')}',
-                          style: TextStyle(
-                              color: MC.soleil,
-                              fontWeight: FontWeight.w700,
-                              fontSize: Tx.label)),
-                    ),
-                  ]),
-                )),
           ],
         ),
       ),
     );
   }
 }
+
+/// Chiffre + libellé (bloc « activité du portefeuille »).
+Widget _stat(String libelle, String valeur, Color couleur) => Column(
+      children: [
+        Text(valeur,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+                color: couleur,
+                fontSize: Tx.bodyLg,
+                fontWeight: FontWeight.w800,
+                fontFeatures: const [FontFeature.tabularFigures()])),
+        const SizedBox(height: 3),
+        Text(libelle,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: MC.kaki, fontSize: Tx.caption)),
+      ],
+    );
 
 /// Petite carte d'action (rangée transfert / crédit GSM)
 class _ActionCard extends StatelessWidget {

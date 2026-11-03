@@ -28,6 +28,7 @@ class FakeApi extends Api {
   final List<String> calls = [];
   List<Map> historyRows = [];
   Object? failHistory;
+  final List<String> derniersFiltres = [];
 
   @override
   Future<FeedPage> feedPage({int? before, String? cursor}) async {
@@ -42,10 +43,43 @@ class FakeApi extends Api {
   }
 
   @override
-  Future<Map> history() async {
+  Future<Map> history({String filter = 'all', String? q, int limit = 100}) async {
     calls.add('history');
+    derniersFiltres.add(filter);
     if (failHistory != null) throw failHistory!;
-    return {'calls': historyRows, 'month_sec': 0, 'month_cost_cents': 0};
+    // Le VRAI backend filtre : le faux l'imite, sinon on testerait un
+    // comportement que la production n'a pas.
+    bool manque(Map r) =>
+        '${r['answered_at'] ?? 0}' == '0' && r['direction'] == 'incoming';
+    final rows = switch (filter) {
+      'in' => historyRows
+          .where((r) => r['direction'] == 'incoming' && !manque(r))
+          .toList(),
+      'out' => historyRows
+          .where((r) => r['direction'] == 'outgoing' && !manque(r))
+          .toList(),
+      'missed' => historyRows.where(manque).toList(),
+      'internet' => historyRows
+          .where((r) => '${r['channel'] ?? 'internet'}' == 'internet')
+          .toList(),
+      'gsm' => historyRows.where((r) => '${r['channel'] ?? ''}' == 'gsm').toList(),
+      _ => historyRows,
+    };
+    final cherche = (q ?? '').trim().toLowerCase();
+    final filtre = cherche.isEmpty
+        ? rows
+        : rows
+            .where((r) =>
+                '${r['callee']}'.toLowerCase().contains(cherche) ||
+                '${r['destination']}'.toLowerCase().contains(cherche))
+            .toList();
+    return {
+      'calls': filtre,
+      'total': filtre.length,
+      'has_more': false,
+      'month_sec': 0,
+      'month_cost_cents': 0,
+    };
   }
 
   @override

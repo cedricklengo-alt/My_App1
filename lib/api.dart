@@ -115,6 +115,26 @@ class Api {
   // ---- Wallet ----
   Future<Map> wallet() async => await _send('GET', '/wallet');
 
+  /// 📊 Tableau de bord : solde, dépenses du jour et du mois, appels, SMS.
+  /// Tous les chiffres viennent du grand livre du serveur (aucune estimation).
+  Future<Map> walletSummary() async => await _send('GET', '/wallet/summary');
+
+  /// 🧾 Grand livre filtrable : type, statut, période, pagination.
+  Future<Map> walletTransactions({
+    String type = 'all',
+    String status = 'all',
+    int? from,
+    int? to,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final q = StringBuffer('/wallet/transactions?type=$type&status=$status'
+        '&limit=$limit&offset=$offset');
+    if (from != null) q.write('&from=$from');
+    if (to != null) q.write('&to=$to');
+    return await _send('GET', q.toString());
+  }
+
   /// Lance une recharge Mobile Money : le backend déclenche un USSD Push
   /// sur le téléphone payeur → renvoie {payment_id, status:'pending', message}.
   Future<Map> topup(int amountCents, String method, {String? phone}) async =>
@@ -140,6 +160,52 @@ class Api {
   Future<List> myPackages() async => await _send('GET', '/packages/mine');
   Future<Map> buyPackage(int id) async =>
       await _send('POST', '/packages/$id/buy');
+
+  // ---- 🛍️ Boutique (FlexPay : Mobile Money + carte Visa) ----
+  //
+  // Parcours : catalogue → commande (prix figé) → paiement → statut vérifié
+  // côté serveur → activation du forfait. L'app ne fait JAMAIS confiance à un
+  // retour d'URL : elle interroge le statut réel.
+
+  /// Catalogue des forfaits actifs (catégories, prix, volumes, validité).
+  Future<List> shopCatalog() async {
+    final r = await _send('GET', '/shop/catalog');
+    return (r['packages'] as List?) ?? const [];
+  }
+
+  /// Crée une commande : le prix et le contenu du forfait sont figés.
+  Future<Map> createShopOrder(int packageId) async {
+    final r = await _send('POST', '/shop/orders', {'package_id': packageId});
+    return (r['order'] as Map?) ?? const {};
+  }
+
+  /// Initie le paiement. `method` : mpesa | orange | airtel | card.
+  /// Renvoie { payment, redirect_url?, message }.
+  Future<Map> payShopOrder(String orderId, String method, {String? phone}) async =>
+      await _send('POST', '/shop/orders/$orderId/pay', {
+        'method': method,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+      });
+
+  /// Statut réel de la commande (et du paiement) — source de vérité.
+  Future<Map> shopOrderStatus(String orderId) async =>
+      await _send('GET', '/shop/orders/$orderId/status');
+
+  /// Interroge le fournisseur et active le forfait si le paiement est confirmé.
+  Future<Map> shopPayStatus(String orderId) async =>
+      await _send('GET', '/shop/orders/$orderId/pay/status');
+
+  /// Mes forfaits actifs (quotas restants, expiration).
+  Future<List> myPlans() async {
+    final r = await _send('GET', '/shop/my-plans');
+    return (r['plans'] as List?) ?? const [];
+  }
+
+  /// Tous mes forfaits (historique : épuisés, expirés).
+  Future<List> myPlansAll() async {
+    final r = await _send('GET', '/shop/my-plans/all');
+    return (r['plans'] as List?) ?? const [];
+  }
 
   // ---- 📱 Airtime : offrir du crédit GSM à un proche ----
   Future<Map> sendAirtime(String phone, int amountCents) async => await _send(
@@ -336,7 +402,45 @@ class Api {
 
   Future<Map> hangup(String id) async =>
       await _send('POST', '/calls/$id/hangup');
-  Future<Map> history() async => await _send('GET', '/calls/history');
+  /// 📞 Historique filtrable côté serveur.
+  /// [filter] : all | in | out | missed | internet | gsm · [q] : nom ou numéro
+  Future<Map> history({String filter = 'all', String? q, int limit = 100}) async {
+    final b = StringBuffer('/calls/history?filter=$filter&limit=$limit');
+    if (q != null && q.trim().isNotEmpty) {
+      b.write('&q=${Uri.encodeComponent(q.trim())}');
+    }
+    return await _send('GET', b.toString());
+  }
+
+  /// Détail d'un appel (tarif appliqué, durée facturée, canal, cause de fin).
+  Future<Map> callDetail(String id) async {
+    final r = await _send('GET', '/calls/$id');
+    return (r['call'] as Map?) ?? const {};
+  }
+
+  /// Masque une entrée pour MOI. La donnée comptable reste côté serveur.
+  Future<void> hideCall(String id) async =>
+      await _send('POST', '/calls/$id/hide');
+
+  // ---- ✉️ SMS vers le réseau GSM (facturés) ----
+
+  /// Prix d'un SMS et couverture par un forfait, AVANT envoi.
+  Future<Map> smsQuote(String phone) async =>
+      await _send('GET', '/sms/quote?to=${Uri.encodeComponent(phone)}');
+
+  /// Envoie un SMS. `clientId` rend l'appel idempotent (pas de double envoi).
+  Future<Map> sendSms(String phone, String text, {String? clientId}) async =>
+      await _send('POST', '/sms/send', {
+        'to': phone,
+        'text': text,
+        if (clientId != null) 'client_id': clientId,
+      });
+
+  /// Historique des SMS envoyés (statut fournisseur inclus).
+  Future<List> smsHistory() async {
+    final r = await _send('GET', '/sms');
+    return (r['messages'] as List?) ?? const [];
+  }
 
   // ────────────────────────────────────────────────────────────────
   // 📰 FIL DE PUBLICATION

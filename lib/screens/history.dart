@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -8,7 +10,10 @@ import '../design.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import 'call_sheet.dart';
+import 'chat.dart';
 import 'keypad.dart';
+import 'sms_compose.dart';
+import 'call_detail.dart';
 
 /// 📞 Onglet « Appels » : historique par catégorie.
 ///
@@ -35,7 +40,10 @@ class HistoryScreenState extends State<HistoryScreen>
   List calls = [];
   bool loading = true;
   String? error;
-  String filter = 'all'; // all | in | out | missed
+  String filter = 'all'; // all | in | out | missed | internet | gsm
+  final _recherche = TextEditingController();
+  Timer? _debounce;
+  String query = '';
 
   @override
   bool get wantKeepAlive => true;
@@ -50,7 +58,20 @@ class HistoryScreenState extends State<HistoryScreen>
   @override
   void dispose() {
     Tabs.stopListening(Tabs.calls, _onTabRefresh);
+    _debounce?.cancel();
+    _recherche.dispose();
     super.dispose();
+  }
+
+  /// La recherche est faite CÔTÉ SERVEUR (nom du contact ou numéro) : le
+  /// téléphone n'a pas à télécharger tout l'historique pour filtrer.
+  void _chercher(String v) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      setState(() => query = v.trim());
+      _load();
+    });
   }
 
   void _onTabRefresh() {
@@ -62,7 +83,8 @@ class HistoryScreenState extends State<HistoryScreen>
 
   Future<void> _load() async {
     try {
-      final r = await context.read<AppState>().api.history();
+      final r = await context.read<AppState>().api
+          .history(filter: filter, q: query, limit: 200);
       if (!mounted) return;
       final list = (r['calls'] as List?) ?? const [];
       setState(() {
@@ -102,12 +124,10 @@ class HistoryScreenState extends State<HistoryScreen>
   static bool _dialable(dynamic c) =>
       RegExp(r'[0-9]{4,}').hasMatch('${c['callee'] ?? ''}');
 
-  List get _visible => switch (filter) {
-        'in' => calls.where((c) => _isIn(c) && !_isMissed(c)).toList(),
-        'out' => calls.where((c) => !_isIn(c) && !_isMissed(c)).toList(),
-        'missed' => calls.where(_isMissed).toList(),
-        _ => calls,
-      };
+  /// Le serveur applique `filter` (y compris internet/gsm) et `q` : on affiche
+  /// ce qu'il renvoie, sans re-filtrer localement (les deux règles ne peuvent
+  /// ainsi pas diverger).
+  List get _visible => calls;
 
   // ── Actions ────────────────────────────────────────────
 
@@ -118,6 +138,41 @@ class HistoryScreenState extends State<HistoryScreen>
       '${c['callee']}',
       name: '${c['callee']}',
     ).then((_) => _load());
+  }
+
+  /// Fiche détaillée : coût, durée, canal, tarif appliqué + actions.
+  Future<void> _ouvrirFiche(dynamic c) async {
+    HapticFeedback.selectionClick();
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => CallDetailSheet(
+        callId: '${c['id']}',
+        fallback: c is Map ? Map<String, dynamic>.from(c) : null,
+        dialable: _dialable(c),
+      ),
+    );
+    if (!mounted) return;
+    switch (action) {
+      case 'call':
+        _call(c);
+        break;
+      case 'message':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => ChatScreen(peerPhone: '${c['callee']}')));
+        break;
+      case 'sms':
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => SmsComposeScreen(phone: '${c['callee']}')));
+        break;
+      case 'hidden':
+        setState(() => loading = true);
+        await _load();
+        break;
+    }
   }
 
   void _openKeypad() {
@@ -155,16 +210,57 @@ class HistoryScreenState extends State<HistoryScreen>
               ],
             ),
             const SizedBox(height: 6),
+            // ---- Recherche (nom ou numéro) ----
+            TextField(
+              controller: _recherche,
+              onChanged: _chercher,
+              textInputAction: TextInputAction.search,
+              style: TextStyle(color: MC.ivoire, fontSize: Tx.body),
+              decoration: InputDecoration(
+                hintText: L10n.t('history_search'),
+                hintStyle: TextStyle(color: MC.kaki, fontSize: Tx.body),
+                prefixIcon: Icon(Icons.search_rounded, color: MC.kaki, size: 20),
+                suffixIcon: query.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: L10n.t('close'),
+                        icon: Icon(Icons.close_rounded, color: MC.kaki, size: 18),
+                        onPressed: () {
+                          _recherche.clear();
+                          _chercher('');
+                        },
+                      ),
+                filled: true,
+                fillColor: MC.nuit2,
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(Rd.md),
+                  borderSide: BorderSide(color: MC.ligne),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(Rd.md),
+                  borderSide: BorderSide(color: MC.ligne),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(Rd.md),
+                  borderSide: BorderSide(color: MC.soleil),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
             // ---- Catégories ----
             Wrap(
               spacing: 8,
               runSpacing: 4,
               children: [
-                _chip('all', L10n.t('history_all'), calls.length),
+                _chip('all', L10n.t('history_all'), null),
                 _chip('in', L10n.t('history_in'), null),
                 _chip('out', L10n.t('history_out'), null),
-                _chip('missed', L10n.t('history_missed'),
-                    calls.where(_isMissed).length),
+                _chip('missed', L10n.t('history_missed'), null),
+                _chip('internet', L10n.t('history_filter_internet'), null),
+                _chip('gsm', L10n.t('history_filter_gsm'), null),
               ],
             ),
             const SizedBox(height: 14),
@@ -206,6 +302,7 @@ class HistoryScreenState extends State<HistoryScreen>
         incoming: _isIn(c),
         video: _isVideo(c),
         onCall: _dialable(c) ? () => _call(c) : null,
+        onOpen: () => _ouvrirFiche(c),
       ));
     }
     return out;
@@ -218,7 +315,11 @@ class HistoryScreenState extends State<HistoryScreen>
       selected: sel,
       onSelected: (_) {
         HapticFeedback.selectionClick();
-        setState(() => filter = value);
+        setState(() {
+          filter = value;
+          loading = true;
+        });
+        _load();
       },
       selectedColor: MC.soleil,
       backgroundColor: MC.nuit2,
@@ -304,6 +405,8 @@ class HistoryScreenState extends State<HistoryScreen>
       'in' => (Icons.call_received_rounded, L10n.t('history_empty_in')),
       'out' => (Icons.call_made_rounded, L10n.t('history_empty_out')),
       'missed' => (Icons.phone_missed_rounded, L10n.t('history_empty_missed')),
+      'internet' => (Icons.wifi_rounded, L10n.t('history_empty')),
+      'gsm' => (Icons.phone_in_talk_rounded, L10n.t('history_empty')),
       _ => (Icons.phone_in_talk_rounded, L10n.t('history_empty')),
     };
     return Padding(
@@ -353,6 +456,7 @@ class _CallTile extends StatelessWidget {
   final bool incoming;
   final bool video;
   final VoidCallback? onCall;
+  final VoidCallback? onOpen;
 
   const _CallTile({
     required this.call,
@@ -360,6 +464,7 @@ class _CallTile extends StatelessWidget {
     required this.incoming,
     required this.video,
     required this.onCall,
+    this.onOpen,
   });
 
   @override
@@ -387,7 +492,7 @@ class _CallTile extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: ListTile(
-        onTap: onCall,
+        onTap: onOpen,
         leading: Container(
           width: 40,
           height: 40,

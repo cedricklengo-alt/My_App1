@@ -29,7 +29,10 @@ import 'history.dart';
 import 'home.dart';
 import 'keypad.dart';
 import 'lokota.dart';
+import 'my_plans.dart';
 import 'profile.dart';
+import 'shop.dart';
+import 'transactions.dart';
 
 // ── Remplacez ces imports par les vrais écrans de votre projet ───────────
 // import 'calls_list.dart';   // liste des appels récents
@@ -495,6 +498,27 @@ class _MoreMenuSheet extends StatelessWidget {
                 subtitle: L10n.t('more_wallet_sub'),
                 onTap: () =>
                     _pushBare(context, const HomeScreen(), L10n.t('wallet')),
+              ),
+              _MoreItem(
+                icon: Icons.storefront_rounded,
+                iconColor: MC.soleil,
+                label: L10n.t('shop_title'),
+                subtitle: L10n.t('more_shop_sub'),
+                onTap: () => _pushFull(context, const ShopScreen()),
+              ),
+              _MoreItem(
+                icon: Icons.confirmation_number_rounded,
+                iconColor: MC.savane,
+                label: L10n.t('shop_my_plans'),
+                subtitle: L10n.t('more_plans_sub'),
+                onTap: () => _pushFull(context, const MyPlansScreen()),
+              ),
+              _MoreItem(
+                icon: Icons.receipt_long_rounded,
+                iconColor: MC.terre,
+                label: L10n.t('wallet_transactions'),
+                subtitle: L10n.t('more_tx_sub'),
+                onTap: () => _pushFull(context, const TransactionsScreen()),
               ),
               _MoreItem(
                 icon: Icons.person_rounded,
