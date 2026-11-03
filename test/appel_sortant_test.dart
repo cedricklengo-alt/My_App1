@@ -25,6 +25,7 @@ class FakeSortantApi extends Api {
   String? freeReason;
 
   final List<String> journal = [];
+  int sondagesStatus = 0;
   int hangupAppels = 0;
   String? dernierHangup;
 
@@ -45,6 +46,7 @@ class FakeSortantApi extends Api {
 
   @override
   Future<Map> callStatus(String id) async {
+    sondagesStatus++;
     if (statuts.length > 1) statuts.removeAt(0);
     final s = statuts.first;
     return {
@@ -161,9 +163,37 @@ void main() {
     });
   });
 
+  group('Écran sortant — transport', () {
+    testWidgets(
+        'un appel MboteCall → MboteCall ne tombe plus dans la simulation '
+        '(aucun sondage /calls/:id/status)', (tester) async {
+      // Bug du 3 novembre 2026 : faute du champ rtc_online, TOUS les appels
+      // passaient par ce sondage, sans jamais tenter WebRTC — l'appelé ne
+      // sonnait pas. Ici, aucun sondage ne doit partir.
+      final api = FakeSortantApi(); // freeReason: 'mbote'
+      final st = etatSortant(api);
+      await tester.pumpWidget(habiller(
+        const CallScreen(to: '+243810000002', displayName: 'Bob'),
+        st,
+      ));
+      await premieresImages(tester);
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(api.journal.first, 'startCall(+243810000002)');
+      expect(api.sondagesStatus, 0,
+          reason: 'un appel MboteCall doit tenter la vraie voix, pas le sondage');
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+    });
+  });
+
   group('Écran sortant — fin d’appel', () {
     testWidgets('raccrocher clôt l’appel côté serveur', (tester) async {
-      final api = FakeSortantApi();
+      // Appel vers un GSM (payant) : c'est le serveur qui suit l'appel.
+      // Un appel MboteCall → MboteCall passe désormais par la vraie voix.
+      final api = FakeSortantApi(freeReason: null);
       final st = etatSortant(api);
       await tester.pumpWidget(habiller(
         const CallScreen(to: '+243810000002', displayName: 'Bob'),
@@ -210,7 +240,7 @@ void main() {
 
     testWidgets('appelé qui ne répond pas → « Pas de réponse »',
         (tester) async {
-      final api = FakeSortantApi(statuts: ['ringing', 'ended']);
+      final api = FakeSortantApi(statuts: ['ringing', 'ended'], freeReason: null);
       final st = etatSortant(api);
       await tester.pumpWidget(habiller(
         const CallScreen(to: '+243810000002', displayName: 'Bob'),

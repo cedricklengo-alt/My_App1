@@ -45,6 +45,20 @@ String libelleAppel({
   }
 }
 
+/// Faut-il passer par la VRAIE voix (WebRTC) pour cet appel ?
+///
+/// Un appel MboteCall → MboteCall est gratuit et passe par le standardiste :
+/// la voix circule de téléphone à téléphone. Le drapeau `rtc_online` renvoyé
+/// par le serveur ne doit PAS conditionner ce choix : il indique seulement si
+/// l'appelé a déjà son canal ouvert. Un appelé hors ligne reçoit une
+/// notification et l'offre l'attend côté serveur.
+///
+/// Bug corrigé (journaux Render du 3 novembre 2026) : l'application exigeait
+/// `rtc_online == true`, champ qui n'était jamais renvoyé — donc TOUS les
+/// appels tombaient dans la simulation, l'appelé ne sonnait jamais et l'appel
+/// « ne passait pas ».
+bool appelViaRtc(String? freeReason) => freeReason == 'mbote';
+
 /// L'appel s'est-il terminé faute de chemin réseau ? (pour proposer un conseil)
 bool echecReseau({required String status, String? endReason}) =>
     status == 'ended' && endReason == 'network';

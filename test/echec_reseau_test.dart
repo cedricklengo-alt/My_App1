@@ -69,6 +69,25 @@ void main() {
     });
   });
 
+  group('Choix du transport de l’appel', () {
+    test('un appel MboteCall → MboteCall passe par la vraie voix (WebRTC)', () {
+      expect(appelViaRtc('mbote'), isTrue);
+    });
+
+    test('un appel vers un GSM ne passe pas par WebRTC', () {
+      expect(appelViaRtc(null), isFalse);
+      expect(appelViaRtc(''), isFalse);
+      expect(appelViaRtc('package'), isFalse);
+    });
+
+    test('le choix ne dépend PAS de rtc_online (bug du 3 novembre 2026)', () {
+      // Le serveur ne renvoyait pas ce champ ; exiger rtc_online == true
+      // faisait tomber tous les appels dans la simulation.
+      expect(appelViaRtc('mbote'), isTrue,
+          reason: 'rtc_online ne doit plus conditionner le transport');
+    });
+  });
+
   group('Erreur', () {
     test('erreur de démarrage', () {
       expect(libelleAppel(status: 'error'), 'Erreur');

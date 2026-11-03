@@ -10,7 +10,6 @@
 //   - qu'elle envoie un `ping` régulier (battement de cœur) ;
 //   - qu'elle se reconnecte après une coupure réseau ;
 //   - qu'elle abandonne un canal devenu muet.
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 

@@ -309,12 +309,16 @@ class _CallScreenState extends State<CallScreen>
       calleeName = r['callee_name'];
       calleeAvatar = r['callee_avatar'];
       setState(() => status = 'ringing');
-      //L'appelé a l'app ouverte → VRAIE VOIX (WebRTC)
-      if (r['rtc_online'] == true && freeReason == 'mbote') {
+      // MboteCall → MboteCall : VRAIE VOIX (WebRTC), que l'appelé soit déjà
+      // connecté ou non (le standardiste le réveille par notification et garde
+      // l'offre en salle d'attente). Voir `appelViaRtc` : dépendre de
+      // `rtc_online` faisait basculer tous les appels dans la simulation.
+      if (appelViaRtc(freeReason)) {
         rtcMode = true;
         await _startRtc();
       } else {
-        // Mode démo (simulation) : GSM ou appelé hors ligne
+        // Appel vers un GSM / mode démonstration de l'opérateur : on suit
+        // l'état côté serveur.
         poll = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
       }
     } catch (e) {
