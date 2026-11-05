@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "473834290872",
+    "project_id": "mbotecall",
+    "storage_bucket": "mbotecall.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:473834290872:android:3dfc1f9149bf60f27dbe4d",
+        "android_client_info": {
+          "package_name": "com.example.mbote_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCyptbGBrY31MiuHTF4YfK_uPP_1kaVeMY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
