@@ -7,7 +7,7 @@ environment:
   sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
-  package_info_plus: 8.3.2  # épinglé : les versions 9.x cassent GeneratedPluginRegistrant (classe Java PackageInfoPlugin)
+  package_info_plus: 9.0.1  # épinglé : les versions 9.x cassent GeneratedPluginRegistrant (classe Java PackageInfoPlugin)
   sms_autofill: ^2.4.0  # Autofill OTP : SMS Retriever (Android) + Autofill (iOS), sans permission SMS
   flutter:
     sdk: flutter
