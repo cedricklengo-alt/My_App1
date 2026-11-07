@@ -1577,13 +1577,14 @@ class ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _roundButton({
-    super.key,
+    Key? key,
     required IconData icon,
     required Color color,
     required Color tint,
     required VoidCallback onTap,
   }) {
     return InkWell(
+      key: key,
       onTap: () {
         HapticFeedback.selectionClick();
         onTap();
