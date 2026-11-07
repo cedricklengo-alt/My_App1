@@ -1,4 +1,4 @@
-﻿plugins {
+plugins {
      id("com.android.application")
     id("org.jetbrains.kotlin.android")
     // Le plugin Flutter doit venir APRÈS Android et Kotlin
@@ -33,9 +33,14 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // ⚠️ PUBLICATION PLAY STORE : remplacer par VOTRE signingConfig release
+            // (keystore hors dépôt, jamais committé). Le debug ne convient pas.
+            // signingConfig = signingConfigs.getByName("release")
             signingConfig = signingConfigs.getByName("debug")
+            // 🔒 R8 : obfuscation + réduction de la taille + suppression du code mort.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }

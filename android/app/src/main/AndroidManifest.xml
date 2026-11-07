@@ -15,8 +15,17 @@
     <!-- La caméra reste facultative : l'appel bascule en audio si elle manque -->
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
-    <!-- 🔔 Notifications d'appel (app fermée) — Android 13+ -->
+    <!-- 🔔 Notifications (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- 📞 Appel VoIP premium (Telecom self-managed, Android 10+) -->
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS"/>
+    <!-- 🚨 Appel entrant plein écran sur écran verrouillé (Android 14 exige cette permission) -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+    <!-- 🔧 Services foreground (Android 12+ : types phoneCall + microphone obligatoires) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
 
     <application
         android:label="MboteCall"
@@ -48,6 +57,26 @@
                 <data android:scheme="mbote" android:host="post"/>
             </intent-filter>
         </activity>
+
+        <!-- 📞 ConnectionService Telecom : rend l'appel VoIP visible dans
+             l'historique système, le lockscreen, Android Auto et le Bluetooth. -->
+        <service
+            android:name=".MboteCallService"
+            android:permission="android.permission.BIND_CONNECTION_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.telecom.ConnectionService"/>
+            </intent-filter>
+        </service>
+
+        <!-- 🔧 Service foreground « appel en cours » : notification CallStyle
+             + maintien du micro pendant l'appel (Android 12+). -->
+        <service
+            android:name=".MboteCallForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall|microphone"
+            android:stopWithTask="false"/>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
@@ -56,6 +85,10 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Telecom : visibilité des apps capables de gérer des appels -->
+        <intent>
+            <action android:name="android.telecom.ConnectionService"/>
         </intent>
     </queries>
 </manifest>

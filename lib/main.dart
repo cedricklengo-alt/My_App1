@@ -16,6 +16,7 @@ import 'screens/group_call.dart';
 import 'screens/incoming_call.dart';
 import 'liens.dart';
 import 'rtc.dart';
+import 'push.dart';
 
 /// Clé du navigateur racine : permet d'afficher l'écran d'appel entrant
 /// depuis le canal temps réel, hors de tout contexte d'écran.
@@ -37,6 +38,9 @@ void main() async {
   await CallPrefs.load(); // sonnerie + vibration choisies
   await TradPrefs.load(); // traduction des discussions (Lokota)
   final pinSet = await Pin.isSet(); // verrou PIN éventuel
+  // 🔔 Deep-linking des notifications DÈS le démarrage : une notif qui a
+  // réveillé l'app fermée (cold start) ne doit jamais être perdue.
+  Push.initDeepLinks(appNavigatorKey);
   runApp(
     ChangeNotifierProvider(
       create: (_) => AppState()..init(),
