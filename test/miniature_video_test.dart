@@ -64,6 +64,7 @@ class FakeApi extends Api {
     PostVisibilite visibilite = PostVisibilite.public,
     PostOrigine origine = PostOrigine.rdc,
     PostDuree duree = PostDuree.permanent,
+    bool allowCalls = true,
   }) async {
     calls.add('createPost(thumb=$thumbUrl)');
     return Post(

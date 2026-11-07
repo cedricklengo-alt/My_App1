@@ -141,6 +141,7 @@ class FakeApi extends Api {
     PostVisibilite visibilite = PostVisibilite.contacts,
     PostOrigine origine = PostOrigine.rdc,
     PostDuree duree = PostDuree.permanent,
+    bool allowCalls = true,
   }) async {
     calls.add('createPost(${postTypeToApi(type)},$texte)');
     return post('nouveau', texte: texte ?? '', phone: '+243810000001');
