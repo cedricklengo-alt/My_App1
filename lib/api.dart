@@ -856,7 +856,6 @@ class Api {
     PostVisibilite visibilite = PostVisibilite.public,
     PostOrigine origine = PostOrigine.rdc,
     PostDuree duree = PostDuree.permanent,
-  ,
     bool allowCalls = true,
   }) async {
     final r = await _send('POST', '/feed/posts', {
