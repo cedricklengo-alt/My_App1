@@ -129,7 +129,7 @@ class _FeedScreenState extends State<FeedScreen> with RouteAware {
     _load();
     _notifs = NotifsCtl(_api)..addListener(_surNotifs);
     // 🔔 Push reçu app ouverte → badge du fil à jour immédiatement.
-    Push.surPushAuPremierPlan = _notifs.rafraichirBadge;
+    Push.surPushAuPremierPlan = _notifs?.rafraichirBadge;
     _notifs!.demarrer();
     _surLienPartage();
   }
