@@ -1577,6 +1577,7 @@ class ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _roundButton({
+    super.key,
     required IconData icon,
     required Color color,
     required Color tint,
@@ -1746,9 +1747,7 @@ class _Bubble extends StatelessWidget {
       child: GestureDetector(
         onLongPress: onLongPress,
         onTap: onTapSel,
-        child: Stack(
-          children: [
-            Container(
+        child: Container(
           constraints: BoxConstraints(
               maxWidth: MediaQuery.of(context).size.width * 0.78),
           margin: const EdgeInsets.symmetric(vertical: 3),
@@ -1765,6 +1764,10 @@ class _Bubble extends StatelessWidget {
                 : mine
                     ? MC.soleil
                     : MC.nuit3,
+            // ✅ Mode sélection : anneau doré autour de la bulle cochée.
+            border: selected
+                ? Border.all(color: MC.soleil, width: 2)
+                : null,
             borderRadius: BorderRadius.only(
               topLeft: const Radius.circular(Rd.lg),
               topRight: const Radius.circular(Rd.lg),
@@ -1970,27 +1973,8 @@ class _Bubble extends StatelessWidget {
               ],
             ),
           ],
-          ),
-          // ✅ Coche de sélection (mode multi-sélection).
-          if (selected)
-            Positioned(
-              top: 4,
-              left: mine ? 4 : null,
-              right: mine ? null : 4,
-              child: Container(
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: MC.soleil,
-                  border: Border.all(color: MC.nuit, width: 2),
-                ),
-                child: Icon(Icons.check_rounded, size: 14, color: MC.onAccent),
-              ),
-            ),
-        ],
-      ),
-    );
+        );
+    }
   }
 
   Widget _pending(Color tint, IconData icon) => Row(

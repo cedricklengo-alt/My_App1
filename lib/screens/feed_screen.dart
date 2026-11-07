@@ -2211,8 +2211,8 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     });
     try {
       final r = mine == type
-          ? await api.unreactComment('${c['id']}')
-          : await api.reactComment('${c['id']}', type);
+          ? await widget.api.unreactComment('${c['id']}')
+          : await widget.api.reactComment('${c['id']}', type);
       if (!mounted) return;
       setState(() {
         _comments[i] = {..._comments[i],

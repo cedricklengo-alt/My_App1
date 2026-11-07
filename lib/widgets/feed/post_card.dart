@@ -89,6 +89,7 @@ class PostCard extends StatelessWidget {
             post: post,
             isMine: isMine,
             onDelete: onDelete,
+            onEdit: onEdit,
             onFollow: isMine ? null : onFollow,
             onShare: onShare,
           ),
@@ -122,6 +123,7 @@ class PostCard extends StatelessWidget {
 class _Header extends StatelessWidget {
   final bool isMine;
   final VoidCallback? onDelete;
+  final VoidCallback? onEdit;
   final VoidCallback? onFollow;
   final VoidCallback? onShare;
 
@@ -130,6 +132,7 @@ class _Header extends StatelessWidget {
     required this.post,
     this.isMine = false,
     this.onDelete,
+    this.onEdit,
     this.onFollow,
     this.onShare,
   });
