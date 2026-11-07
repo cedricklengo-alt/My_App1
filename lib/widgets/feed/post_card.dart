@@ -27,6 +27,9 @@ class PostCard extends StatelessWidget {
   ///Fourni seulement pour MES publications (suppression autorisée).
   final VoidCallback? onDelete;
 
+  /// Édition de la publication (auteur seul) — ouvre la feuille préremplie.
+  final VoidCallback? onEdit;
+
   /// Suivre / ne plus suivre l'auteur (jamais proposé sur mes publications).
   final VoidCallback? onFollow;
 
@@ -54,6 +57,7 @@ class PostCard extends StatelessWidget {
     this.onShare,
     this.onCall,
     this.onDelete,
+    this.onEdit,
     this.onFollow,
     this.onTag,
     this.onHashtag,
@@ -200,6 +204,13 @@ class _Header extends StatelessWidget {
                     ],
                     Text(post.age,
                         style: TextStyle(color: MC.kaki, fontSize: Tx.caption)),
+                    if (post.editedAt != null) ...[
+                      const SizedBox(width: 4),
+                      Text('· Modifié',
+                          style: TextStyle(
+                              color: MC.soleil, fontSize: Tx.caption,
+                              fontWeight: FontWeight.w600)),
+                    ],
                     const SizedBox(width: 6),
                     _Badge(type: post.type),
                     // Sur MES publications : rappeler qui peut la voir. Sans
@@ -263,6 +274,8 @@ class _Header extends StatelessWidget {
                 final text = post.texte ?? post.eventTitle ?? '';
                 if (text.isEmpty) return;
                 await Clipboard.setData(ClipboardData(text: text));
+              } else if (value == 'edit') {
+                onEdit?.call();
               } else if (value == 'delete') {
                 onDelete?.call();
               } else if (value == 'share') {
@@ -282,7 +295,18 @@ class _Header extends StatelessWidget {
                 value: 'share',
                 child: Text('Partager', style: TextStyle(color: MC.ivoire)),
               ),
-              //Seul l'auteur voit cette entrée.
+              //Seul l'auteur voit ces entrées.
+              if (isMine && onEdit != null)
+                PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit_rounded, size: 17, color: MC.soleil),
+                      const SizedBox(width: 8),
+                      Text('Modifier', style: TextStyle(color: MC.ivoire)),
+                    ],
+                  ),
+                ),
               if (isMine && onDelete != null)
                 PopupMenuItem(
                   value: 'delete',

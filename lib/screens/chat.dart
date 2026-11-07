@@ -98,6 +98,11 @@ class ChatScreenState extends State<ChatScreen> {
   bool newBelow = false;
 
   DateTime? typingAt;
+
+  /// 🗑️ Sélection multiple : ids des messages cochés (appui long en mode
+  /// sélection, tap pour cocher/décocher).
+  final Set<String> _sel = {};
+  bool get _selMode => _sel.isNotEmpty;
   Timer? typingTimer;
   DateTime? typingSentAt;
   Timer? typingSendTimer;
@@ -776,6 +781,84 @@ class ChatScreenState extends State<ChatScreen> {
 
   //Suppression
 
+  void _toggleSel(Map m) {
+    final id = '${m['id']}';
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (_sel.contains(id)) {
+        _sel.remove(id);
+      } else {
+        _sel.add(id);
+      }
+    });
+  }
+
+  /// Suppression groupée : « pour moi » toujours possible ; « pour tous »
+  /// seulement si tous les messages sélectionnés sont les miens.
+  Future<void> _supprimerSelection() async {
+    if (_sel.isEmpty) return;
+    final ids = _sel.toList();
+    final tousAMoi = ids.every((id) {
+      final m = msgs.firstWhere((x) => '${x['id']}' == id, orElse: () => const {});
+      return m['mine'] == true;
+    });
+    final choix = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: MC.nuit2,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Text('${ids.length} message(s) sélectionné(s)',
+                  style: TextStyle(
+                      color: MC.ivoire,
+                      fontSize: Tx.subtitle,
+                      fontWeight: FontWeight.w800)),
+            ),
+            ListTile(
+              leading: Icon(Icons.person_off_rounded, color: MC.sable),
+              title: Text('Supprimer pour moi',
+                  style: TextStyle(color: MC.ivoire)),
+              onTap: () => Navigator.pop(ctx, 'me'),
+            ),
+            if (tousAMoi)
+              ListTile(
+                leading: Icon(Icons.delete_forever_rounded, color: MC.rouge),
+                title: Text('Supprimer pour tous',
+                    style: TextStyle(color: MC.rouge)),
+                onTap: () => Navigator.pop(ctx, 'all'),
+              ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || choix == null) return;
+    try {
+      await api.bulkDeleteMessages(ids, scope: choix);
+      if (!mounted) return;
+      setState(() {
+        msgs.removeWhere((m) => ids.contains('${m['id']}'));
+        _sel.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('$ids message(s) supprimé(s)'),
+        backgroundColor: MC.savane,
+      ));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(friendlyError(e)),
+          backgroundColor: MC.rouge,
+        ));
+      }
+    }
+  }
+
   Future<void> _menu(Map m) async {
     if ('${m['status']}' == 'sending') return;
     final mine = m['mine'] == true;
@@ -1006,7 +1089,23 @@ class ChatScreenState extends State<ChatScreen> {
           onPressed: () => Navigator.maybePop(context),
         ),
         titleSpacing: 0,
-        title: Row(
+        title: _selMode
+            ? Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Annuler la sélection',
+                    icon: Icon(Icons.close_rounded, color: MC.ivoire),
+                    onPressed: () => setState(() => _sel.clear()),
+                  ),
+                  const SizedBox(width: 4),
+                  Text('${_sel.length} sélectionné(s)',
+                      style: TextStyle(
+                          color: MC.ivoire,
+                          fontSize: Tx.subtitle,
+                          fontWeight: FontWeight.w800)),
+                ],
+              )
+            : Row(
           children: [
             Container(
               width: Densite.avatar,
@@ -1073,7 +1172,23 @@ class ChatScreenState extends State<ChatScreen> {
             ),
           ],
         ),
-        actions: [
+        actions: _selMode
+            ? [
+                IconButton(
+                  tooltip: 'Tout sélectionner',
+                  icon: Icon(Icons.select_all_rounded, color: MC.soleil),
+                  onPressed: () => setState(() {
+                      _sel.addAll(msgs.map((m) => '${m['id']}'));
+                    }),
+                ),
+                IconButton(
+                  tooltip: 'Supprimer',
+                  icon: Icon(Icons.delete_outline_rounded, color: MC.rouge),
+                  onPressed: _supprimerSelection,
+                ),
+                const SizedBox(width: Sp.x3),
+              ]
+            : [
           // 🔔 « Rappelle-moi quand cette personne revient en ligne » —
           // proposé seulement quand le contact est HORS LIGNE (inutile sinon).
           // Doré quand le rappel est actif. État local + file de synchro :
@@ -1135,6 +1250,42 @@ class ChatScreenState extends State<ChatScreen> {
                   ),
               ],
             ),
+          ),
+          // 🌐 Puce « Lingala ⇄ Français » au-dessus de la saisie quand la
+          // traduction est active pour CE fil — apparition/disparition douce.
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            child: _tradActive
+                ? Container(
+                    margin: const EdgeInsets.fromLTRB(8, 0, 8, 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: MC.nuit2,
+                      borderRadius: BorderRadius.circular(Rd.pill),
+                      border: Border.all(color: MC.soleil.withValues(alpha: .45)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.translate_rounded, size: 15, color: MC.soleil),
+                        const SizedBox(width: 6),
+                        Text('$langFrom ⇄ $langTo',
+                            style: TextStyle(
+                                color: MC.soleil,
+                                fontSize: Tx.caption,
+                                fontWeight: FontWeight.w700)),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () => _pickLangs(),
+                          child: Icon(Icons.settings_rounded,
+                              size: 14, color: MC.kaki),
+                        ),
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
           if (recording) _recBar() else _composer(),
         ],
@@ -1269,7 +1420,9 @@ class ChatScreenState extends State<ChatScreen> {
         msg: m,
         playing: playingId == '${m['id']}',
         onPlay: () => _play(m),
-        onLongPress: () => _menu(m),
+        selected: _sel.contains('${m['id']}'),
+        onTapSel: _selMode ? () => _toggleSel(m) : null,
+        onLongPress: () => _selMode ? _toggleSel(m) : _menu(m),
         onRetry: () => _retry(m),
         onOpenImage: () => _openImage(m),
         onOpenFile: () => _openFile(m),
@@ -1344,10 +1497,28 @@ class ChatScreenState extends State<ChatScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            IconButton(
-              onPressed: _attachments,
-              icon: Icon(Icons.add_circle_rounded, color: MC.kaki, size: 26),
-              tooltip: L10n.t('chat_attach'),
+            _roundButton(
+              icon: Icons.emoji_emotions_rounded,
+              color: MC.nuit3,
+              tint: MC.kaki,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                FocusScope.of(context).requestFocus(focus); // clavier système
+              },
+            ),
+            const SizedBox(width: 2),
+            _roundButton(
+              icon: Icons.translate_rounded,
+              color: _tradActive ? MC.soleil : MC.nuit3,
+              tint: _tradActive ? MC.onAccent : MC.kaki,
+              onTap: _pickLangs,
+            ),
+            const SizedBox(width: 2),
+            _roundButton(
+              icon: Icons.add_circle_rounded,
+              color: MC.nuit3,
+              tint: MC.kaki,
+              onTap: _attachments,
             ),
             Expanded(
               child: Container(
@@ -1378,20 +1549,27 @@ class ChatScreenState extends State<ChatScreen> {
               ),
             ),
             const SizedBox(width: 6),
-            if (ctrl.text.trim().isEmpty)
-              _roundButton(
-                icon: Icons.mic_rounded,
-                color: MC.nuit3,
-                tint: MC.sable,
-                onTap: _startRec,
-              )
-            else
-              _roundButton(
-                icon: Icons.send_rounded,
-                color: MC.soleil,
-                tint: MC.onAccent,
-                onTap: _sendText,
-              ),
+            // 🎚️ Micro ⇄ Envoi : transition animée, un seul bouton à droite.
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              transitionBuilder: (child, anim) => ScaleTransition(
+                  scale: anim, child: FadeTransition(opacity: anim, child: child)),
+              child: ctrl.text.trim().isEmpty
+                  ? _roundButton(
+                      key: const ValueKey('mic'),
+                      icon: Icons.mic_rounded,
+                      color: MC.nuit3,
+                      tint: MC.sable,
+                      onTap: _startRec,
+                    )
+                  : _roundButton(
+                      key: const ValueKey('send'),
+                      icon: Icons.send_rounded,
+                      color: MC.soleil,
+                      tint: MC.onAccent,
+                      onTap: _sendText,
+                    ),
+            ),
           ],
         ),
       ),
@@ -1405,7 +1583,10 @@ class ChatScreenState extends State<ChatScreen> {
     required VoidCallback onTap,
   }) {
     return InkWell(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
       customBorder: const CircleBorder(),
       child: Container(
         width: 42,
@@ -1528,6 +1709,8 @@ class _Bubble extends StatelessWidget {
   final bool playing;
   final VoidCallback onPlay;
   final VoidCallback onLongPress;
+  final VoidCallback? onTapSel;
+  final bool selected;
   final VoidCallback onRetry;
   final VoidCallback onOpenImage;
   final VoidCallback onOpenFile;
@@ -1541,6 +1724,8 @@ class _Bubble extends StatelessWidget {
     required this.playing,
     required this.onPlay,
     required this.onLongPress,
+    this.onTapSel,
+    this.selected = false,
     required this.onRetry,
     required this.onOpenImage,
     required this.onOpenFile,
@@ -1560,7 +1745,10 @@ class _Bubble extends StatelessWidget {
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
         onLongPress: onLongPress,
-        child: Container(
+        onTap: onTapSel,
+        child: Stack(
+          children: [
+            Container(
           constraints: BoxConstraints(
               maxWidth: MediaQuery.of(context).size.width * 0.78),
           margin: const EdgeInsets.symmetric(vertical: 3),
@@ -1782,8 +1970,27 @@ class _Bubble extends StatelessWidget {
               ],
             ),
           ],
-        );
-    }
+          ),
+          // ✅ Coche de sélection (mode multi-sélection).
+          if (selected)
+            Positioned(
+              top: 4,
+              left: mine ? 4 : null,
+              right: mine ? null : 4,
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: MC.soleil,
+                  border: Border.all(color: MC.nuit, width: 2),
+                ),
+                child: Icon(Icons.check_rounded, size: 14, color: MC.onAccent),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _pending(Color tint, IconData icon) => Row(

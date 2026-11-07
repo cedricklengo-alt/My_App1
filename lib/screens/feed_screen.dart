@@ -468,6 +468,17 @@ class _FeedScreenState extends State<FeedScreen> with RouteAware {
     final id = Liens.post.value;
     if (id == null || !mounted) return;
     Liens.post.value = null;
+    // 🔔 Notification « nouveau commentaire » : on ouvre directement la
+    // feuille des commentaires de la publication concernée.
+    final commentairecible = Liens.commentaire.value;
+    if (commentairecible != null) {
+      Liens.commentaire.value = null;
+      try {
+        final post = await _api.lirePublication(id);
+        if (mounted) _openComments(post);
+      } catch (_) {}
+      return;
+    }
 
     try {
       final post = await _api.lirePublication(id);
@@ -760,7 +771,7 @@ class _FeedScreenState extends State<FeedScreen> with RouteAware {
 
  // Publication ───────────────────────────────────────
 
-  Future<void> _openCreate({String? type}) async {
+  Future<void> _openCreate({String? type, Post? editPost}) async {
     HapticFeedback.mediumImpact();
     // La feuille gère elle-même l'envoi (états chargement/erreur/réessayer) ;
     // elle ne se ferme qu'après une publication confirmée par le serveur.
@@ -770,6 +781,7 @@ class _FeedScreenState extends State<FeedScreen> with RouteAware {
       backgroundColor: Colors.transparent,
       builder: (_) => _CreateSheet(
         typeInitial: type,
+        editPost: editPost,
         onPublish: _publierDepuisFeuille,
       ),
     );
@@ -782,6 +794,24 @@ class _FeedScreenState extends State<FeedScreen> with RouteAware {
   /// Appelé par la feuille de création : lève une erreur si l'envoi échoue,
   /// pour que la feuille garde le brouillon et propose « Réessayer ».
   Future<void> _publierDepuisFeuille(Map draft) async {
+    final editId = draft['edit_id'] as String?;
+    if (editId != null) {
+      // ✏️ Édition : PATCH puis remplacement dans la liste (mise à jour
+      // immédiate du fil, sans rechargement).
+      final maj = await _api.editPost(
+        editId,
+        texte: draft['texte'] as String?,
+        mediaUrl: draft['media_url'] as String?,
+        thumbUrl: draft['thumb_url'] as String?,
+        visibilite: postVisibiliteFrom(draft['visibilite'] ?? 'public'),
+      );
+      if (!mounted) return;
+      setState(() {
+        final i = _posts.indexWhere((p) => p.id == editId);
+        if (i >= 0) _posts = [..._posts]..[i] = maj;
+      });
+      return;
+    }
     final post = await _api.createPost(
       type: postTypeFrom(draft['type']),
       texte: draft['texte'] as String?,
@@ -1130,7 +1160,10 @@ class _FeedScreenState extends State<FeedScreen> with RouteAware {
                   final mine = _myId != null && post.authorId == _myId;
                   // Une publication affichée est une publication lue.
                   if (!post.aMoi && !mine) _annoncerVue(post);
-                  return PostCard(
+                  // 🎯 RepaintBoundary : une carte qui s'anime (like, vidéo)
+                  // ne force pas le repaint de tout le fil.
+                  return RepaintBoundary(
+                    child: PostCard(
                     post: post,
                     myId: _myId,
                     dataSaverMode: _dataSaver,
@@ -1142,10 +1175,12 @@ class _FeedScreenState extends State<FeedScreen> with RouteAware {
                     // sécurité : la carte le vérifie aussi).
                     onCall: (!mine && post.canCall) ? () => _call(post) : null,
                     onDelete: mine ? () => _confirmDelete(post) : null,
+                    onEdit: mine ? () => _openCreate(editPost: post) : null,
                     onLike: () => _toggleLike(post),
                     onReact: (t) => _react(post, t),
                     onComment: () => _openComments(post),
                     onShare: () => _share(post),
+                    ),
                   );
                 },
               ),
@@ -2150,6 +2185,45 @@ class _CommentsSheetState extends State<_CommentsSheet> {
   final Map<String, GlobalKey> _cles = {};
 
   List<Map> _comments = const [];
+
+  /// 👍/👎 optimiste : met à jour l'UI instantanément, puis synchronise le
+  /// serveur. Un second appui sur le même bouton retire la réaction ;
+  /// like ↔ dislike est un simple changement de choix (pas de double vote).
+  Future<void> _react(Map c, String type) async {
+    final i = _comments.indexWhere((x) => x['id'] == c['id']);
+    if (i < 0) return;
+    final old = Map.of(_comments[i]);
+    final mine = '${old['ma_reaction'] ?? ''}';
+    int likes = (old['likes'] as num?)?.toInt() ?? 0;
+    int dislikes = (old['dislikes'] as num?)?.toInt() ?? 0;
+    String newMine;
+    if (mine == type) {
+      newMine = '';
+      if (type == 'like') likes--; else dislikes--;
+    } else {
+      newMine = type;
+      if (mine == 'like') likes--;
+      if (mine == 'dislike') dislikes--;
+      if (type == 'like') likes++; else dislikes++;
+    }
+    setState(() {
+      _comments[i] = {...old, 'likes': likes < 0 ? 0 : likes, 'dislikes': dislikes < 0 ? 0 : dislikes, 'ma_reaction': newMine};
+    });
+    try {
+      final r = mine == type
+          ? await api.unreactComment('${c['id']}')
+          : await api.reactComment('${c['id']}', type);
+      if (!mounted) return;
+      setState(() {
+        _comments[i] = {..._comments[i],
+          'likes': (r['likes'] as num?)?.toInt() ?? 0,
+          'dislikes': (r['dislikes'] as num?)?.toInt() ?? 0,
+          'ma_reaction': r['mine'] == null ? '' : '${r['mine']}'};
+      });
+    } catch (_) {
+      if (mounted) setState(() => _comments[i] = old); // rollback
+    }
+  }
   bool _loading = true;
   bool _sending = false;
   String? _error;
@@ -2481,17 +2555,37 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                       color: MC.sable, fontSize: Tx.label, height: 1.35),
                 ),
                 const SizedBox(height: 2),
-                GestureDetector(
-                  onTap: () => setState(() => _reponseA = c),
-                  behavior: HitTestBehavior.opaque,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Text('Répondre',
-                        style: TextStyle(
-                            color: MC.kaki,
-                            fontSize: Tx.caption,
-                            fontWeight: FontWeight.w700)),
-                  ),
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => setState(() => _reponseA = c),
+                      behavior: HitTestBehavior.opaque,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('Répondre',
+                            style: TextStyle(
+                                color: MC.kaki,
+                                fontSize: Tx.caption,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    // 👍 Like — état sélectionné en doré, animé au tap.
+                    _BoutonReact(
+                      icone: Icons.thumb_up_rounded,
+                      actif: '${c['ma_reaction'] ?? ''}' == 'like',
+                      compteur: (c['likes'] as num?)?.toInt() ?? 0,
+                      onTap: () => _react(c, 'like'),
+                    ),
+                    const SizedBox(width: 10),
+                    // 👎 Dislike.
+                    _BoutonReact(
+                      icone: Icons.thumb_down_rounded,
+                      actif: '${c['ma_reaction'] ?? ''}' == 'dislike',
+                      compteur: (c['dislikes'] as num?)?.toInt() ?? 0,
+                      onTap: () => _react(c, 'dislike'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -2510,11 +2604,14 @@ class _CreateSheet extends StatefulWidget {
   /// Type présélectionné depuis la zone de création du fil ('photo' | 'clip').
   final String? typeInitial;
 
+  /// Publication en cours d'édition (null = nouvelle publication).
+  final Post? editPost;
+
   /// Envoi réel vers le serveur. Lève une erreur si l'envoi échoue : la
   /// feuille garde alors le brouillon et affiche « Réessayer ».
   final Future<void> Function(Map draft) onPublish;
 
-  const _CreateSheet({this.typeInitial, required this.onPublish});
+  const _CreateSheet({this.typeInitial, this.editPost, required this.onPublish});
 
   @override
   State<_CreateSheet> createState() => _CreateSheetState();
@@ -2561,6 +2658,22 @@ class _CreateSheetState extends State<_CreateSheet> {
     // Restaure un brouillon laissé en cours (fermeture, changement d'écran,
     // perte de connexion, erreur d'envoi) : rien n'est perdu silencieusement.
     _restaurerBrouillon();
+    // ✏️ Mode édition : préremplit la feuille avec la publication existante.
+    final ep = widget.editPost;
+    if (ep != null) {
+      _type = postTypeToApi(ep.type);
+      _texte.text = ep.texte ?? '';
+      _mediaUrl = ep.mediaUrl;
+      _thumbUrl = ep.thumbUrl;
+      _clipSec = ep.clipDureeSeconds;
+      _titre.text = ep.eventTitle ?? '';
+      _eventDate = ep.eventDate;
+      _lieu.text = ep.eventLieu ?? '';
+      _tags.text = ep.eventTags.join(' ');
+      _visibilite = postVisibiliteToApi(ep.visibilite);
+      _ville = ep.ville;
+      _villeCtrl.text = ep.ville ?? '';
+    }
     for (final c in [_texte, _titre, _lieu, _tags, _villeCtrl]) {
       c.addListener(_sauvegarderBrouillon);
     }
@@ -2602,6 +2715,7 @@ class _CreateSheetState extends State<_CreateSheet> {
         'event_tags': _tags.text,
         'visibilite': _visibilite,
         'allow_calls': _allowCalls,
+        'edit_id': widget.editPost?.id,
         'ville': _ville,
       };
 
@@ -2825,6 +2939,7 @@ class _CreateSheetState extends State<_CreateSheet> {
             .toList(),
         'visibilite': _visibilite,
         'allow_calls': _allowCalls,
+        'edit_id': widget.editPost?.id,
         'ville': _ville,
       });
       await _viderBrouillon();
@@ -2913,8 +3028,8 @@ class _CreateSheetState extends State<_CreateSheet> {
                                 child: CircularProgressIndicator(
                                     strokeWidth: 2.2, color: MC.nuit),
                               )
-                            : const Text(
-                                'Publier',
+                            : Text(
+                                widget.editPost != null ? 'Enregistrer' : 'Publier',
                                 style: TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: Tx.body),
@@ -3679,6 +3794,79 @@ class _StoryOption extends StatelessWidget {
         child: Icon(icon, color: MC.soleil, size: 19),
       ),
       title: Text(label, style: TextStyle(color: MC.ivoire, fontSize: Tx.body)),
+    );
+  }
+}
+
+/// Bouton de réaction 👍/👎 animé (scale au tap) avec état sélectionné.
+class _BoutonReact extends StatefulWidget {
+  final IconData icone;
+  final bool actif;
+  final int compteur;
+  final VoidCallback onTap;
+  const _BoutonReact({
+    required this.icone,
+    required this.actif,
+    required this.compteur,
+    required this.onTap,
+  });
+
+  @override
+  State<_BoutonReact> createState() => _BoutonReactState();
+}
+
+class _BoutonReactState extends State<_BoutonReact>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctl = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 180));
+  late final Animation<double> _scale =
+      Tween(begin: 1.0, end: 1.35).animate(CurvedAnimation(
+    parent: _ctl,
+    curve: Curves.easeOutBack,
+  ));
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  void _tap() {
+    HapticFeedback.selectionClick();
+    _ctl.forward().then((_) => _ctl.reverse());
+    widget.onTap();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final couleur = widget.actif ? MC.soleil : MC.kaki;
+    return GestureDetector(
+      onTap: _tap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: AnimatedBuilder(
+          animation: _ctl,
+          builder: (_, __) => Transform.scale(
+            scale: _scale.value,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(widget.icone, size: 15, color: couleur),
+                if (widget.compteur > 0) ...[
+                  const SizedBox(width: 3),
+                  Text('${widget.compteur}',
+                      style: TextStyle(
+                          color: widget.actif ? MC.soleil : MC.kaki,
+                          fontSize: Tx.caption,
+                          fontWeight:
+                              widget.actif ? FontWeight.w800 : FontWeight.w600)),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

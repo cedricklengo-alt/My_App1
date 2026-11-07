@@ -74,6 +74,9 @@ class Post {
   final PostType type;
   final DateTime createdAt;
 
+  /// Renseigné quand l'auteur a modifié la publication après coup (« Modifié »).
+  final DateTime? editedAt;
+
   // Contenu
   final String? texte;
   final String? mediaUrl;
@@ -140,6 +143,7 @@ class Post {
     this.authorPhone,
     required this.type,
     required this.createdAt,
+    this.editedAt,
     this.texte,
     this.mediaUrl,
     this.eventTitle,
@@ -189,6 +193,9 @@ class Post {
       createdAt: createdMs == null
           ? DateTime.now()
           : DateTime.fromMillisecondsSinceEpoch(createdMs),
+      editedAt: (j['edited_at'] as num?) == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch((j['edited_at'] as num).toInt()),
       texte: j['texte'] as String?,
       mediaUrl: (j['media_url'] as String?)?.trim().isEmpty ?? true
           ? null
@@ -275,6 +282,7 @@ class Post {
         authorPhone: authorPhone,
         type: type,
         createdAt: createdAt,
+        editedAt: editedAt,
         texte: texte,
         mediaUrl: mediaUrl,
         eventTitle: eventTitle,

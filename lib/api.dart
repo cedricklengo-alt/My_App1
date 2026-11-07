@@ -572,8 +572,41 @@ class Api {
     await _send('DELETE', '/rank/posts/$postId/react');
   }
 
-  Future<void> reactComment(String commentId, String type) async {
-    await _send('POST', '/rank/comments/$commentId/react', {'type': type});
+  /// 👍/👎 sur un commentaire — renvoie les compteurs à jour + mon choix.
+  Future<Map<String, dynamic>> reactComment(String commentId, String type) async =>
+      await _send('POST', '/rank/comments/$commentId/react', {'type': type});
+
+  /// Retire ma réaction sur un commentaire.
+  Future<Map<String, dynamic>> unreactComment(String commentId) async =>
+      await _send('DELETE', '/rank/comments/$commentId/react');
+
+  /// ✏️ Édite une publication (auteur seul) — renvoie le post rafraîchi.
+  Future<Post> editPost(
+    String postId, {
+    String? texte,
+    String? mediaUrl,
+    String? thumbUrl,
+    PostVisibilite? visibilite,
+  }) async {
+    final body = <String, dynamic>{};
+    if (texte != null) body['texte'] = texte;
+    if (mediaUrl != null) body['media_url'] = mediaUrl;
+    if (thumbUrl != null) body['thumb_url'] = thumbUrl;
+    if (visibilite != null) body['visibilite'] = postVisibiliteToApi(visibilite);
+    final r = await _send('PATCH', '/feed/posts/$postId', body);
+    return Post.fromJson(Map<String, dynamic>.from(r['post'] as Map));
+  }
+
+  /// 🗑️ Suppression groupée de messages. scope: 'me' (pour moi) ou 'all' (pour tous, auteur seul).
+  Future<int> bulkDeleteMessages(List<String> ids, {String scope = 'me'}) async {
+    final r = await _send('POST', '/messages/bulk-delete', {'ids': ids, 'scope': scope});
+    return (r['supprimes'] as num?)?.toInt() ?? 0;
+  }
+
+  /// 🗑️ Suppression groupée d'appels dans l'historique.
+  Future<int> bulkDeleteCalls(List<String> ids) async {
+    final r = await _send('POST', '/calls/bulk-delete', {'ids': ids});
+    return (r['supprimes'] as num?)?.toInt() ?? 0;
   }
 
   /// Hashtags tendance (24 h).

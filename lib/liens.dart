@@ -17,6 +17,10 @@ class Liens {
   /// valeur arrive, il l'ouvre puis la remet à null.
   static final ValueNotifier<String?> post = ValueNotifier<String?>(null);
 
+  /// Commentaire à ouvrir directement (notification « Nouveau commentaire ») :
+  /// le fil ouvre la publication puis sa feuille de commentaires.
+  static final ValueNotifier<String?> commentaire = ValueNotifier<String?>(null);
+
   /// Dernier identifiant traité, pour ne pas rouvrir deux fois la même
   /// publication quand le système relivre l'intent.
   static String? _dernierTraite;

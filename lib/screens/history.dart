@@ -10,6 +10,7 @@ import '../tabs.dart';
 import '../design.dart';
 import '../theme.dart';
 import '../l10n.dart';
+import '../widgets/etat.dart';
 import 'call_sheet.dart';
 import 'chat.dart';
 import 'keypad.dart';
@@ -41,6 +42,10 @@ class HistoryScreenState extends State<HistoryScreen>
     with AutomaticKeepAliveClientMixin {
   List calls = [];
   bool loading = true;
+
+  /// 🗑️ Sélection multiple d'appels (appui long sur une ligne).
+  final Set<String> _sel = {};
+  bool get _selMode => _sel.isNotEmpty;
   String? error;
   String filter = 'all'; // all | in | out | missed | internet | gsm
   final _recherche = TextEditingController();
@@ -235,12 +240,38 @@ class HistoryScreenState extends State<HistoryScreen>
                                 letterSpacing: -.6,
                                 color: MC.ivoire)),
                       ),
-                      IconButton(
-                        tooltip: L10n.t('history_search'),
-                        icon: Icon(Icons.search_rounded,
-                            color: MC.kaki, size: 24),
-                        onPressed: () => setState(() => _searching = true),
-                      ),
+                      if (_selMode) ...[
+                        Text('${_sel.length} sélectionné(s)',
+                            style: TextStyle(
+                                color: MC.ivoire,
+                                fontSize: Tx.body,
+                                fontWeight: FontWeight.w800)),
+                        IconButton(
+                          tooltip: 'Tout sélectionner',
+                          icon: Icon(Icons.select_all_rounded,
+                              color: MC.soleil, size: 24),
+                          onPressed: () => setState(() =>
+                              _sel.addAll(visible.map((c) => '${c['id']}'))),
+                        ),
+                        IconButton(
+                          tooltip: 'Supprimer',
+                          icon: Icon(Icons.delete_outline_rounded,
+                              color: MC.rouge, size: 24),
+                          onPressed: _supprimerSelection,
+                        ),
+                        IconButton(
+                          tooltip: 'Annuler',
+                          icon: Icon(Icons.close_rounded,
+                              color: MC.kaki, size: 24),
+                          onPressed: () => setState(() => _sel.clear()),
+                        ),
+                      ] else
+                        IconButton(
+                          tooltip: L10n.t('history_search'),
+                          icon: Icon(Icons.search_rounded,
+                              color: MC.kaki, size: 24),
+                          onPressed: () => setState(() => _searching = true),
+                        ),
                     ],
                   ),
                   if (_searching) ...[
@@ -362,6 +393,55 @@ class HistoryScreenState extends State<HistoryScreen>
   }
 
   /// Regroupe les appels par jour, avec un intertitre lisible., avec un intertitre lisible.
+  void _toggleSel(dynamic c) {
+    final id = '${c['id']}';
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (_sel.contains(id)) {
+        _sel.remove(id);
+      } else {
+        _sel.add(id);
+      }
+    });
+  }
+
+  Future<void> _supprimerSelection() async {
+    if (_sel.isEmpty) return;
+    final ids = _sel.toList();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: MC.nuit2,
+        title: Text('Supprimer ${ids.length} appel(s) ?',
+            style: TextStyle(color: MC.ivoire, fontSize: Tx.subtitle)),
+        content: Text('Ils disparaîtront de votre historique.',
+            style: TextStyle(color: MC.sable, fontSize: Tx.label)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Annuler', style: TextStyle(color: MC.kaki))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('Supprimer', style: TextStyle(color: MC.rouge))),
+        ],
+      ),
+    );
+    if (!mounted || ok != true) return;
+    try {
+      await context.read<AppState>().api.bulkDeleteCalls(ids);
+      if (!mounted) return;
+      setState(() {
+        calls.removeWhere((c) => ids.contains('${c['id']}'));
+        _sel.clear();
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(friendlyError(e)), backgroundColor: MC.rouge));
+      }
+    }
+  }
+
   List<Widget> _groupedWidgets(List visible) {
     final out = <Widget>[];
     String? lastDay;
@@ -384,8 +464,11 @@ class HistoryScreenState extends State<HistoryScreen>
         missed: _isMissed(c),
         incoming: _isIn(c),
         video: _isVideo(c),
-        onCall: _dialable(c) ? () => _call(c) : null,
-        onOpen: () => _ouvrirFiche(c),
+        selected: _sel.contains('${c['id']}'),
+        onTapSel: _selMode ? () => _toggleSel(c) : null,
+        onLongPress: () => _toggleSel(c),
+        onCall: _selMode ? null : (_dialable(c) ? () => _call(c) : null),
+        onOpen: _selMode ? null : () => _ouvrirFiche(c),
       ));
     }
     return out;
@@ -437,25 +520,15 @@ class HistoryScreenState extends State<HistoryScreen>
       );
 
   Widget _errorBox(String message) => Padding(
-        padding: const EdgeInsets.fromLTRB(10, 40, 10, 10),
-        child: Column(
-          children: [
-            Icon(Icons.cloud_off_rounded, size: 46, color: MC.kaki),
-            const SizedBox(height: 12),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: MC.kaki, fontSize: Tx.label)),
-            const SizedBox(height: 14),
-            TextButton(
-              onPressed: () {
-                setState(() => loading = true);
-                _load();
-              },
-              child: Text(L10n.t('history_retry'),
-                  style: TextStyle(
-                      color: MC.soleil, fontWeight: FontWeight.w700)),
-            ),
-          ],
+        padding: const EdgeInsets.fromLTRB(10, 60, 10, 10),
+        child: EtatPage(
+          icone: Icons.cloud_off_rounded,
+          titre: message,
+          actionLabel: L10n.t('history_retry'),
+          onAction: () {
+            setState(() => loading = true);
+            _load();
+          },
         ),
       );
 
@@ -617,6 +690,9 @@ class _CallTile extends StatelessWidget {
   final bool video;
   final VoidCallback? onCall;
   final VoidCallback? onOpen;
+  final VoidCallback? onLongPress;
+  final VoidCallback? onTapSel;
+  final bool selected;
 
   const _CallTile({
     required this.call,
@@ -625,6 +701,9 @@ class _CallTile extends StatelessWidget {
     required this.video,
     required this.onCall,
     this.onOpen,
+    this.onLongPress,
+    this.onTapSel,
+    this.selected = false,
   });
 
   @override
@@ -650,9 +729,12 @@ class _CallTile extends StatelessWidget {
     return Column(
       children: [
         Material(
-          color: Colors.transparent,
+          color: selected ? MC.soleil.withValues(alpha: .08) : Colors.transparent,
+          borderRadius: BorderRadius.circular(Rd.md),
           child: InkWell(
-            onTap: onOpen,
+            borderRadius: BorderRadius.circular(Rd.md),
+            onLongPress: onLongPress,
+            onTap: onTapSel ?? onOpen,
             child: Padding(
               // Zones tactiles généreuses (≥48 dp) pour le doigt.
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

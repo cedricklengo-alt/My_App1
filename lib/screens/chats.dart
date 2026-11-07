@@ -15,6 +15,7 @@ import '../tabs.dart';
 import '../design.dart';
 import '../theme.dart';
 import '../widgets/avatar.dart';
+import '../widgets/etat.dart';
 import 'call.dart';
 import 'chat.dart';
 
@@ -409,38 +410,19 @@ class ChatsScreenState extends State<ChatsScreen> {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
-        const SizedBox(height: 110),
-        Icon(icon, size: 54, color: MC.kaki.withValues(alpha: 0.5)),
-        const SizedBox(height: 14),
-        Text(text,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: MC.kaki, fontSize: Tx.body)),
-        if (action != null) ...[
-          const SizedBox(height: 20),
-          Center(
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                  backgroundColor: MC.soleil, foregroundColor: MC.onAccent),
-              onPressed: action.$2,
-              icon: const Icon(Icons.edit_square, size: 18),
-              label: Text(action.$1),
-            ),
-          ),
-        ],
-        if (retry) ...[
-          const SizedBox(height: 18),
-          Center(
-            child: TextButton(
-              onPressed: () {
-                setState(() => loading = true);
-                _load();
-              },
-              child: Text(L10n.t('chats_refresh'),
-                  style: TextStyle(
-                      color: MC.soleil, fontWeight: FontWeight.w700)),
-            ),
-          ),
-        ],
+        const SizedBox(height: 90),
+        EtatPage(
+          icone: icon,
+          titre: text,
+          actionLabel: action?.$1 ?? (retry ? L10n.t('chats_refresh') : null),
+          onAction: action?.$2 ??
+              (retry
+                  ? () {
+                      setState(() => loading = true);
+                      _load();
+                    }
+                  : null),
+        ),
       ],
     );
   }

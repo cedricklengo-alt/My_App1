@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'api.dart';
 import 'screens/chat.dart';
 import 'screens/chats.dart';
+import 'liens.dart';
+import 'screens/feed_screen.dart';
 import 'screens/history.dart';
 
 ///Notifications d'appel (Firebase Cloud Messaging)
@@ -42,10 +44,20 @@ class Push {
     final kind = data['kind']?.toString() ?? '';
     final phone = data['from_phone']?.toString() ?? '';
     final name = data['from_name']?.toString() ?? '';
+    final postId = data['post_id']?.toString() ?? '';
+    final commentId = data['comment_id']?.toString() ?? '';
     Widget page;
     if (kind == 'incoming_call' || kind == 'call_cancel') {
       // Appel (manqué) → onglet Appels
       page = const HistoryScreen();
+    } else if (postId.isNotEmpty &&
+        ['post', 'comment', 'reaction', 'post_like', 'post_comment', 'like']
+            .contains(kind)) {
+      // 🔔 Publication / commentaire / réaction → le fil, directement sur
+      // la publication (et les commentaires si c'est un commentaire).
+      Liens.post.value = postId;
+      if (commentId.isNotEmpty) Liens.commentaire.value = commentId;
+      page = const FeedScreen();
     } else if (phone.isNotEmpty) {
       // Message / info d'une personne → conversation avec elle
       page = ChatScreen(peerPhone: phone, peerName: name.isEmpty ? null : name);
